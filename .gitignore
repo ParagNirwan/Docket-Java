@@ -1,0 +1,23 @@
+# Environment files
+.env
+.env.local
+*.env
+
+# Dependencies
+node_modules/
+
+# Build artifacts
+dist/
+target/
+
+# IDE / Editor
+.idea/
+.vscode/*
+!.vscode/tasks.json
+!.vscode/settings.json
+*.iml
+
+# OS files
+.DS_Store
+Thumbs.db
+

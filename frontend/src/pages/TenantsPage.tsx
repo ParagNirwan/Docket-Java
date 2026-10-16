@@ -104,7 +104,8 @@ export function TenantsPage() {
             No tenants yet
           </h3>
           <p className="text-sm text-gray-500 dark:text-gray-400 max-w-sm mx-auto mt-1 mb-6">
-            You don't have any workspaces yet. Create your first tenant to start managing your legal dockets.
+            You don't have any workspaces yet. Create your first tenant to start
+            managing your legal dockets.
           </p>
           <Link
             to="/create-first-tenant"
@@ -117,12 +118,13 @@ export function TenantsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {tenants.map((t, index) => {
-            const name = t.tenantName || t.name || `Tenant #${t.id || index + 1}`;
+            const name =
+              t.tenantName || t.name || `Tenant #${t.id || index + 1}`;
             const slug = t.tenantSlug || t.slug || "";
             return (
               <Link
                 key={t.id || index}
-                to={`/workspace/${encodeURIComponent(String(t.id ?? (slug || index + 1)))}`}
+                to={`/workspace/${encodeURIComponent(String(t.slug || t.tenantSlug ))}`}
                 state={{ tenantName: name }}
                 className="group relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5 shadow-xs hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-800 transition-all flex flex-col justify-between focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
               >
@@ -131,7 +133,7 @@ export function TenantsPage() {
                     <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold">
                       <BuildingIcon className="w-5 h-5" />
                     </div>
-                    <StatusBadge status={t.status || "Inactive"}  />
+                    <StatusBadge status={t.status || "Inactive"} />
                   </div>
                   <h3 className="text-base font-bold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                     {name}

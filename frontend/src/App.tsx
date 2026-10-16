@@ -66,7 +66,7 @@ function App() {
                 }
               />
               <Route
-                path="/workspace/:tenantId"
+                path="/workspace/:slug"
                 element={
                   <ProtectedRoute>
                     <TenantWorkspace />

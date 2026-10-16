@@ -21,3 +21,6 @@ target/
 .DS_Store
 Thumbs.db
 
+# Graphify output
+graphify-out/
+

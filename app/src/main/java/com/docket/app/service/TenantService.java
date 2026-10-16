@@ -25,6 +25,11 @@ public class TenantService {
     private final TenantMembershipRepository tenantMembershipRepository;
     private final TenantRepository tenantRepository;
 
+    public Tenant findBySlug(String slug) {
+        return tenantRepository.findBySlug(slug)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Tenant not found"));
+    }
+
     @Transactional
     public Tenant addTenant(CreateTenantRequestDTO tenantDTO, Authentication authentication) {
         String slug = tenantDTO.getSlug();

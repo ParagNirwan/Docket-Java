@@ -36,7 +36,7 @@ export function Header() {
   const tenantMenuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const { tenantId: routeTenantId } = useParams();
+  const { slug: routeSlug } = useParams();
   const currentLocationKey = `${location.pathname}:${location.key}`;
   const isTenantMenuOpen = tenantMenuPath === currentLocationKey;
   const currentTenantResult =
@@ -159,9 +159,9 @@ export function Header() {
   const routeState = location.state as { tenantName?: string } | null;
   const getTenantName = (tenant: TenantItem, index: number) =>
     tenant.tenantName || tenant.name || `Tenant #${tenant.id || index + 1}`;
-  const getTenantId = (tenant: TenantItem, index: number) =>
-    String(tenant.id ?? (tenant.tenantSlug || tenant.slug || index + 1));
-  const activeTenant = tenants.find((tenant, index) => getTenantId(tenant, index) === routeTenantId);
+  const getTenantSlug = (tenant: TenantItem) =>
+    tenant.tenantSlug || tenant.slug || "";
+  const activeTenant = tenants.find((tenant) => getTenantSlug(tenant) === routeSlug);
   const activeTenantName = activeTenant
     ? getTenantName(activeTenant, tenants.indexOf(activeTenant))
     : routeState?.tenantName;
@@ -202,7 +202,7 @@ export function Header() {
                     type="button"
                     onClick={() => setTenantMenuPath(isTenantMenuOpen ? null : currentLocationKey)}
                     className={`flex max-w-[260px] items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                      routeTenantId || location.pathname === "/tenants"
+                      routeSlug || location.pathname === "/tenants"
                         ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300"
                         : "text-gray-600 hover:bg-gray-100/70 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800/60 dark:hover:text-white"
                     }`}
@@ -222,17 +222,17 @@ export function Header() {
                         <p className="px-3 py-2 text-sm text-red-600 dark:text-red-400">{tenantLoadError}</p>
                       ) : tenants.length ? (
                         tenants.map((tenant, index) => {
-                          const id = getTenantId(tenant, index);
+                          const slug = getTenantSlug(tenant);
                           const name = getTenantName(tenant, index);
-                          const selected = id === routeTenantId;
+                          const selected = slug === routeSlug;
                           return (
                             <button
-                              key={id}
+                              key={slug || index}
                               type="button"
                               role="option"
                               aria-selected={selected}
                               onClick={() => {
-                                navigate(`/workspace/${encodeURIComponent(id)}`, { state: { tenantName: name } });
+                                navigate(`/workspace/${encodeURIComponent(slug)}`, { state: { tenantName: name } });
                                 setTenantMenuPath(null);
                               }}
                               className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"

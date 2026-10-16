@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import {
   ArrowDownToLine,
   ArrowLeft,
@@ -103,15 +104,32 @@ function NavItem({
 }
 
 export function TenantWorkspace() {
-  const { tenantId } = useParams();
+  const { slug } = useParams();
+  const { token } = useAuth();
   const location = useLocation();
+  const routeState = location.state as { tenantName?: string } | null;
   const [collapsed, setCollapsed] = useState(false);
   const [activeSection, setActiveSection] = useState<WorkspaceSection>("review");
-  const routeState = location.state as { tenantName?: string } | null;
-  const tenantName =
+  const [tenantName, setTenantName] = useState(
     routeState?.tenantName ||
-    tenantId?.replace(/[-_]/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase()) ||
-    "Workspace";
+    slug?.replace(/[-_]/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase()) ||
+    "Workspace"
+  );
+
+  useEffect(() => {
+    if (!slug || !token) return;
+    const apiUrl = import.meta.env.VITE_API_URL || "/api";
+    fetch(`${apiUrl}/tenants/by-slug/${encodeURIComponent(slug)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.name) setTenantName(data.name);
+      })
+      .catch(() => {});
+  }, [slug, token]);
+
+
 
   const mainNavItems: WorkspaceNavItem[] = [
     { id: "review", label: "Review", icon: Inbox, count: "6" },
@@ -167,6 +185,7 @@ export function TenantWorkspace() {
 
           {mainNavItems.slice(1).map((item) => (
             <div key={item.id} className="space-y-1 max-md:flex max-md:shrink-0 max-md:items-center max-md:gap-1 max-md:space-y-0">
+              {!collapsed && <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400 dark:text-gray-500 max-md:hidden">Trays</p>}
               <NavItem item={item} collapsed={collapsed} active={activeSection === item.id} onClick={() => setActiveSection(item.id)} />
             </div>
           ))}

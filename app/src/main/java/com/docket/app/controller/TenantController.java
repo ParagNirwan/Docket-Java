@@ -7,10 +7,9 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+
 
 @RestController
 @RequestMapping("/api/tenants")
@@ -25,5 +24,10 @@ public class TenantController {
             Authentication authentication
     ) {
        return ResponseEntity.ok(tenantService.addTenant(request, authentication));
+    }
+
+    @GetMapping("/by-slug/{slug}")
+    public ResponseEntity<Tenant> getTenantBySlug(@PathVariable String slug) {
+        return ResponseEntity.ok(tenantService.findBySlug(slug));
     }
 }

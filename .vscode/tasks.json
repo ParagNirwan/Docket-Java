@@ -2,9 +2,9 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "🚀 Start All (Docker Compose)",
+      "label": "🚀 Start Docker Services",
       "type": "shell",
-      "command": "docker compose up --build",
+      "command": "docker compose up --build --remove-orphans",
       "group": {
         "kind": "build",
         "isDefault": true
@@ -16,9 +16,9 @@
       }
     },
     {
-      "label": "🛑 Stop All (Docker Compose)",
+      "label": "🛑 Stop Docker Services",
       "type": "shell",
-      "command": "docker compose down",
+      "command": "docker compose down --remove-orphans",
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
@@ -26,9 +26,9 @@
       }
     },
     {
-      "label": "🔄 Restart All (Docker Compose)",
+      "label": "🔄 Restart Docker Services",
       "type": "shell",
-      "command": "docker compose restart",
+      "command": "docker compose up -d --build --remove-orphans",
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
@@ -37,4 +37,3 @@
     }
   ]
 }
-

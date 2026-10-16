@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { hasPermission, type PermissionCode } from "../lib/permissions";
 import {
   ArrowDownToLine,
   ArrowLeft,
@@ -23,20 +24,29 @@ import {
 import type { LucideIcon } from "lucide-react";
 import "./TenantWorkspace.css";
 
+// The possible sections a workspace can show.
 type WorkspaceSection = "review" | "general" | "trash" | "partners" | "emails";
 
+// Shape of each sidebar navigation item.
+// The "permission" field controls visibility — if the user doesn't have
+// that permission, the item won't appear in the sidebar at all.
 interface WorkspaceNavItem {
   id: WorkspaceSection;
   label: string;
   icon: LucideIcon;
+  permission: PermissionCode | null;
   count?: string;
 }
 
+// Sidebar items under the "Trays" group.
+// "General" requires documents.read, "Trash" requires documents.delete.
 const trayItems: WorkspaceNavItem[] = [
-  { id: "general", label: "General", icon: Folder, count: "12" },
-  { id: "trash", label: "Trash", icon: Trash2 },
+  { id: "general", label: "General", icon: Folder, permission: "documents.read", count: "12" },
+  { id: "trash", label: "Trash", icon: Trash2, permission: "documents.delete" },
 ];
 
+// Sample/placeholder data for the UI. These will be replaced with real
+// data from the backend once the documents feature is built.
 const documents = [
   { name: "Board resolution — Q3 approval", detail: "Corporate governance · PDF", date: "Today", status: "Needs review" },
   { name: "Master services agreement", detail: "Commercial · DOCX", date: "Yesterday", status: "Needs review" },
@@ -62,6 +72,9 @@ const sectionLabels: Record<WorkspaceSection, string> = {
   emails: "Connected Emails",
 };
 
+// A single sidebar button. Shows an icon, label, and optional count badge.
+// When the sidebar is collapsed (narrow), it hides the text and just shows the icon.
+// The currently active item gets highlighted in indigo/purple.
 function NavItem({
   item,
   collapsed,
@@ -103,39 +116,155 @@ function NavItem({
   );
 }
 
+// The main workspace page. When a user opens an organization, this page:
+// 1. Fetches the user's permissions from the backend
+// 2. Shows only the sidebar items and buttons the user is allowed to see
+// 3. Displays the content for whichever section is currently selected
 export function TenantWorkspace() {
+  // Get the org's URL name (slug) from the address bar, e.g. "/workspace/acme-corp"
   const { slug } = useParams();
+  // Get the logged-in user's authentication token
   const { token } = useAuth();
   const location = useLocation();
+  // If the user navigated here from the tenant list, the org name may have been
+  // passed along so we can show it immediately without waiting for the API.
   const routeState = location.state as { tenantName?: string } | null;
   const [collapsed, setCollapsed] = useState(false);
   const [activeSection, setActiveSection] = useState<WorkspaceSection>("review");
+  // Stores the user's permissions once fetched from the backend.
+  // Starts in a "loading" state with an empty permission set.
+  const [permissionState, setPermissionState] = useState<{
+    slug: string | undefined;
+    token: string | null;
+    permissions: ReadonlySet<string>;
+    loading: boolean;
+    error: string | null;
+  }>({
+    slug: undefined,
+    token: null,
+    permissions: new Set(),
+    loading: true,
+    error: null,
+  });
   const [tenantName, setTenantName] = useState(
     routeState?.tenantName ||
     slug?.replace(/[-_]/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase()) ||
     "Workspace"
   );
 
+  // As soon as the page opens, fetch two things from the backend at once:
+  // 1. "What permissions does the logged-in user have in this org?"
+  // 2. "What's this organization's info (name, etc.)?"
+  // Doing both at the same time makes the page load faster.
   useEffect(() => {
-    if (!slug || !token) return;
+    // AbortController lets us cancel the requests if the user navigates
+    // away before they finish — prevents errors on a page you've left.
+    const controller = new AbortController();
+    if (!slug || !token) {
+      return () => controller.abort();
+    }
+
     const apiUrl = import.meta.env.VITE_API_URL || "/api";
-    fetch(`${apiUrl}/tenants/by-slug/${encodeURIComponent(slug)}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data?.name) setTenantName(data.name);
+    const encodedSlug = encodeURIComponent(slug);
+    const headers = { Authorization: `Bearer ${token}` };
+    Promise.all([
+      fetch(`${apiUrl}/tenants/by-slug/${encodedSlug}/permissions`, {
+        headers,
+        signal: controller.signal,
+      }),
+      fetch(`${apiUrl}/tenants/by-slug/${encodedSlug}`, {
+        headers,
+        signal: controller.signal,
+      }),
+    ])
+      // If either request failed (not a member, org doesn't exist, etc.), show an error.
+      .then(async ([permissionsResponse, tenantResponse]) => {
+        if (!permissionsResponse.ok || !tenantResponse.ok) {
+          throw new Error("Unable to verify workspace access.");
+        }
+        // Read both responses and sanity-check the permissions data.
+        const [data, tenantData]: [unknown, unknown] = await Promise.all([
+          permissionsResponse.json(),
+          tenantResponse.json(),
+        ]);
+        if (
+          !Array.isArray(data) ||
+          !data.every((permission): permission is string => typeof permission === "string")
+        ) {
+          throw new Error("Workspace permissions response was invalid.");
+        }
+        return { permissions: data, tenant: tenantData };
       })
-      .catch(() => {});
+      // Everything went well — save the permissions and org name.
+      .then(({ permissions: permissionCodes, tenant }) => {
+        if (!controller.signal.aborted) {
+          if (
+            tenant &&
+            typeof tenant === "object" &&
+            "name" in tenant &&
+            typeof tenant.name === "string"
+          ) {
+            setTenantName(tenant.name);
+          }
+          setPermissionState({
+            slug,
+            token,
+            permissions: new Set(permissionCodes),
+            loading: false,
+            error: null,
+          });
+        }
+      })
+      // Something went wrong — save the error message to display.
+      .catch((error: unknown) => {
+        if (!controller.signal.aborted) {
+          setPermissionState({
+            slug,
+            token,
+            permissions: new Set(),
+            loading: false,
+            error: error instanceof Error ? error.message : "Unable to verify workspace access.",
+          });
+        }
+      });
+
+    return () => controller.abort();
   }, [slug, token]);
 
-
-
+  // Main sidebar items — each requires a specific permission to be visible.
+  // "emails" has permission: null, meaning it's always shown (no permission needed).
   const mainNavItems: WorkspaceNavItem[] = [
-    { id: "review", label: "Review", icon: Inbox, count: "6" },
-    { id: "partners", label: "Partners", icon: UsersRound },
-    { id: "emails", label: "Connected Emails", icon: Mail, count: "2" },
+    { id: "review", label: "Review", icon: Inbox, permission: "documents.read", count: "6" },
+    { id: "partners", label: "Partners", icon: UsersRound, permission: "members.read" },
+    { id: "emails", label: "Connected Emails", icon: Mail, permission: null, count: "2" },
   ];
+
+  // Make sure the fetched permissions actually belong to the current page.
+  // If the user navigated to a different org, we shouldn't use stale permissions.
+  const accessStateMatchesRoute = permissionState.slug === slug && permissionState.token === token;
+  const permissionsLoading = !!slug && !!token && (!accessStateMatchesRoute || permissionState.loading);
+  const permissionsError = !slug || !token
+    ? "Unable to verify workspace access."
+    : accessStateMatchesRoute
+      ? permissionState.error
+      : null;
+  const permissions = accessStateMatchesRoute ? permissionState.permissions : new Set<string>();
+
+  // THE KEY PART: Filter sidebar items based on permissions.
+  // Only keep the items the user has permission for. A basic Member with only
+  // "tenant.read" and "documents.read" will see "Review" and "General" but
+  // not "Trash," "Partners," etc.
+  const visibleMainNavItems = mainNavItems.filter(
+    (item) => item.permission !== null && hasPermission(permissions, item.permission),
+  );
+  const visibleTrayItems = trayItems.filter(
+    (item) => item.permission !== null && hasPermission(permissions, item.permission),
+  );
+  const visibleSections = [...visibleMainNavItems, ...visibleTrayItems].map((item) => item.id);
+
+  // If the user was looking at a section they no longer have access to,
+  // switch them to the first available section.
+  const currentSection = visibleSections.includes(activeSection) ? activeSection : visibleSections[0];
 
   return (
     <div className="flex min-h-[calc(100svh-4rem)] flex-1 flex-col bg-gray-50/80 dark:bg-gray-950 md:flex-row">
@@ -170,25 +299,35 @@ export function TenantWorkspace() {
         </div>
 
         <nav className={`flex-1 space-y-6 overflow-y-auto py-5 max-md:flex max-md:items-center max-md:gap-2 max-md:overflow-x-auto max-md:space-y-0 max-md:px-3 max-md:py-2 ${collapsed ? "px-2" : "px-3"}`}>
-          <div className="space-y-1 max-md:flex max-md:shrink-0 max-md:items-center max-md:gap-1 max-md:space-y-0">
-            {mainNavItems.slice(0, 1).map((item) => (
-              <NavItem key={item.id} item={item} collapsed={collapsed} active={activeSection === item.id} onClick={() => setActiveSection(item.id)} />
-            ))}
-          </div>
+          {permissionsLoading ? (
+            <p className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400" role="status">
+              Checking access...
+            </p>
+          ) : (
+            <>
+              {visibleMainNavItems.filter((item) => item.id === "review").map((item) => (
+                <div key={item.id} className="space-y-1 max-md:flex max-md:shrink-0 max-md:items-center max-md:gap-1 max-md:space-y-0">
+                  <NavItem item={item} collapsed={collapsed} active={currentSection === item.id} onClick={() => setActiveSection(item.id)} />
+                </div>
+              ))}
 
-          <div className="space-y-1 max-md:flex max-md:shrink-0 max-md:items-center max-md:gap-1 max-md:space-y-0">
-            {!collapsed && <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400 dark:text-gray-500 max-md:hidden">Trays</p>}
-            {trayItems.map((item) => (
-              <NavItem key={item.id} item={item} collapsed={collapsed} active={activeSection === item.id} onClick={() => setActiveSection(item.id)} />
-            ))}
-          </div>
+              {visibleTrayItems.length > 0 && (
+                <div className="space-y-1 max-md:flex max-md:shrink-0 max-md:items-center max-md:gap-1 max-md:space-y-0">
+                  {!collapsed && <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400 dark:text-gray-500 max-md:hidden">Trays</p>}
+                  {visibleTrayItems.map((item) => (
+                    <NavItem key={item.id} item={item} collapsed={collapsed} active={currentSection === item.id} onClick={() => setActiveSection(item.id)} />
+                  ))}
+                </div>
+              )}
 
-          {mainNavItems.slice(1).map((item) => (
-            <div key={item.id} className="space-y-1 max-md:flex max-md:shrink-0 max-md:items-center max-md:gap-1 max-md:space-y-0">
-              {!collapsed && <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400 dark:text-gray-500 max-md:hidden">Trays</p>}
-              <NavItem item={item} collapsed={collapsed} active={activeSection === item.id} onClick={() => setActiveSection(item.id)} />
-            </div>
-          ))}
+              {visibleMainNavItems.filter((item) => item.id !== "review").map((item) => (
+                <div key={item.id} className="space-y-1 max-md:flex max-md:shrink-0 max-md:items-center max-md:gap-1 max-md:space-y-0">
+                  {!collapsed && <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400 dark:text-gray-500 max-md:hidden">Workspace</p>}
+                  <NavItem item={item} collapsed={collapsed} active={currentSection === item.id} onClick={() => setActiveSection(item.id)} />
+                </div>
+              ))}
+            </>
+          )}
         </nav>
 
         <div className={`border-t border-gray-100 py-4 dark:border-gray-800 ${collapsed ? "px-2" : "px-3"}`}>
@@ -203,21 +342,43 @@ export function TenantWorkspace() {
         </div>
       </aside>
 
+      {/* Main content area — shows one of four states:
+          1. Loading ("Checking workspace access...")
+          2. Error (red box with the error message)
+          3. No permissions ("You don't have permission to view any workspace sections.")
+          4. The actual workspace content for the selected section */}
       <main className="min-w-0 flex-1">
+        {permissionsLoading ? (
+          <div className="mx-auto flex min-h-[320px] max-w-[1440px] items-center justify-center px-5 py-7 text-sm text-gray-500 dark:text-gray-400" role="status">
+            Checking workspace access...
+          </div>
+        ) : permissionsError ? (
+          <div className="mx-auto max-w-[1440px] px-5 py-7 sm:px-8 sm:py-9 lg:px-10">
+            <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-400" role="alert">
+              {permissionsError}
+            </div>
+          </div>
+        ) : visibleSections.length === 0 ? (
+          <div className="mx-auto max-w-[1440px] px-5 py-7 sm:px-8 sm:py-9 lg:px-10">
+            <div className="rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-600 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300" role="status">
+              You don’t have permission to view any workspace sections.
+            </div>
+          </div>
+        ) : (
         <div className="mx-auto w-full max-w-[1440px] px-5 py-7 sm:px-8 sm:py-9 lg:px-10">
           <div className="mb-8 flex flex-col gap-4 border-b border-gray-200 pb-6 dark:border-gray-800 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <div className="mb-2 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                 <span>{tenantName}</span>
                 <ChevronRight className="h-3.5 w-3.5" />
-                <span className="font-medium text-indigo-600 dark:text-indigo-400">{sectionLabels[activeSection]}</span>
+                <span className="font-medium text-indigo-600 dark:text-indigo-400">{sectionLabels[currentSection]}</span>
               </div>
               <h1 className="text-3xl font-semibold tracking-tight text-gray-900 dark:text-white">
-                {activeSection === "review" ? "Good afternoon" : sectionLabels[activeSection]}
+                {currentSection === "review" ? "Good afternoon" : sectionLabels[currentSection]}
               </h1>
-              <p className="mt-1.5 text-sm text-gray-500 dark:text-gray-400">{sectionDescription(activeSection)}</p>
+              <p className="mt-1.5 text-sm text-gray-500 dark:text-gray-400">{sectionDescription(currentSection)}</p>
             </div>
-            {activeSection === "review" && (
+            {currentSection === "review" && (
               <div className="flex items-center gap-2 self-start rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-600 shadow-xs dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300 sm:self-auto">
                 <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                 Private workspace
@@ -225,19 +386,25 @@ export function TenantWorkspace() {
             )}
           </div>
 
-          <div key={activeSection} className="workspace-content-enter">
-            {activeSection === "review" && <ReviewContent />}
-            {activeSection === "general" && <GeneralTrayContent />}
-            {activeSection === "trash" && <TrashContent />}
-            {activeSection === "partners" && <PartnersContent />}
-            {activeSection === "emails" && <ConnectedEmailsContent />}
+          {/* Show the content for whichever section is selected.
+              Some sections pass extra permission checks — e.g. the Partners
+              page only shows "Add a partner" if you have members.invite,
+              and the General tray only shows "Export" if you have documents.read. */}
+          <div key={currentSection} className="workspace-content-enter">
+            {currentSection === "review" && <ReviewContent />}
+            {currentSection === "general" && <GeneralTrayContent canExport={hasPermission(permissions, "documents.read")} />}
+            {currentSection === "trash" && <TrashContent />}
+            {currentSection === "partners" && <PartnersContent canInvite={hasPermission(permissions, "members.invite")} />}
+            {currentSection === "emails" && <ConnectedEmailsContent />}
           </div>
         </div>
+        )}
       </main>
     </div>
   );
 }
 
+// Returns a short description for each section, shown below the heading.
 function sectionDescription(section: WorkspaceSection) {
   const descriptions: Record<WorkspaceSection, string> = {
     review: "Here’s what needs your attention in this workspace.",
@@ -249,6 +416,7 @@ function sectionDescription(section: WorkspaceSection) {
   return descriptions[section];
 }
 
+// The "Review" section — shows summary cards and a list of documents needing review.
 function ReviewContent() {
   return (
     <>
@@ -299,7 +467,9 @@ function ReviewContent() {
   );
 }
 
-function GeneralTrayContent() {
+// The "General" tray — shows documents in a list.
+// The "Export" button only appears if canExport is true (user has documents.read).
+function GeneralTrayContent({ canExport }: { canExport: boolean }) {
   return (
     <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xs dark:border-gray-800 dark:bg-gray-900">
       <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4 dark:border-gray-800 sm:px-6">
@@ -310,9 +480,11 @@ function GeneralTrayContent() {
             <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">12 items · Updated recently</p>
           </div>
         </div>
-        <button type="button" className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">
-          <ArrowDownToLine className="h-3.5 w-3.5" /> Export
-        </button>
+        {canExport && (
+          <button type="button" className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">
+            <ArrowDownToLine className="h-3.5 w-3.5" /> Export
+          </button>
+        )}
       </div>
       <div className="divide-y divide-gray-100 dark:divide-gray-800">
         {documents.map((document) => (
@@ -330,6 +502,7 @@ function GeneralTrayContent() {
   );
 }
 
+// The "Trash" section — currently shows an empty state placeholder.
 function TrashContent() {
   return (
     <section className="flex min-h-[320px] flex-col items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-white px-6 text-center dark:border-gray-700 dark:bg-gray-900">
@@ -342,7 +515,10 @@ function TrashContent() {
   );
 }
 
-function PartnersContent() {
+// The "Partners" section — shows partner cards in a grid.
+// The "Add a partner" button only appears if canInvite is true (user has members.invite).
+// An Owner or Admin sees it; a basic Member does not.
+function PartnersContent({ canInvite }: { canInvite: boolean }) {
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       {partners.map((partner) => (
@@ -358,14 +534,18 @@ function PartnersContent() {
           </div>
         </article>
       ))}
-      <button type="button" className="flex min-h-[190px] flex-col items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-white p-5 text-sm font-medium text-gray-500 transition-colors hover:border-indigo-300 hover:bg-indigo-50/30 hover:text-indigo-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:border-indigo-800 dark:hover:bg-indigo-950/20 dark:hover:text-indigo-400">
-        <span className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-800"><Plus className="h-5 w-5" /></span>
-        Add a partner
-      </button>
+      {canInvite && (
+        <button type="button" className="flex min-h-[190px] flex-col items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-white p-5 text-sm font-medium text-gray-500 transition-colors hover:border-indigo-300 hover:bg-indigo-50/30 hover:text-indigo-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:border-indigo-800 dark:hover:bg-indigo-950/20 dark:hover:text-indigo-400">
+          <span className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-800"><Plus className="h-5 w-5" /></span>
+          Add a partner
+        </button>
+      )}
     </div>
   );
 }
 
+// The "Connected Emails" section — shows linked email accounts
+// and a button to connect a new one.
 function ConnectedEmailsContent() {
   return (
     <div className="space-y-4">
@@ -386,6 +566,7 @@ function ConnectedEmailsContent() {
   );
 }
 
+// A small stats card used in the Review section (e.g. "Waiting for review: 6").
 function SummaryCard({ label, value, icon: Icon, detail }: { label: string; value: string; icon: LucideIcon; detail: string }) {
   return (
     <article className="rounded-2xl border border-gray-200 bg-white p-5 shadow-xs transition-shadow duration-200 hover:shadow-sm dark:border-gray-800 dark:bg-gray-900">

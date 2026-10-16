@@ -1,7 +1,6 @@
 @echo off
 echo ===================================================
-echo Starting Docket (PostgreSQL + Spring Boot + React)
+echo Starting Docket Docker services (PostgreSQL + React)
 echo ===================================================
-docker compose up --build
+docker compose up --build --remove-orphans
 pause
-

@@ -8,7 +8,6 @@ import {
   CheckIcon,
   PlusIcon,
 } from "../components/icons";
-import { StatusBadge } from "../components/ui/StatusBadge";
 
 export function SettingsPage() {
   const { user, logout } = useAuth();
@@ -131,7 +130,7 @@ export function SettingsPage() {
                   {user?.tenantId ? `Tenant #${user.tenantId}` : "Default Workspace"}
                 </div>
                 <div className="text-xs text-gray-500 dark:text-gray-400">
-                  Status: <StatusBadge status={user?.status} />
+                  Tenant access is verified separately for each workspace.
                 </div>
               </div>
             </div>
@@ -173,4 +172,3 @@ export function SettingsPage() {
     </div>
   );
 }
-

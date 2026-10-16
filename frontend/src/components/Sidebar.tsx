@@ -14,7 +14,7 @@ interface SidebarProps {
 const SIDEBAR_CONFIG: Record<string, SidebarItem[]> = {
   "/tenants": [
     { label: "All Tenants", path: "/tenants" },
-    { label: "Create New", path: "/tenants/create" },
+    { label: "Create New", path: "/create-first-tenant" },
   ],
   "/settings": [
     { label: "General Settings", path: "/settings" },

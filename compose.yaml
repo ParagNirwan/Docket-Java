@@ -17,30 +17,6 @@ services:
       timeout: 5s
       retries: 10
 
-  backend:
-    build:
-      context: ./app
-      dockerfile: Dockerfile
-    container_name: docket-java-backend
-    restart: unless-stopped
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/docketdb
-      SPRING_DATASOURCE_USERNAME: docket
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-docket_dev_password}
-      JWT_SECRET: ${JWT_SECRET:-pBgvq5AHZZn+4U9NVUewKNVglrBRnkqaXjIYQMWCG6Q=}
-      JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
-    ports:
-      - "8080:8080"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
-      interval: 5s
-      timeout: 5s
-      retries: 12
-      start_period: 20s
-
   frontend:
     build:
       context: ./frontend
@@ -49,15 +25,11 @@ services:
     restart: unless-stopped
     environment:
       VITE_API_URL: ${VITE_API_URL:-/api}
-      BACKEND_URL: ${BACKEND_URL:-http://backend:8080}
+      BACKEND_URL: ${BACKEND_URL:-http://host.docker.internal:8080}
     ports:
       - "5173:5173"
     volumes:
       - ./frontend:/app
       - /app/node_modules
-    depends_on:
-      backend:
-        condition: service_healthy
-
 volumes:
   postgres_data:

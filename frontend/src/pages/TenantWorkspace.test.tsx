@@ -18,11 +18,29 @@ function response(body: unknown, status = 200): Response {
 function renderWorkspace(permissions: string[] | null) {
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (input: RequestInfo | URL) => {
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (url.endsWith("/permissions")) {
         if (url.includes("/other/")) return response([]);
         return permissions === null ? response({}, 403) : response(permissions);
+      }
+      if (url.includes("/trays") && init?.method === "POST") {
+        const body = JSON.parse(String(init.body || "{}"));
+        return response({
+          id: "tray-corporate-legal",
+          name: body.name,
+          description: body.description,
+          isTray: true,
+          isDefault: false,
+          visibility: body.visibility || "ALL_MEMBERS",
+          createdAt: new Date().toISOString(),
+        });
+      }
+      if (url.endsWith("/trays")) {
+        return response([
+          { id: "general", name: "General", isTray: true, isDefault: true, visibility: "ALL_MEMBERS" },
+          { id: "trash", name: "Trash", isTray: true, isDefault: true, visibility: "ADMIN_ONLY" },
+        ]);
       }
       return response({ name: "Acme" });
     }),
@@ -88,5 +106,45 @@ describe("TenantWorkspace permissions", () => {
 
     expect(screen.queryByRole("button", { name: "Review" })).toBeNull();
     expect(await screen.findByText("You don’t have permission to view any workspace sections.")).toBeTruthy();
+  });
+
+  it("shows tray + button only to users with trays.create permission and opens creation modal", async () => {
+    // 1. Without trays.create
+    renderWorkspace(["tenant.read", "documents.read"]);
+    expect(await screen.findByRole("heading", { name: "Good afternoon" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Create tray" })).toBeNull();
+
+    cleanup();
+
+    // 2. With trays.create
+    renderWorkspace(["tenant.read", "documents.read", "trays.create", "folders.create"]);
+    expect(await screen.findByRole("heading", { name: "Good afternoon" })).toBeTruthy();
+    const createTrayButton = screen.getByRole("button", { name: "Create tray" });
+    expect(createTrayButton).toBeTruthy();
+
+    // Click + button
+    fireEvent.click(createTrayButton);
+    expect(screen.getByRole("heading", { name: "Create New Tray" })).toBeTruthy();
+
+    // Fill in tray form
+    fireEvent.change(screen.getByLabelText(/Tray Name/i), {
+      target: { value: "Corporate Legal" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create Tray" }));
+
+    // Verify new tray appears in sidebar and folder browser opens
+    expect(await screen.findByRole("button", { name: "Corporate Legal" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Corporate Legal" })).toBeTruthy();
+  });
+
+  it("navigates into General tray and opens FolderBrowser", async () => {
+    renderWorkspace(["tenant.read", "documents.read", "folders.create"]);
+    expect(await screen.findByRole("heading", { name: "Good afternoon" })).toBeTruthy();
+
+    const generalTrayButton = screen.getByRole("button", { name: "General" });
+    fireEvent.click(generalTrayButton);
+
+    expect(await screen.findByRole("heading", { name: "General" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "New Folder" })).toBeTruthy();
   });
 });

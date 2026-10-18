@@ -35,7 +35,24 @@ public enum Permission {
     // Can you edit existing documents?
     DOCUMENTS_UPDATE("documents.update"),
     // Can you delete documents?
-    DOCUMENTS_DELETE("documents.delete");
+    DOCUMENTS_DELETE("documents.delete"),
+
+
+    // --- Trays permissions ---
+    // CAn you create Trays?
+    TRAYS_CREATE("trays.create"),
+    // Can you update Trays?
+    TRAYS_UPDATE("trays.update"),
+    // Can you delete Trays?
+    TRAYS_DELETE("trays.delete"),
+
+    // --- Folders permissions ---
+    // Can you create Folders?
+    FOLDERS_CREATE("folders.create"),
+    // Can you update Folders?
+    FOLDERS_UPDATE("folders.update"),
+    // Can you delete Folders?
+    FOLDERS_DELETE("folders.delete");
 
     // The short text code sent to the frontend (e.g. "members.invite")
     private final String code;

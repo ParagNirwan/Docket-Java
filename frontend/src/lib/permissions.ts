@@ -12,7 +12,13 @@ export type PermissionCode =
   | "documents.read"
   | "documents.create"
   | "documents.update"
-  | "documents.delete";
+  | "documents.delete"
+  | "trays.create"
+  | "trays.update"
+  | "trays.delete"
+  | "folders.create"
+  | "folders.update"
+  | "folders.delete";
 
 // "Does this person have this specific permission?"
 // Used throughout the UI to decide whether to show or hide buttons/sections.

@@ -1,15 +1,21 @@
 package com.docket.app.controller;
 
 import com.docket.app.dto.CreateTenantRequestDTO;
+import com.docket.app.dto.CreateTrayRequestDTO;
+import com.docket.app.dto.UpdateTrayDTO;
+import com.docket.app.entity.Folder;
 import com.docket.app.entity.Tenant;
 import com.docket.app.service.TenantService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 
 // The "front desk" for organization-related requests from the website.
@@ -32,7 +38,7 @@ public class TenantController {
             CreateTenantRequestDTO request,
             Authentication authentication
     ) {
-       return ResponseEntity.ok(tenantService.addTenant(request, authentication));
+        return ResponseEntity.ok(tenantService.addTenant(request, authentication));
     }
 
     // GET /api/tenants/by-slug/{slug}
@@ -59,4 +65,38 @@ public class TenantController {
     ) {
         return ResponseEntity.ok(tenantService.getPermissionCodes(slug, authentication));
     }
+
+
+    @GetMapping("/{slug}/trays")
+    public ResponseEntity<List<Folder>> getTenantTrays(
+            @PathVariable String slug,
+            Authentication authentication
+    ) {
+        return ResponseEntity.ok(tenantService.getTenantTrays(slug, authentication)
+        );
+    }
+
+    @PostMapping("/{slug}/trays")
+    public ResponseEntity<Folder> addTray(
+            @Valid
+            @RequestBody
+            CreateTrayRequestDTO request,
+            @PathVariable String slug,
+            Authentication authentication
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(tenantService.addTray(request, slug, authentication));
+    }
+
+    @PutMapping("/{slug}/trays/{trayId}")
+    public ResponseEntity<Folder> updateTray(
+            @Valid
+            @RequestBody
+            UpdateTrayDTO request,
+            @PathVariable String slug,
+            @PathVariable UUID trayId,
+            Authentication authentication
+    ) {
+        return ResponseEntity.ok(tenantService.updateTray(trayId, request, slug, authentication));
+    }
+
 }

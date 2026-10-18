@@ -2,6 +2,7 @@ package com.docket.app.service;
 
 import com.docket.app.entity.TenantMembership;
 import com.docket.app.enums.Permission;
+import com.docket.app.enums.Roles;
 import com.docket.app.enums.Status;
 import com.docket.app.enums.TenantStatus;
 import com.docket.app.repository.TenantMembershipRepository;
@@ -85,10 +86,10 @@ public class TenantAuthorizationService {
 
         // Step 5: Is this person an active member of this organization?
         var memberships = tenantMembershipRepository.findByUserIdAndTenantIdAndStatus(
-                        user.getId(),
-                        tenantId,
-                        Status.ACTIVE
-                );
+                user.getId(),
+                tenantId,
+                Status.ACTIVE
+        );
 
         // No membership found — they're not a member of this org.
         if (memberships.isEmpty()) {
@@ -102,7 +103,7 @@ public class TenantAuthorizationService {
 
         // Step 6: Final safety check — make sure the membership record truly
         // matches this user, this organization, and is active.
-        var membership = memberships.get(0);
+        var membership = memberships.getFirst();
         if (!user.getId().equals(membership.getUserId())
                 || !tenantId.equals(membership.getTenantId())
                 || membership.getStatus() != Status.ACTIVE) {
@@ -111,5 +112,14 @@ public class TenantAuthorizationService {
 
         // All checks passed — return the membership so we can look up their role.
         return membership;
+    }
+
+    public boolean hasPermission(Authentication authentication, UUID tenantId, Permission permission) {
+        var membership = findActiveMembership(authentication, tenantId);
+        return permission != null && RolePermissions.allows(membership.getRole(), permission);
+    }
+
+    public Roles getMembershipRole(Authentication authentication, UUID tenantId) {
+        return findActiveMembership(authentication, tenantId).getRole();
     }
 }

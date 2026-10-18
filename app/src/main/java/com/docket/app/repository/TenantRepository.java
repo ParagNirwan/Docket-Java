@@ -1,9 +1,11 @@
 package com.docket.app.repository;
 
+import com.docket.app.entity.Folder;
 import com.docket.app.entity.Tenant;
 import com.docket.app.enums.TenantStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -20,4 +22,5 @@ public interface TenantRepository extends JpaRepository<Tenant, UUID> {
     // "Does this organization exist and is it active?" Used by the bouncer to
     // make sure the org hasn't been shut down before granting access.
     boolean existsByIdAndStatus(UUID id, TenantStatus status);
+
 }

@@ -11,11 +11,11 @@ import {
   ChevronDown as ChevronDownIconLucide,
   ChevronRight as ChevronRightIconLucide,
   Check as CheckIconLucide,
-  FolderArchive as FolderArchiveIconLucide,
+  FileStack as FileStackIconLucide,
   ServerNas as ServerNasLucide
 } from 'lucide-react';
 
-export const LogoIcon = (props: SVGProps<SVGSVGElement>) => <FolderArchiveIconLucide className='w-7 h-7' {...props} />;
+export const LogoIcon = (props: SVGProps<SVGSVGElement>) => <FileStackIconLucide className='w-7 h-7' {...props} />;
 
 export const MenuIcon = (props: SVGProps<SVGSVGElement>) => <MenuIconLucide className='w-6 h-6' {...props} />;
 export const CloseIcon = (props: SVGProps<SVGSVGElement>) => <CloseIconLucide className='w-6 h-6' {...props} />;

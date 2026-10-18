@@ -30,6 +30,7 @@ public class Folder {
     private Boolean isTray;
     @NotNull
     private Boolean isDefault;
+    @NotNull
     @Enumerated(EnumType.STRING)
     private Visibility visibility;
     private Integer sortOrder;

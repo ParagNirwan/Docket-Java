@@ -1,12 +1,12 @@
 package com.docket.app.service;
 
 import com.docket.app.dto.CreateTenantRequestDTO;
+import com.docket.app.dto.CreateTrayRequestDTO;
+import com.docket.app.dto.UpdateTrayDTO;
+import com.docket.app.entity.Folder;
 import com.docket.app.entity.Tenant;
-import com.docket.app.enums.Permission;
-import com.docket.app.enums.Roles;
-import com.docket.app.enums.Status;
-import com.docket.app.enums.TenantStatus;
-import com.docket.app.enums.UserType;
+import com.docket.app.enums.*;
+import com.docket.app.repository.FolderRepository;
 import com.docket.app.repository.TenantMembershipRepository;
 import com.docket.app.repository.TenantRepository;
 import com.docket.app.repository.UserRepository;
@@ -18,7 +18,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 // The organization manager — handles creating orgs, looking them up,
 // and fetching a user's permissions within an org.
@@ -29,6 +31,7 @@ public class TenantService {
     private final TenantMembershipRepository tenantMembershipRepository;
     private final TenantRepository tenantRepository;
     private final TenantAuthorizationService tenantAuthorizationService;
+    private final FolderRepository folderRepository;
 
     // Look up an organization by its URL-friendly name (slug), e.g. "acme-corp".
     // Before returning the org's details, asks the bouncer to verify the
@@ -101,6 +104,124 @@ public class TenantService {
         membership.setRole(Roles.OWNER);
         tenantMembershipRepository.save(membership);
 
-        return tenant;
+        if(!createDefaultFoldersForTenant(tenant.getId(), user.getId())) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to create default folders for tenant. Contact Support for assistance.");
+        } else return tenant;
+    }
+
+
+    //Get Tenant Trays
+    public List<Folder> getTenantTrays(String slug, Authentication authentication) {
+        Tenant tenant = tenantRepository.findBySlug(slug)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Tenant not found"));
+
+        Roles userRole = tenantAuthorizationService.getMembershipRole(authentication, tenant.getId());
+        List<Folder> trays = folderRepository.findByTenantIdAndIsTrayIsTrue(tenant.getId());
+        if (userRole == Roles.MEMBER || userRole == Roles.MANAGER) {
+            trays.removeIf(t -> t.getVisibility() == Visibility.ADMIN_ONLY);
+        }
+        return trays;
+
+    }
+
+    //Create Tenant Tray
+    public Folder addTray(CreateTrayRequestDTO request, String slug, Authentication authentication) {
+        //Tenant Check
+        Tenant tenant = tenantRepository.findBySlug(slug)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Tenant not found"));
+
+        tenantAuthorizationService.requirePermission(
+                authentication,
+                tenant.getId(),
+                Permission.TRAYS_CREATE
+        );
+
+        Folder folder = new Folder();
+        folder.setTenantId(tenant.getId());
+        folder.setName(request.getName());
+        folder.setDescription(request.getDescription());
+        folder.setIsTray(true);
+        folder.setIsDefault(false);
+        folder.setVisibility(request.getVisibility());
+        folder.setSortOrder(0);
+        folder.setCreatedBy(userRepository.findByEmailIgnoreCase(authentication.getName())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found")).getId());
+        folder.setCreatedAt(java.time.Instant.now());
+        folder.setUpdatedAt(java.time.Instant.now());
+
+        return folderRepository.save(folder);
+    }
+
+    //Update Tenant Tray
+    public Folder updateTray(UUID trayId, UpdateTrayDTO request, String slug, Authentication authentication) {
+
+        Tenant tenant = tenantRepository.findBySlug(slug)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Tenant not found"));
+
+        tenantAuthorizationService.requirePermission(
+                authentication,
+                tenant.getId(),
+                Permission.TRAYS_UPDATE
+        );
+
+        Folder folder = folderRepository.findByTenantIdAndIsTrayIsTrueAndId(tenant.getId(), trayId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Tray not found"));
+        if (folder.getIsDefault()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Default trays cannot be modified");
+        }
+
+        folder.setName(request.getName());
+        folder.setDescription(request.getDescription());
+        folder.setVisibility(request.getVisibility());
+        folder.setSortOrder(request.getSortOrder());
+        folder.setUpdatedAt(java.time.Instant.now());
+        return folderRepository.save(folder);
+    }
+
+    public Boolean createDefaultFoldersForTenant(UUID tenantId, UUID userId) {
+        try {
+            Folder inbox = new Folder();
+            inbox.setTenantId(tenantId);
+            inbox.setName("Inbox");
+            inbox.setDescription("Default Inbox Tray");
+            inbox.setIsTray(true);
+            inbox.setIsDefault(true);
+            inbox.setVisibility(Visibility.ALL_MEMBERS);
+            inbox.setSortOrder(1);
+            inbox.setCreatedBy(userId);
+            inbox.setCreatedAt(java.time.Instant.now());
+            inbox.setUpdatedAt(java.time.Instant.now());
+            folderRepository.save(inbox);
+
+            Folder archive = new Folder();
+            archive.setTenantId(tenantId);
+            archive.setName("Archive");
+            archive.setDescription("Default Archive Tray");
+            archive.setIsTray(true);
+            archive.setIsDefault(true);
+            archive.setVisibility(Visibility.ALL_MEMBERS);
+            archive.setSortOrder(2);
+            archive.setCreatedBy(userId);
+            archive.setCreatedAt(java.time.Instant.now());
+            archive.setUpdatedAt(java.time.Instant.now());
+            folderRepository.save(archive);
+
+            Folder trash = new Folder();
+            trash.setTenantId(tenantId);
+            trash.setName("Trash");
+            trash.setDescription("Default Trash Tray");
+            trash.setIsTray(true);
+            trash.setIsDefault(true);
+            trash.setVisibility(Visibility.ADMIN_ONLY);
+            trash.setSortOrder(3);
+            trash.setCreatedBy(userId);
+            trash.setCreatedAt(java.time.Instant.now());
+            trash.setUpdatedAt(java.time.Instant.now());
+            folderRepository.save(trash);
+
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 }

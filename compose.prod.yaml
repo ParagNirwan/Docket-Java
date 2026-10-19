@@ -1,0 +1,12 @@
+services:
+  backend:
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      JWT_SECRET: ${JWT_SECRET}
+    # No volume mounts for source code — use the built image only
+    volumes:
+      - uploads_data:/app/uploads
+
+  frontend:
+    # No volume mounts — use the built image with production Nginx
+    volumes: []

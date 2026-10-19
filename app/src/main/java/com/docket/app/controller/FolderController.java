@@ -24,4 +24,15 @@ public class FolderController {
     ) {
         return ResponseEntity.ok(folderService.getChildren(slug, folderId, authentication));
     }
+
+    @PostMapping("/{folderId}/children")
+    public ResponseEntity<Folder> createSubFolder(
+            @PathVariable String slug,
+            @PathVariable UUID folderId,
+            @jakarta.validation.Valid @RequestBody com.docket.app.dto.CreateFolderRequestDTO request,
+            Authentication authentication
+    ) {
+        Folder created = folderService.createSubFolder(slug, folderId, request, authentication);
+        return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED).body(created);
+    }
 }

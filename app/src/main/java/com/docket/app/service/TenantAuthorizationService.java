@@ -1,10 +1,7 @@
 package com.docket.app.service;
 
 import com.docket.app.entity.TenantMembership;
-import com.docket.app.enums.Permission;
-import com.docket.app.enums.Roles;
-import com.docket.app.enums.Status;
-import com.docket.app.enums.TenantStatus;
+import com.docket.app.enums.*;
 import com.docket.app.repository.TenantMembershipRepository;
 import com.docket.app.repository.TenantRepository;
 import com.docket.app.repository.UserRepository;
@@ -85,10 +82,10 @@ public class TenantAuthorizationService {
         }
 
         // Step 5: Is this person an active member of this organization?
-        var memberships = tenantMembershipRepository.findByUserIdAndTenantIdAndStatus(
+        var memberships = tenantMembershipRepository.findByUserIdAndTenantIdAndMemberStatus(
                 user.getId(),
                 tenantId,
-                Status.ACTIVE
+                MemberStatus.ACTIVE
         );
 
         // No membership found — they're not a member of this org.
@@ -106,7 +103,7 @@ public class TenantAuthorizationService {
         var membership = memberships.getFirst();
         if (!user.getId().equals(membership.getUserId())
                 || !tenantId.equals(membership.getTenantId())
-                || membership.getStatus() != Status.ACTIVE) {
+                || membership.getMemberStatus() != MemberStatus.ACTIVE) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Tenant not found");
         }
 

@@ -6,7 +6,7 @@ import com.docket.app.entity.TenantMembership;
 import com.docket.app.entity.User;
 import com.docket.app.enums.Permission;
 import com.docket.app.enums.Roles;
-import com.docket.app.enums.Status;
+import com.docket.app.enums.MemberStatus;
 import com.docket.app.repository.TenantMembershipRepository;
 import com.docket.app.repository.TenantRepository;
 import com.docket.app.repository.UserRepository;
@@ -148,6 +148,6 @@ class TenantServiceTest {
         assertEquals(user.getId(), membershipCaptor.getValue().getUserId());
         assertEquals(tenantId, membershipCaptor.getValue().getTenantId());
         assertEquals(Roles.OWNER, membershipCaptor.getValue().getRole());
-        assertEquals(Status.ACTIVE, membershipCaptor.getValue().getStatus());
+        assertEquals(MemberStatus.ACTIVE, membershipCaptor.getValue().getMemberStatus());
     }
 }

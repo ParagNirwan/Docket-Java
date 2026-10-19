@@ -1,7 +1,7 @@
 package com.docket.app.entity;
 
 import com.docket.app.enums.Roles;
-import com.docket.app.enums.Status;
+import com.docket.app.enums.MemberStatus;
 import com.docket.app.enums.UserType;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -11,11 +11,11 @@ import lombok.Setter;
 import java.util.UUID;
 
 // A "membership card" — each row in this table says:
-// "This person belongs to this organization, with this role and this status."
+// "This person belongs to this organization, with this role and this memberStatus."
 //
 // The indexes (database shortcuts) make it fast to look up:
-//   - "Is this user a member of this org?" (user + tenant + status)
-//   - "Which orgs does this user belong to?" (user + status)
+//   - "Is this user a member of this org?" (user + tenant + memberStatus)
+//   - "Which orgs does this user belong to?" (user + memberStatus)
 @Entity
 @Table(indexes = {
         @Index(name = "idx_tenant_membership_user_tenant_status", columnList = "user_id, tenant_id, status"),
@@ -43,7 +43,8 @@ public class TenantMembership {
 
     // Is this membership currently active or has it been deactivated?
     @Enumerated(EnumType.STRING)
-    private Status status;
+    @Column(name="status")
+    private MemberStatus memberStatus;
 
     // The person's role in this organization (Owner, Admin, Manager, or Member).
     // This is what determines their permissions.

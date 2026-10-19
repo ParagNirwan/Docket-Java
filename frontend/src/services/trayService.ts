@@ -586,32 +586,61 @@ export async function getFolderChildren(
  * ```
  */
 export async function createSubFolder(
-  _slug: string,
+  slug: string,
   parentFolderId: string,
   data: CreateFolderDTO,
-  _token?: string | null,
+  token?: string | null,
 ): Promise<FolderItem> {
-  // --- PRODUCTION API CALL (Uncomment when connecting to backend) ---
-  /*
-  const response = await fetch(
-    `${API_BASE}/tenants/${encodeURIComponent(_slug)}/folders/${parentFolderId}/children`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${_token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(data),
-    }
-  );
-  if (!response.ok) {
-    throw new Error(`Failed to create sub-folder (${response.status})`);
-  }
-  return await response.json();
-  */
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(parentFolderId);
 
-  // --- LEARNING FALLBACK (Simulated in-memory) ---
-  // Find parent to inherit visibility
+  if (token && isUuid) {
+    try {
+      const response = await fetch(
+        `${API_BASE}/tenants/${encodeURIComponent(slug)}/folders/${encodeURIComponent(parentFolderId)}/children`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: data.name.trim(),
+            description: data.description?.trim() || null,
+          }),
+        }
+      );
+
+      if (response.ok) {
+        const created = await response.json();
+        const folder: FolderItem = {
+          id: String(created.id),
+          tenantId: created.tenantId,
+          parentFolderId: created.parentFolderId ?? parentFolderId,
+          name: created.name,
+          description: created.description,
+          isTray: false,
+          isDefault: Boolean(created.isDefault),
+          visibility: created.visibility,
+          sortOrder: created.sortOrder ?? 0,
+          itemCount: 0,
+          createdAt: created.createdAt,
+          updatedAt: created.updatedAt,
+        };
+        mockFolders.push(folder);
+        return folder;
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Failed to create folder (${response.status})`);
+      }
+    } catch (err) {
+      if (err instanceof Error && err.message.includes("Failed to create folder")) {
+        throw err;
+      }
+      console.warn("Backend createSubFolder call failed, using local simulation:", err);
+    }
+  }
+
+  // Fallback (simulated in-memory for offline/mock folders)
   const parentTray = mockTrays.find((t) => t.id === parentFolderId);
   const parentFolder = mockFolders.find((f) => f.id === parentFolderId);
   const inheritedVisibility = parentTray?.visibility || parentFolder?.visibility || "ALL_MEMBERS";

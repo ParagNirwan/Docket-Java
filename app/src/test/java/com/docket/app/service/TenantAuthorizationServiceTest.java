@@ -2,10 +2,7 @@ package com.docket.app.service;
 
 import com.docket.app.entity.TenantMembership;
 import com.docket.app.entity.User;
-import com.docket.app.enums.Permission;
-import com.docket.app.enums.Roles;
-import com.docket.app.enums.Status;
-import com.docket.app.enums.TenantStatus;
+import com.docket.app.enums.*;
 import com.docket.app.repository.TenantMembershipRepository;
 import com.docket.app.repository.TenantRepository;
 import com.docket.app.repository.UserRepository;
@@ -64,9 +61,9 @@ class TenantAuthorizationServiceTest {
 
     @Test
     void allowsPermissionGrantedToActiveMembershipRole() {
-        when(tenantMembershipRepository.findByUserIdAndTenantIdAndStatus(
-                userId, tenantId, Status.ACTIVE
-        )).thenReturn(List.of(membership(tenantId, Roles.MEMBER, Status.ACTIVE)));
+        when(tenantMembershipRepository.findByUserIdAndTenantIdAndMemberStatus(
+                userId, tenantId, MemberStatus.ACTIVE
+        )).thenReturn(List.of(membership(tenantId, Roles.MEMBER, MemberStatus.ACTIVE)));
 
         tenantAuthorizationService.requirePermission(
                 authentication, tenantId, Permission.DOCUMENTS_READ
@@ -75,9 +72,9 @@ class TenantAuthorizationServiceTest {
 
     @Test
     void returnsPermissionCodesFromActiveTenantRole() {
-        when(tenantMembershipRepository.findByUserIdAndTenantIdAndStatus(
-                userId, tenantId, Status.ACTIVE
-        )).thenReturn(List.of(membership(tenantId, Roles.MEMBER, Status.ACTIVE)));
+        when(tenantMembershipRepository.findByUserIdAndTenantIdAndMemberStatus(
+                userId, tenantId, MemberStatus.ACTIVE
+        )).thenReturn(List.of(membership(tenantId, Roles.MEMBER, MemberStatus.ACTIVE)));
 
         Set<String> permissions = tenantAuthorizationService.getPermissionCodes(authentication, tenantId);
 
@@ -86,9 +83,9 @@ class TenantAuthorizationServiceTest {
 
     @Test
     void deniesPermissionNotGrantedToMembershipRole() {
-        when(tenantMembershipRepository.findByUserIdAndTenantIdAndStatus(
-                userId, tenantId, Status.ACTIVE
-        )).thenReturn(List.of(membership(tenantId, Roles.MEMBER, Status.ACTIVE)));
+        when(tenantMembershipRepository.findByUserIdAndTenantIdAndMemberStatus(
+                userId, tenantId, MemberStatus.ACTIVE
+        )).thenReturn(List.of(membership(tenantId, Roles.MEMBER, MemberStatus.ACTIVE)));
 
         ResponseStatusException exception = assertThrows(
                 ResponseStatusException.class,
@@ -102,8 +99,8 @@ class TenantAuthorizationServiceTest {
 
     @Test
     void deniesWhenUserHasNoMembershipInTenant() {
-        when(tenantMembershipRepository.findByUserIdAndTenantIdAndStatus(
-                userId, tenantId, Status.ACTIVE
+        when(tenantMembershipRepository.findByUserIdAndTenantIdAndMemberStatus(
+                userId, tenantId, MemberStatus.ACTIVE
         )).thenReturn(List.of());
 
         ResponseStatusException exception = assertThrows(
@@ -132,8 +129,8 @@ class TenantAuthorizationServiceTest {
 
     @Test
     void doesNotAcceptInactiveMembershipAsActive() {
-        when(tenantMembershipRepository.findByUserIdAndTenantIdAndStatus(
-                userId, tenantId, Status.ACTIVE
+        when(tenantMembershipRepository.findByUserIdAndTenantIdAndMemberStatus(
+                userId, tenantId, MemberStatus.ACTIVE
         )).thenReturn(List.of());
 
         ResponseStatusException exception = assertThrows(
@@ -144,17 +141,17 @@ class TenantAuthorizationServiceTest {
         );
 
         assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
-        verify(tenantMembershipRepository).findByUserIdAndTenantIdAndStatus(
-                userId, tenantId, Status.ACTIVE
+        verify(tenantMembershipRepository).findByUserIdAndTenantIdAndMemberStatus(
+                userId, tenantId, MemberStatus.ACTIVE
         );
     }
 
     @Test
     void deniesMembershipForDifferentTenant() {
         UUID otherTenantId = UUID.randomUUID();
-        when(tenantMembershipRepository.findByUserIdAndTenantIdAndStatus(
-                userId, tenantId, Status.ACTIVE
-        )).thenReturn(List.of(membership(otherTenantId, Roles.OWNER, Status.ACTIVE)));
+        when(tenantMembershipRepository.findByUserIdAndTenantIdAndMemberStatus(
+                userId, tenantId, MemberStatus.ACTIVE
+        )).thenReturn(List.of(membership(otherTenantId, Roles.OWNER, MemberStatus.ACTIVE)));
 
         ResponseStatusException exception = assertThrows(
                 ResponseStatusException.class,
@@ -168,9 +165,9 @@ class TenantAuthorizationServiceTest {
 
     @Test
     void deniesMembershipWithUnknownRole() {
-        when(tenantMembershipRepository.findByUserIdAndTenantIdAndStatus(
-                userId, tenantId, Status.ACTIVE
-        )).thenReturn(List.of(membership(tenantId, null, Status.ACTIVE)));
+        when(tenantMembershipRepository.findByUserIdAndTenantIdAndMemberStatus(
+                userId, tenantId, MemberStatus.ACTIVE
+        )).thenReturn(List.of(membership(tenantId, null, MemberStatus.ACTIVE)));
 
         ResponseStatusException exception = assertThrows(
                 ResponseStatusException.class,
@@ -185,11 +182,11 @@ class TenantAuthorizationServiceTest {
 
     @Test
     void deniesAmbiguousDuplicateActiveMemberships() {
-        when(tenantMembershipRepository.findByUserIdAndTenantIdAndStatus(
-                userId, tenantId, Status.ACTIVE
+        when(tenantMembershipRepository.findByUserIdAndTenantIdAndMemberStatus(
+                userId, tenantId, MemberStatus.ACTIVE
         )).thenReturn(List.of(
-                membership(tenantId, Roles.OWNER, Status.ACTIVE),
-                membership(tenantId, Roles.MEMBER, Status.ACTIVE)
+                membership(tenantId, Roles.OWNER, MemberStatus.ACTIVE),
+                membership(tenantId, Roles.MEMBER, MemberStatus.ACTIVE)
         ));
 
         ResponseStatusException exception = assertThrows(
@@ -202,12 +199,12 @@ class TenantAuthorizationServiceTest {
         assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
     }
 
-    private TenantMembership membership(UUID membershipTenantId, Roles role, Status status) {
+    private TenantMembership membership(UUID membershipTenantId, Roles role, MemberStatus memberStatus) {
         TenantMembership membership = new TenantMembership();
         membership.setUserId(userId);
         membership.setTenantId(membershipTenantId);
         membership.setRole(role);
-        membership.setStatus(status);
+        membership.setMemberStatus(memberStatus);
         return membership;
     }
 }

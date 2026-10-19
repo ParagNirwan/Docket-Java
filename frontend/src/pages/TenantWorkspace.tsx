@@ -44,9 +44,9 @@ const INITIAL_TRAYS: Tray[] = [];
 
 // Sample placeholder data for review dashboard
 const documents = [
-  { name: "Board resolution — Q3 approval", detail: "Corporate governance · PDF", date: "Today", status: "Needs review" },
-  { name: "Master services agreement", detail: "Commercial · DOCX", date: "Yesterday", status: "Needs review" },
-  { name: "Annual filing receipt", detail: "Company records · PDF", date: "Oct 10", status: "In progress" },
+  { name: "Board resolution — Q3 approval", detail: "Corporate governance · PDF", date: "Today", memberStatus: "Needs review" },
+  { name: "Master services agreement", detail: "Commercial · DOCX", date: "Yesterday", memberStatus: "Needs review" },
+  { name: "Annual filing receipt", detail: "Company records · PDF", date: "Oct 10", memberStatus: "In progress" },
 ];
 
 const partners = [
@@ -583,8 +583,8 @@ function ReviewContent() {
                 </div>
               </div>
               <div className="flex items-center justify-between gap-4 pl-[52px] sm:pl-0">
-                <span className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${document.status === "Needs review" ? "bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300" : "bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300"}`}>
-                  {document.status}
+                <span className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${document.memberStatus === "Needs review" ? "bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300" : "bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300"}`}>
+                  {document.memberStatus}
                 </span>
                 <span className="w-20 text-right text-xs text-gray-400 dark:text-gray-500">{document.date}</span>
               </div>

@@ -1,7 +1,7 @@
 package com.docket.app.repository;
 
 import com.docket.app.entity.TenantMembership;
-import com.docket.app.enums.Status;
+import com.docket.app.enums.MemberStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -16,10 +16,10 @@ public interface TenantMembershipRepository extends JpaRepository<TenantMembersh
 
     // "Give me this person's memberships, but only active ones."
     // Used when listing which orgs someone belongs to.
-    List<TenantMembership> findByUserIdAndStatus(UUID userId, Status status);
+    List<TenantMembership> findByUserIdAndMemberStatus(UUID userId, MemberStatus memberStatus);
 
     // "Is this specific person an active member of this specific organization?"
     // This is the main question the bouncer asks every time someone tries to do something.
-    List<TenantMembership> findByUserIdAndTenantIdAndStatus(
-            UUID userId, UUID tenantId, Status status);
+    List<TenantMembership> findByUserIdAndTenantIdAndMemberStatus(
+            UUID userId, UUID tenantId, MemberStatus memberStatus);
 }

@@ -3,7 +3,7 @@ package com.docket.app.service;
 import com.docket.app.entity.Tenant;
 import com.docket.app.entity.TenantMembership;
 import com.docket.app.entity.User;
-import com.docket.app.enums.Status;
+import com.docket.app.enums.MemberStatus;
 import com.docket.app.enums.TenantStatus;
 import com.docket.app.repository.TenantMembershipRepository;
 import com.docket.app.repository.TenantRepository;
@@ -36,9 +36,9 @@ public class UserService {
 
         // Find all their active memberships. If they were removed from an org,
         // that membership is no longer active, so it won't show up here.
-        List<TenantMembership> memberships = tenantMembershipRepository.findByUserIdAndStatus(
+        List<TenantMembership> memberships = tenantMembershipRepository.findByUserIdAndMemberStatus(
                 user.getId(),
-                Status.ACTIVE
+                MemberStatus.ACTIVE
         );
 
         // Get the organization IDs from those memberships.

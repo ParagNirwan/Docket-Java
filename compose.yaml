@@ -17,19 +17,36 @@ services:
       timeout: 5s
       retries: 10
 
+  backend:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    container_name: docket-java-backend
+    restart: unless-stopped
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/docketdb
+      SPRING_DATASOURCE_USERNAME: docket
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-docket_dev_password}
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
+    ports:
+      - "8080:8080"
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: docket-java-frontend
     restart: unless-stopped
-    environment:
-      VITE_API_URL: ${VITE_API_URL:-/api}
-      BACKEND_URL: ${BACKEND_URL:-http://host.docker.internal:8080}
     ports:
-      - "5173:5173"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+      - "80:80"
+    depends_on:
+      - backend
+
 volumes:
   postgres_data:
+  uploads_data:

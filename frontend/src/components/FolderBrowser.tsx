@@ -1131,7 +1131,6 @@ export function FolderBrowser({
                         <DocumentThumbnail
                           filename={doc.originalFileName}
                           contentType={doc.contentType}
-                          onDownload={() => handleDownloadDocument(doc)}
                           className="h-28 w-full"
                         />
                         <div className="mt-2.5 px-1 min-w-0">

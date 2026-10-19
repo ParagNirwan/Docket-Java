@@ -1,17 +1,14 @@
-import { Download } from "lucide-react";
 import { getFileTypeInfo } from "../lib/fileTypeUtils";
 
 interface DocumentThumbnailProps {
   filename: string;
   contentType?: string;
-  onDownload?: () => void;
   className?: string;
 }
 
 export function DocumentThumbnail({
   filename,
   contentType,
-  onDownload,
   className = "",
 }: DocumentThumbnailProps) {
   const typeInfo = getFileTypeInfo(filename, contentType);
@@ -148,24 +145,6 @@ export function DocumentThumbnail({
         </div>
       )}
 
-      {/* Hover action overlay */}
-      {onDownload && (
-        <div className="absolute inset-0 bg-black/40 backdrop-blur-2xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-2">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDownload();
-            }}
-            className="flex items-center gap-1.5 rounded-lg bg-white/95 px-3 py-1.5 text-xs font-semibold text-gray-900 shadow-md hover:bg-white hover:scale-105 active:scale-95 transition-all"
-            title={`Download ${filename}`}
-            aria-label={`Download ${filename}`}
-          >
-            <Download className="h-3.5 w-3.5 text-indigo-600" />
-            <span>Download</span>
-          </button>
-        </div>
-      )}
     </div>
   );
 }

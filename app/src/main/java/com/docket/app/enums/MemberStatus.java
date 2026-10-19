@@ -1,6 +1,6 @@
 package com.docket.app.enums;
 
-public enum Status {
+public enum MemberStatus {
     ACTIVE,
     INVITED,
     PENDING,

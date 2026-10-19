@@ -100,7 +100,7 @@ public class TenantService {
         membership.setTenantId(tenant.getId());
         membership.setUserId(user.getId());
         membership.setUserType(UserType.INTERNAL);
-        membership.setStatus(Status.ACTIVE);
+        membership.setMemberStatus(MemberStatus.ACTIVE);
         membership.setRole(Roles.OWNER);
         tenantMembershipRepository.save(membership);
 

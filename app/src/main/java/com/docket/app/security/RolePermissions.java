@@ -26,7 +26,12 @@ public class RolePermissions {
                     Permission.DOCUMENTS_READ,
                     Permission.DOCUMENTS_CREATE,
                     Permission.DOCUMENTS_UPDATE,
-                    Permission.DOCUMENTS_DELETE
+                    Permission.DOCUMENTS_DELETE,
+                    Permission.TRAYS_CREATE,
+                    Permission.TRAYS_UPDATE,
+                    Permission.TRAYS_DELETE,
+                    Permission.FOLDERS_CREATE,
+                    Permission.FOLDERS_DELETE
             ),
 
             // Admin — can do almost everything, EXCEPT transfer ownership.
@@ -40,18 +45,24 @@ public class RolePermissions {
                     Permission.DOCUMENTS_READ,
                     Permission.DOCUMENTS_CREATE,
                     Permission.DOCUMENTS_UPDATE,
-                    Permission.DOCUMENTS_DELETE
+                    Permission.DOCUMENTS_DELETE,
+                    Permission.TRAYS_CREATE,
+                    Permission.TRAYS_UPDATE,
+                    Permission.TRAYS_DELETE,
+                    Permission.FOLDERS_CREATE,
+                    Permission.FOLDERS_DELETE
             ),
 
-            // Manager — can view things, invite people, and work with documents,
-            // but can't remove members, delete documents, or change org settings.
+            // Manager — can view things, invite people, work with documents, and create/delete sub-folders.
             Roles.MANAGER, Set.of(
                     Permission.TENANT_READ,
                     Permission.MEMBERS_READ,
                     Permission.MEMBERS_INVITE,
                     Permission.DOCUMENTS_READ,
                     Permission.DOCUMENTS_CREATE,
-                    Permission.DOCUMENTS_UPDATE
+                    Permission.DOCUMENTS_UPDATE,
+                    Permission.FOLDERS_CREATE,
+                    Permission.FOLDERS_DELETE
             ),
 
             // Member — the most basic role. Can only view the org and read documents.

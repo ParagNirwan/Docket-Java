@@ -24,3 +24,6 @@ Thumbs.db
 # Graphify output
 graphify-out/
 
+# Uploaded files (local storage)
+uploads/
+

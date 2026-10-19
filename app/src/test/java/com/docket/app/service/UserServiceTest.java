@@ -3,8 +3,8 @@ package com.docket.app.service;
 import com.docket.app.entity.Tenant;
 import com.docket.app.entity.TenantMembership;
 import com.docket.app.entity.User;
+import com.docket.app.enums.MemberStatus;
 import com.docket.app.enums.Roles;
-import com.docket.app.enums.Status;
 import com.docket.app.enums.TenantStatus;
 import com.docket.app.repository.TenantMembershipRepository;
 import com.docket.app.repository.TenantRepository;
@@ -48,9 +48,9 @@ class UserServiceTest {
         UUID inactiveTenantId = UUID.randomUUID();
         user.setId(UUID.randomUUID());
 
-        TenantMembership activeMembership = membership(user.getId(), activeTenantId, Status.ACTIVE);
+        TenantMembership activeMembership = membership(user.getId(), activeTenantId, MemberStatus.ACTIVE);
         when(userRepository.findByEmailIgnoreCase(email)).thenReturn(Optional.of(user));
-        when(tenantMembershipRepository.findByUserIdAndStatus(user.getId(), Status.ACTIVE))
+        when(tenantMembershipRepository.findByUserIdAndMemberStatus(user.getId(), MemberStatus.ACTIVE))
                 .thenReturn(List.of(activeMembership));
 
         Tenant activeTenant = tenant(activeTenantId, TenantStatus.ACTIVE);
@@ -59,7 +59,7 @@ class UserServiceTest {
                 .thenReturn(List.of(activeTenant, inactiveTenant));
 
         assertEquals(List.of(activeTenant), userService.listTenantsForUser(email));
-        verify(tenantMembershipRepository).findByUserIdAndStatus(user.getId(), Status.ACTIVE);
+        verify(tenantMembershipRepository).findByUserIdAndMemberStatus(user.getId(), MemberStatus.ACTIVE);
     }
 
     @Test
@@ -74,12 +74,12 @@ class UserServiceTest {
         assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
     }
 
-    private TenantMembership membership(UUID userId, UUID tenantId, Status status) {
+    private TenantMembership membership(UUID userId, UUID tenantId, MemberStatus memberStatus) {
         TenantMembership membership = new TenantMembership();
         membership.setUserId(userId);
         membership.setTenantId(tenantId);
         membership.setRole(Roles.OWNER);
-        membership.setStatus(status);
+        membership.setMemberStatus(memberStatus);
         return membership;
     }
 

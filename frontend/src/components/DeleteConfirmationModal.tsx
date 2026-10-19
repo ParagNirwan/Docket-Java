@@ -5,7 +5,7 @@ interface DeleteConfirmationModalProps {
   isOpen: boolean;
   title?: string;
   itemName: string;
-  itemType: "tray" | "folder";
+  itemType: "tray" | "folder" | "document";
   description?: string;
   onClose: () => void;
   onConfirm: () => Promise<void> | void;
@@ -55,10 +55,13 @@ export function DeleteConfirmationModal({
     }
   }
 
-  const defaultTitle = title || `Delete ${itemType === "tray" ? "Tray" : "Folder"}`;
+  const typeLabel = itemType === "tray" ? "Tray" : itemType === "document" ? "Document" : "Folder";
+  const defaultTitle = title || `Delete ${typeLabel}`;
   const defaultDesc =
     description ||
-    `Are you sure you want to permanently delete "${itemName}"? All files, documents, and sub-folders inside it will be permanently deleted. This action cannot be undone.`;
+    (itemType === "document"
+      ? `Are you sure you want to delete "${itemName}"? This file will be removed.`
+      : `Are you sure you want to permanently delete "${itemName}"? All files, documents, and sub-folders inside it will be permanently deleted. This action cannot be undone.`);
 
   return (
     <div
@@ -129,7 +132,7 @@ export function DeleteConfirmationModal({
               className="inline-flex w-full sm:w-auto items-center justify-center gap-1.5 rounded-xl bg-red-600 px-4 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 transition-colors disabled:opacity-50"
             >
               <Trash2 className="h-4 w-4" />
-              <span>{isDeleting ? "Deleting..." : `Delete ${itemType === "tray" ? "Tray" : "Folder"}`}</span>
+              <span>{isDeleting ? "Deleting..." : `Delete ${typeLabel}`}</span>
             </button>
           </div>
         </div>

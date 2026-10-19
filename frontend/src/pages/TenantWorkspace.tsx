@@ -23,9 +23,19 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { CreateTrayModal } from "../components/CreateTrayModal";
 import { FolderBrowser } from "../components/FolderBrowser";
+import { TraysOverview } from "../components/TraysOverview";
+import { notify } from "../lib/notifications";
 import type { Tray, CreateTrayRequestDTO } from "../services/trayService";
 import { getTenantTrays, createTray, deleteTray } from "../services/trayService";
 import "./TenantWorkspace.css";
+
+// Returns a time-appropriate greeting based on the current hour.
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 12) return "Good morning";
+  if (hour >= 12 && hour < 18) return "Good afternoon";
+  return "Good evening";
+}
 
 // The possible fixed sections a workspace can show (or a dynamic tray ID)
 type WorkspaceSection = string;
@@ -62,6 +72,7 @@ const emailAccounts = [
 
 const sectionLabels: Record<string, string> = {
   review: "Review",
+  trays: "Trays",
   general: "General",
   trash: "Trash",
   partners: "Partners",
@@ -294,6 +305,7 @@ export function TenantWorkspace() {
 
   const visibleSections = [
     ...visibleMainNavItems.map((item) => item.id),
+    ...(visibleTrays.length > 0 ? ["trays"] : []),
     ...visibleTrays.map((tray) => tray.id),
   ];
 
@@ -310,29 +322,30 @@ export function TenantWorkspace() {
   // Handler for creating a new Tray
   async function handleCreateTraySubmit(data: CreateTrayRequestDTO) {
     if (!slug) return;
-    /**
-     * 💡 LEARNING NOTE: API Call to create Tray
-     * Backend: POST /api/tenants/{slug}/trays
-     * Controller: TenantController.java -> addTray()
-     * Permission: TRAYS_CREATE ("trays.create")
-     * Request Body: { name, description, visibility }
-     */
-    const newTray = await createTray(slug, data, token);
-    setTrays((prev) => [...prev, newTray]);
-    setActiveSection(newTray.id);
+    try {
+      const newTray = await createTray(slug, data, token);
+      setTrays((prev) => [...prev, newTray]);
+      setActiveSection(newTray.id);
+      notify.success("Tray created", `"${newTray.name}" is now ready`);
+    } catch (err) {
+      notify.error("Failed to create tray", err instanceof Error ? err.message : "An error occurred");
+      throw err;
+    }
   }
 
   // Handler for deleting a custom Tray
   async function handleDeleteTray(trayId: string) {
     if (!slug) return;
-    /**
-     * 💡 LEARNING NOTE: API Call to delete custom Tray
-     * Backend: DELETE /api/tenants/{slug}/trays/{trayId}
-     * Permission: TRAYS_DELETE ("trays.delete")
-     */
-    await deleteTray(slug, trayId, token);
-    setTrays((prev) => prev.filter((t) => t.id !== trayId));
-    setActiveSection("review");
+    const tray = trays.find((t) => t.id === trayId);
+    try {
+      await deleteTray(slug, trayId, token);
+      setTrays((prev) => prev.filter((t) => t.id !== trayId));
+      setActiveSection("review");
+      notify.success("Tray deleted", tray ? `"${tray.name}" has been removed` : "Tray removed");
+    } catch (err) {
+      notify.error("Failed to delete tray", err instanceof Error ? err.message : "An error occurred");
+      throw err;
+    }
   }
 
   return (
@@ -389,9 +402,19 @@ export function TenantWorkspace() {
                 <div className="space-y-1 max-md:flex max-md:shrink-0 max-md:items-center max-md:gap-1 max-md:space-y-0">
                   {!collapsed && (
                     <div className="flex items-center justify-between px-3 pb-2">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400 dark:text-gray-500">
+                      <button
+                        type="button"
+                        onClick={() => setActiveSection("trays")}
+                        className={`text-[10px] font-semibold uppercase tracking-[0.14em] transition-colors hover:text-indigo-600 dark:hover:text-indigo-400 ${
+                          currentSection === "trays"
+                            ? "text-indigo-600 dark:text-indigo-400 font-bold"
+                            : "text-gray-400 dark:text-gray-500"
+                        }`}
+                        title="View all trays"
+                        aria-label="All trays overview"
+                      >
                         Trays
-                      </p>
+                      </button>
                       {/* + Button on the extreme right of Trays header */}
                       {canCreateTray && (
                         <button
@@ -457,7 +480,7 @@ export function TenantWorkspace() {
       </aside>
 
       {/* Main Content Area */}
-      <main className="min-w-0 flex-1">
+      <main className="min-w-0 flex-1 flex flex-col">
         {permissionsLoading ? (
           <div className="mx-auto flex min-h-[320px] max-w-[1440px] items-center justify-center px-5 py-7 text-sm text-gray-500 dark:text-gray-400" role="status">
             Checking workspace access...
@@ -475,9 +498,9 @@ export function TenantWorkspace() {
             </div>
           </div>
         ) : (
-          <div className="mx-auto w-full max-w-[1440px] px-5 py-7 sm:px-8 sm:py-9 lg:px-10">
-            {/* Top Workspace Header (for non-tray views) */}
-            {!activeTray && (
+          <div className="mx-auto w-full max-w-[1440px] px-5 py-7 sm:px-8 sm:py-9 lg:px-10 flex-1 flex flex-col">
+            {/* Top Workspace Header (for non-tray views, not "trays" which has its own header) */}
+            {!activeTray && currentSection !== "trays" && (
               <div className="mb-8 flex flex-col gap-4 border-b border-gray-200 pb-6 dark:border-gray-800 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <div className="mb-2 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
@@ -488,7 +511,7 @@ export function TenantWorkspace() {
                     </span>
                   </div>
                   <h1 className="text-3xl font-semibold tracking-tight text-gray-900 dark:text-white">
-                    {currentSection === "review" ? "Good afternoon" : sectionLabels[currentSection] || currentSection}
+                    {currentSection === "review" ? getGreeting() : sectionLabels[currentSection] || currentSection}
                   </h1>
                   <p className="mt-1.5 text-sm text-gray-500 dark:text-gray-400">
                     {sectionDescription(currentSection)}
@@ -504,10 +527,20 @@ export function TenantWorkspace() {
             )}
 
             {/* Dynamic Content View */}
-            <div key={currentSection} className="workspace-content-enter">
+            <div key={currentSection} className="workspace-content-enter flex-1 flex flex-col">
               {currentSection === "review" && <ReviewContent />}
               {currentSection === "partners" && <PartnersContent canInvite={hasPermission(permissions, "members.invite")} />}
               {currentSection === "emails" && <ConnectedEmailsContent />}
+              {currentSection === "trays" && (
+                <TraysOverview
+                  trays={visibleTrays}
+                  onSelectTray={(trayId) => setActiveSection(trayId)}
+                  canCreateTray={canCreateTray}
+                  canDeleteTray={canDeleteTray}
+                  onDeleteTray={handleDeleteTray}
+                  onCreateTrayClick={() => setIsCreateTrayModalOpen(true)}
+                />
+              )}
 
               {/* If active section is a Tray, render FolderBrowser */}
               {activeTray && (

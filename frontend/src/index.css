@@ -13,7 +13,7 @@
   --color-warning: #8A6A1F;
 
   --sans: 'Inter', 'Public Sans', system-ui, sans-serif;
-  --serif: 'Source Serif 4', 'Lora', Georgia, serif;
+  --heading: 'DM Sans', 'Outfit', 'Inter', system-ui, sans-serif;
 
   color-scheme: light;
 }
@@ -27,8 +27,8 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-h1, h2, h3, .serif {
-  font-family: var(--serif);
+h1, h2, h3, .heading {
+  font-family: var(--heading);
 }
 
 #root {

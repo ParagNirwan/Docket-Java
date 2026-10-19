@@ -41,6 +41,7 @@ export interface DocumentDTO {
   originalFileName: string;
   contentType: string;
   uploadedBy: string;
+  uploadedByName?: string;
   fileSize: number;
   createdAt: string;
   updatedAt: string;

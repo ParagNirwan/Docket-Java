@@ -12,6 +12,7 @@ import { TenantWorkspace } from "./pages/TenantWorkspace";
 import { SettingsPage } from "./pages/SettingsPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { GuestRoute } from "./components/GuestRoute";
+import { Toaster } from "sonner";
 import "./App.css";
 
 function App() {
@@ -20,6 +21,7 @@ function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <Toaster richColors position="top-right" closeButton />
         <div className="min-h-screen flex flex-col bg-gray-50/50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 transition-colors duration-200">
           {/* Header is always visible across all pages */}
           <Header />

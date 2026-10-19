@@ -51,7 +51,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
       <div className={`h-full flex flex-col ${!isOpen && "invisible"}`}>
         {/* Sidebar Header */}
         <div className="h-16 flex items-center justify-between px-4 border-b border-[var(--color-line)]">
-          <span className="serif font-semibold text-[var(--color-ink)] text-lg">Registry</span>
+          <span className="heading font-semibold text-[var(--color-ink)] text-lg">Registry</span>
           <button 
             onClick={() => setIsOpen(false)}
             className="p-1 rounded-md hover:bg-[var(--color-line)] text-[var(--color-muted)] transition-colors"

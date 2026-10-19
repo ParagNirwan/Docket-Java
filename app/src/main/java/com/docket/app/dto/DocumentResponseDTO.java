@@ -15,6 +15,7 @@ public class DocumentResponseDTO {
     private String originalFileName;
     private String contentType;
     private UUID uploadedBy;
+    private String uploadedByName;
     private Long fileSize;
     private Instant createdAt;
     private Instant updatedAt;

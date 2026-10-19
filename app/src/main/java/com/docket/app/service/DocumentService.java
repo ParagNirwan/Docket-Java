@@ -29,8 +29,11 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -62,7 +65,16 @@ public class DocumentService {
         Page<Document> documents = documentRepository.findByTenantIdAndFolderIdAndFileStatus(
                 tenant.getId(), folderId, FileStatus.ACTIVE, pageable);
 
-        return documents.map(this::toDTO);
+        Set<UUID> userIds = documents.getContent().stream()
+                .map(Document::getUploadedBy)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        Map<UUID, String> userNames = userIds.isEmpty() ? Map.of() :
+                userRepository.findAllById(userIds).stream()
+                        .collect(Collectors.toMap(User::getId, User::getName));
+
+        return documents.map(doc -> toDTO(doc, userNames.get(doc.getUploadedBy())));
     }
 
     // ─── UPLOAD A DOCUMENT ──────────────────────────────────────────────
@@ -113,7 +125,7 @@ public class DocumentService {
 
         Document saved = documentRepository.save(document);
 
-        return toDTO(saved);
+        return toDTO(saved, uploader.getName());
     }
 
     // ─── GET SINGLE DOCUMENT METADATA ───────────────────────────────────
@@ -125,7 +137,11 @@ public class DocumentService {
         Document document = documentRepository.findByIdAndTenantId(docId, tenant.getId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Document not found"));
 
-        return toDTO(document);
+        String uploaderName = document.getUploadedBy() != null
+                ? userRepository.findById(document.getUploadedBy()).map(User::getName).orElse(null)
+                : null;
+
+        return toDTO(document, uploaderName);
     }
 
     // ─── DOWNLOAD A DOCUMENT ────────────────────────────────────────────
@@ -255,11 +271,19 @@ public class DocumentService {
     // because the frontend doesn't need them and exposing them would be
     // a security concern.
     private DocumentResponseDTO toDTO(Document doc) {
+        String uploaderName = doc.getUploadedBy() != null
+                ? userRepository.findById(doc.getUploadedBy()).map(User::getName).orElse(null)
+                : null;
+        return toDTO(doc, uploaderName);
+    }
+
+    private DocumentResponseDTO toDTO(Document doc, String uploaderName) {
         DocumentResponseDTO dto = new DocumentResponseDTO();
         dto.setId(doc.getId());
         dto.setOriginalFileName(doc.getOriginalFileName());
         dto.setContentType(doc.getContentType());
         dto.setUploadedBy(doc.getUploadedBy());
+        dto.setUploadedByName(uploaderName);
         dto.setFileSize(doc.getFileSize());
         dto.setCreatedAt(doc.getCreatedAt());
         dto.setUpdatedAt(doc.getUpdatedAt());

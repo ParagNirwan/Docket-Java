@@ -7,6 +7,8 @@ import com.docket.app.entity.User;
 import com.docket.app.enums.Permission;
 import com.docket.app.enums.Roles;
 import com.docket.app.enums.MemberStatus;
+import com.docket.app.entity.Folder;
+import com.docket.app.repository.FolderRepository;
 import com.docket.app.repository.TenantMembershipRepository;
 import com.docket.app.repository.TenantRepository;
 import com.docket.app.repository.UserRepository;
@@ -47,6 +49,9 @@ class TenantServiceTest {
 
     @Mock
     private TenantAuthorizationService tenantAuthorizationService;
+
+    @Mock
+    private FolderRepository folderRepository;
 
     @InjectMocks
     private TenantService tenantService;
@@ -135,6 +140,7 @@ class TenantServiceTest {
             return tenant;
         });
         when(userRepository.findByEmailIgnoreCase("ada@example.com")).thenReturn(Optional.of(user));
+        when(folderRepository.save(any(Folder.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         Tenant created = tenantService.addTenant(
                 new CreateTenantRequestDTO("Acme", "acme"),

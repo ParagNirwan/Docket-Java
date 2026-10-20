@@ -21,7 +21,12 @@ class RolePermissionsTest {
             Permission.DOCUMENTS_READ,
             Permission.DOCUMENTS_CREATE,
             Permission.DOCUMENTS_UPDATE,
-            Permission.DOCUMENTS_DELETE
+            Permission.DOCUMENTS_DELETE,
+            Permission.TRAYS_CREATE,
+            Permission.TRAYS_UPDATE,
+            Permission.TRAYS_DELETE,
+            Permission.FOLDERS_CREATE,
+            Permission.FOLDERS_DELETE
     );
 
     @Test
@@ -39,7 +44,12 @@ class RolePermissionsTest {
                         Permission.DOCUMENTS_READ,
                         Permission.DOCUMENTS_CREATE,
                         Permission.DOCUMENTS_UPDATE,
-                        Permission.DOCUMENTS_DELETE
+                        Permission.DOCUMENTS_DELETE,
+                        Permission.TRAYS_CREATE,
+                        Permission.TRAYS_UPDATE,
+                        Permission.TRAYS_DELETE,
+                        Permission.FOLDERS_CREATE,
+                        Permission.FOLDERS_DELETE
                 ),
                 RolePermissions.forRole(Roles.OWNER)
         );
@@ -53,7 +63,9 @@ class RolePermissionsTest {
                 Permission.MEMBERS_INVITE,
                 Permission.DOCUMENTS_READ,
                 Permission.DOCUMENTS_CREATE,
-                Permission.DOCUMENTS_UPDATE
+                Permission.DOCUMENTS_UPDATE,
+                Permission.FOLDERS_CREATE,
+                Permission.FOLDERS_DELETE
         ), RolePermissions.forRole(Roles.MANAGER));
         assertFalse(RolePermissions.allows(Roles.MANAGER, Permission.TENANT_UPDATE));
         assertFalse(RolePermissions.allows(Roles.MANAGER, Permission.MEMBERS_UPDATE_ROLE));

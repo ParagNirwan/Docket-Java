@@ -1,0 +1,64 @@
+name: CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+
+
+env:
+  REGION: europe-west3
+  REGISTRY: europe-west3-docker.pkg.dev
+  IMAGE_BASE: europe-west3-docker.pkg.dev/docket-java/docket
+
+jobs:
+  build-and-push-backend:
+    name: Build & Push Backend Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up Docker for Artifact Registry
+        run: gcloud auth configure-docker europe-west3-docker.pkg.dev --quiet
+
+      - name: Build and push backend image
+        run: |
+          docker build -t ${{ env.IMAGE_BASE }}/backend:${{ github.sha }} -t ${{ env.IMAGE_BASE }}/backend:latest ./app
+          docker push ${{ env.IMAGE_BASE }}/backend:${{ github.sha }}
+          docker push ${{ env.IMAGE_BASE }}/backend:latest
+
+  build-and-push-frontend:
+    name: Build & Push Frontend Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up Docker for Artifact Registry
+        run: gcloud auth configure-docker europe-west3-docker.pkg.dev --quiet
+
+      - name: Build and push frontend image
+        run: |
+          docker build -t ${{ env.IMAGE_BASE }}/frontend:${{ github.sha }} -t ${{ env.IMAGE_BASE }}/frontend:latest ./frontend
+          docker push ${{ env.IMAGE_BASE }}/frontend:${{ github.sha }}
+          docker push ${{ env.IMAGE_BASE }}/frontend:latest

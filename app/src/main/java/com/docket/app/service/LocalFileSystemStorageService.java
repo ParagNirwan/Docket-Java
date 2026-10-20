@@ -14,6 +14,7 @@ import java.nio.file.StandardCopyOption;
 // It reads the folder location from application.properties so you can change
 // where files are saved without touching any code.
 @Service
+@org.springframework.context.annotation.Profile("local")
 public class LocalFileSystemStorageService implements StorageService {
 
     // The root folder where all uploaded files will be saved.

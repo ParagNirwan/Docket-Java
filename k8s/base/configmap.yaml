@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: docket-config
+  namespace: docket
+data:
+  SPRING_PROFILES_ACTIVE: "prod,gcp"
+  SPRING_DATASOURCE_URL: "jdbc:postgresql://127.0.0.1:5432/docketdb"
+  SPRING_DATASOURCE_USERNAME: "docket"
+  GCP_PROJECT_ID: "docket-java"
+  GCP_LOCATION: "europe-west3"
+  DOCKET_STORAGE_TYPE: "gcs"
+  DOCKET_STORAGE_GCS_BUCKET: "docket-java-uploads"

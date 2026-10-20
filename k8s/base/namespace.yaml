@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: docket
+  labels:
+    app.kubernetes.io/name: docket
+    app.kubernetes.io/part-of: docket

@@ -17,33 +17,18 @@ RUN ./mvnw dependency:go-offline -B || true
 COPY src src
 RUN ./mvnw clean package -DskipTests -B
 
-# Detect which JDK modules the app needs
-RUN jar xf target/*.jar && \
-    jdeps --ignore-missing-deps --print-module-deps \
-      --multi-release 21 \
-      -cp 'BOOT-INF/lib/*' target/*.jar > /tmp/modules.txt
-
-# Stage 2: Build custom JRE from Alpine JDK (musl-compatible for Alpine runtime)
-FROM eclipse-temurin:21-jdk-alpine AS jre-builder
-COPY --from=builder /tmp/modules.txt /tmp/modules.txt
-RUN jlink --add-modules $(cat /tmp/modules.txt) \
-      --strip-debug --no-man-pages --no-header-files \
-      --compress=zip-6 --output /custom-jre
-
-# Stage 3: Minimal runtime image
-FROM alpine:3.21
+# Stage 2: Runtime image with full JRE
+FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
 
 # Install curl for container health checks
-RUN apk add --no-cache curl
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 
-# Copy custom JRE and application
-COPY --from=jre-builder /custom-jre /opt/java
+# Copy application
 COPY --from=builder /workspace/target/*.jar app.jar
-ENV PATH="/opt/java/bin:$PATH"
 
 # Create non-root user for running the application
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN groupadd -r appgroup && useradd -r -g appgroup appuser
 
 # Create uploads directory and set ownership
 RUN mkdir -p /app/uploads && chown -R appuser:appgroup /app

@@ -100,7 +100,7 @@ jobs:
         run: kubectl apply -k k8s/prod/
 
       - name: Wait for backend rollout
-        run: kubectl rollout status deployment/backend -n docket --timeout=120s
+        run: kubectl rollout status deployment/backend -n docket --timeout=300s
 
       - name: Wait for frontend rollout
         run: kubectl rollout status deployment/frontend -n docket --timeout=120s

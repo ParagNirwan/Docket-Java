@@ -31,10 +31,10 @@ spec:
                 name: docket-secrets
           resources:
             requests:
-              memory: "1Gi"
-              cpu: "500m"
+              memory: "768Mi"
+              cpu: "250m"
             limits:
-              memory: "1Gi"
+              memory: "768Mi"
               cpu: "500m"
           startupProbe:
             httpGet:

@@ -91,13 +91,13 @@ jobs:
 
       - name: Update image tags with Kustomize
         run: |
-          cd k8s/overlays/prod
+          cd k8s/prod
           kustomize edit set image \
             europe-west3-docker.pkg.dev/docket-java/docket/backend=europe-west3-docker.pkg.dev/docket-java/docket/backend:${{ github.sha }} \
             europe-west3-docker.pkg.dev/docket-java/docket/frontend=europe-west3-docker.pkg.dev/docket-java/docket/frontend:${{ github.sha }}
 
       - name: Deploy to GKE
-        run: kubectl apply -k k8s/overlays/prod/
+        run: kubectl apply -k k8s/prod/
 
       - name: Wait for backend rollout
         run: kubectl rollout status deployment/backend -n docket --timeout=120s

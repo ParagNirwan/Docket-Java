@@ -3,6 +3,7 @@ package com.docket.app.dto;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import com.docket.app.enums.IndexingStatus;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -19,4 +20,6 @@ public class DocumentResponseDTO {
     private Long fileSize;
     private Instant createdAt;
     private Instant updatedAt;
+    private IndexingStatus indexingStatus;
+
 }

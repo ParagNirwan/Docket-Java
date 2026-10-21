@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import com.docket.app.enums.IndexingStatus;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -32,5 +33,7 @@ public class Document {
     private Integer version;
     private Instant createdAt;
     private Instant updatedAt;
+    @Enumerated(EnumType.STRING)
+    private IndexingStatus indexingStatus;
 
 }

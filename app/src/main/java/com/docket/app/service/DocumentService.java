@@ -49,8 +49,7 @@ public class DocumentService {
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of(
             ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
             ".txt", ".csv", ".png", ".jpg", ".jpeg", ".gif", ".svg",
-            ".webp", ".zip", ".rar", ".7z"
-    );
+            ".webp", ".zip", ".rar", ".7z");
 
     // Maximum file size: 50 megabytes (matching the Spring config)
     private static final long MAX_FILE_SIZE = 50 * 1024 * 1024;
@@ -58,7 +57,8 @@ public class DocumentService {
     // ─── LIST DOCUMENTS ─────────────────────────────────────────────────
     // Returns a paginated list of active (not deleted) documents in a folder.
     // Only shows documents belonging to the user's tenant (organization).
-    public Page<DocumentResponseDTO> getDocuments(String slug, UUID folderId, Authentication authentication, Pageable pageable) {
+    public Page<DocumentResponseDTO> getDocuments(String slug, UUID folderId, Authentication authentication,
+            Pageable pageable) {
         Tenant tenant = findTenantOrThrow(slug);
         tenantAuthorizationService.requirePermission(authentication, tenant.getId(), Permission.DOCUMENTS_READ);
 
@@ -70,8 +70,8 @@ public class DocumentService {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
 
-        Map<UUID, String> userNames = userIds.isEmpty() ? Map.of() :
-                userRepository.findAllById(userIds).stream()
+        Map<UUID, String> userNames = userIds.isEmpty() ? Map.of()
+                : userRepository.findAllById(userIds).stream()
                         .collect(Collectors.toMap(User::getId, User::getName));
 
         return documents.map(doc -> toDTO(doc, userNames.get(doc.getUploadedBy())));
@@ -80,7 +80,8 @@ public class DocumentService {
     // ─── UPLOAD A DOCUMENT ──────────────────────────────────────────────
     // This is the main upload pipeline. It validates the file, saves it to
     // disk, computes a checksum for integrity, and records it in the database.
-    public DocumentResponseDTO uploadDocument(String slug, UUID folderId, MultipartFile file, Authentication authentication) {
+    public DocumentResponseDTO uploadDocument(String slug, UUID folderId, MultipartFile file,
+            Authentication authentication) {
         // Step 1: Find the tenant and verify the user has upload permission
         Tenant tenant = findTenantOrThrow(slug);
         tenantAuthorizationService.requirePermission(authentication, tenant.getId(), Permission.DOCUMENTS_CREATE);
@@ -190,9 +191,9 @@ public class DocumentService {
 
     // ─── HELPER: Validate the uploaded file ─────────────────────────────
     // Checks three things before we accept a file:
-    //  1. The file is not empty (0 bytes)
-    //  2. The file is within our size limit (50 MB)
-    //  3. The file type is on our allowed list
+    // 1. The file is not empty (0 bytes)
+    // 2. The file is within our size limit (50 MB)
+    // 3. The file type is on our allowed list
     private void validateFile(MultipartFile file) {
         if (file.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot upload an empty file");
@@ -232,14 +233,15 @@ public class DocumentService {
     // ─── HELPER: Get file extension ─────────────────────────────────────
     // Extracts ".pdf" from "report.pdf", or "" if there's no extension.
     private String getExtension(String filename) {
-        if (filename == null) return "";
+        if (filename == null)
+            return "";
         int dot = filename.lastIndexOf('.');
         return dot >= 0 ? filename.substring(dot) : "";
     }
 
     // ─── HELPER: Build storage path ─────────────────────────────────────
     // Organizes files on disk by tenant and date:
-    //   uploads/{tenant-id}/2026/10/{uuid-filename}.pdf
+    // uploads/{tenant-id}/2026/10/{uuid-filename}.pdf
     // This prevents any single folder from having millions of files.
     private String buildStoragePath(UUID tenantId, String filename) {
         LocalDate now = LocalDate.now();
@@ -287,11 +289,13 @@ public class DocumentService {
         dto.setFileSize(doc.getFileSize());
         dto.setCreatedAt(doc.getCreatedAt());
         dto.setUpdatedAt(doc.getUpdatedAt());
+        dto.setIndexingStatus(doc.getIndexingStatus());
         return dto;
     }
 
     // A simple container to return both the file data and the document
     // metadata together from the download method. The controller uses
     // the metadata to set HTTP headers (filename, content type).
-    public record DocumentDownload(Resource resource, Document document) {}
+    public record DocumentDownload(Resource resource, Document document) {
+    }
 }

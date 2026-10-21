@@ -31,18 +31,18 @@ spec:
                 name: docket-secrets
           resources:
             requests:
-              memory: "256Mi"
+              memory: "512Mi"
               cpu: "250m"
             limits:
-              memory: "512Mi"
+              memory: "1Gi"
               cpu: "500m"
           startupProbe:
             httpGet:
               path: /actuator/health/liveness
               port: 8080
-            initialDelaySeconds: 10
+            initialDelaySeconds: 15
             periodSeconds: 5
-            failureThreshold: 12
+            failureThreshold: 24
           livenessProbe:
             httpGet:
               path: /actuator/health/liveness

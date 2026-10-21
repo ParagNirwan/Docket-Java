@@ -86,7 +86,7 @@ jobs:
       - name: Get GKE credentials
         uses: google-github-actions/get-gke-credentials@v2
         with:
-          cluster_name: docket-cluster
+          cluster_name: autopilot-cluster-1
           location: europe-west3
 
       - name: Update image tags with Kustomize

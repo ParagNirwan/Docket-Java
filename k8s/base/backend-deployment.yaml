@@ -24,6 +24,7 @@ spec:
         # --- Main application container ---
         - name: backend
           image: europe-west3-docker.pkg.dev/docket-java/docket/backend:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
           envFrom:

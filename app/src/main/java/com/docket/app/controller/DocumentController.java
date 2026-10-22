@@ -13,6 +13,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import com.docket.app.service.ai.DocumentProcessingService;
+
+import java.util.Map;
 
 import java.util.UUID;
 
@@ -24,6 +27,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class DocumentController {
     private final DocumentService documentService;
+    private final DocumentProcessingService documentProcessingService;
 
     // ─── LIST DOCUMENTS IN A FOLDER ─────────────────────────────────────
     // GET /api/tenants/{slug}/folders/{folderId}/documents?page=0&size=20
@@ -109,4 +113,37 @@ public class DocumentController {
         documentService.softDeleteDocument(slug, docId, authentication);
         return ResponseEntity.noContent().build();
     }
+
+    // ─── GET INDEXING STATUS ───────────────────────────────────────────
+    // GET /api/tenants/{slug}/documents/{docId}/indexing-status
+    // Returns the current AI processing status of a document.
+    // The frontend polls this to show "Indexing..." → "Ready" transitions.
+    @GetMapping("/documents/{docId}/indexing-status")
+    public ResponseEntity<Map<String, String>> getIndexingStatus(
+            @PathVariable String slug,
+            @PathVariable UUID docId,
+            Authentication authentication
+    ) {
+        DocumentResponseDTO doc = documentService.getDocumentById(slug, docId, authentication);
+        String status = doc.getIndexingStatus() != null
+                ? doc.getIndexingStatus().name()
+                : "PENDING";
+        return ResponseEntity.ok(Map.of("status", status));
+    }
+
+    // ─── RE-INDEX A DOCUMENT ───────────────────────────────────────────
+    // POST /api/tenants/{slug}/documents/{docId}/reindex
+    // Triggers re-processing of a document (deletes old chunks, creates new ones).
+    // Useful if the embedding model is updated or extraction had a bug.
+    @PostMapping("/documents/{docId}/reindex")
+    public ResponseEntity<Map<String, String>> reindexDocument(
+            @PathVariable String slug,
+            @PathVariable UUID docId,
+            Authentication authentication
+    ) {
+        DocumentResponseDTO doc = documentService.getDocumentById(slug, docId, authentication);
+        documentProcessingService.processDocument(doc.getId());
+        return ResponseEntity.accepted().body(Map.of("status", "PROCESSING"));
+    }
+
 }

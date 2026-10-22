@@ -19,6 +19,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.context.ApplicationEventPublisher;
+import com.docket.app.service.ai.DocumentUploadedEvent;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -38,6 +40,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class DocumentService {
     private final TenantRepository tenantRepository;
+    private final ApplicationEventPublisher eventPublisher;
     private final TenantAuthorizationService tenantAuthorizationService;
     private final DocumentRepository documentRepository;
     private final StorageService storageService;
@@ -125,7 +128,10 @@ public class DocumentService {
 
         Document saved = documentRepository.save(document);
 
+        eventPublisher.publishEvent(new DocumentUploadedEvent(saved.getId(), saved.getTenantId()));
+
         return toDTO(saved, uploader.getName());
+
     }
 
     // ─── GET SINGLE DOCUMENT METADATA ───────────────────────────────────

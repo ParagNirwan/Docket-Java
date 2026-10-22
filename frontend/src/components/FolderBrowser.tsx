@@ -32,6 +32,7 @@ import {
   Download,
   Calendar,
   User,
+  Sparkles,
 } from "lucide-react";
 import { BreadcrumbNav } from "./BreadcrumbNav";
 import { CreateFolderModal } from "./CreateFolderModal";
@@ -40,6 +41,7 @@ import { UploadProgressPanel } from "./UploadProgressPanel";
 import { ViewModeSwitcher, type ViewMode } from "./ViewModeSwitcher";
 import { DocumentThumbnail } from "./DocumentThumbnail";
 import { FolderThumbnail } from "./FolderThumbnail";
+import { AiStatusBadge } from "./AiStatusBadge";
 import { getFileTypeInfo } from "../lib/fileTypeUtils";
 import { notify } from "../lib/notifications";
 import type {
@@ -90,6 +92,7 @@ interface FolderBrowserProps {
   canDeleteTray: boolean;
   canUpload: boolean;
   onDeleteTray?: (trayId: string) => void;
+  onAskAi?: (docId: string, docName: string) => void;
 }
 
 export function FolderBrowser({
@@ -101,6 +104,7 @@ export function FolderBrowser({
   canDeleteTray,
   canUpload,
   onDeleteTray,
+  onAskAi,
 }: FolderBrowserProps) {
   const { user } = useAuth();
 
@@ -1059,11 +1063,19 @@ export function FolderBrowser({
                             >
                               <DocIcon className="h-5 w-5" />
                             </div>
-                            <span
-                              className={`rounded-md px-2 py-0.5 text-[10px] font-bold tracking-wider ${typeInfo.badgeClass}`}
-                            >
-                              {typeInfo.extension}
-                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <AiStatusBadge
+                                slug={slug}
+                                docId={doc.id}
+                                token={token || null}
+                                initialStatus={doc.indexingStatus}
+                              />
+                              <span
+                                className={`rounded-md px-2 py-0.5 text-[10px] font-bold tracking-wider ${typeInfo.badgeClass}`}
+                              >
+                                {typeInfo.extension}
+                              </span>
+                            </div>
                           </div>
 
                           <p
@@ -1092,14 +1104,28 @@ export function FolderBrowser({
 
                         {/* Action buttons */}
                         <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800/80 flex items-center justify-between gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleDownloadDocument(doc)}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-1.5 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-300 dark:hover:bg-indigo-950/60 dark:hover:text-indigo-300 transition-colors"
-                          >
-                            <Download className="h-3.5 w-3.5" />
-                            <span>Download</span>
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleDownloadDocument(doc)}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-1.5 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-300 dark:hover:bg-indigo-950/60 dark:hover:text-indigo-300 transition-colors"
+                            >
+                              <Download className="h-3.5 w-3.5" />
+                              <span>Download</span>
+                            </button>
+                            {onAskAi && (
+                              <button
+                                type="button"
+                                onClick={() => onAskAi(doc.id, doc.originalFileName)}
+                                disabled={doc.indexingStatus !== "COMPLETED"}
+                                title={doc.indexingStatus === "COMPLETED" ? "Ask AI about this document" : doc.indexingStatus === "PENDING" || doc.indexingStatus === "PROCESSING" ? "Still indexing..." : "Not supported for this file type"}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/40 px-3 py-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 hover:border-indigo-300 dark:hover:bg-indigo-950/60 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                              >
+                                <Sparkles className="h-3.5 w-3.5" />
+                                <span>Ask AI</span>
+                              </button>
+                            )}
+                          </div>
                           {canDeleteFolder && (
                             <button
                               type="button"
@@ -1128,11 +1154,24 @@ export function FolderBrowser({
                         key={doc.id}
                         className="group flex flex-col rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-2.5 shadow-2xs hover:border-indigo-300 hover:shadow-md dark:hover:border-indigo-700 transition-all relative"
                       >
-                        <DocumentThumbnail
-                          filename={doc.originalFileName}
-                          contentType={doc.contentType}
-                          className="h-28 w-full"
-                        />
+                        <div className="relative">
+                          <DocumentThumbnail
+                            filename={doc.originalFileName}
+                            contentType={doc.contentType}
+                            className="h-28 w-full"
+                          />
+                          {onAskAi && doc.indexingStatus === "COMPLETED" && (
+                            <button
+                              type="button"
+                              onClick={() => onAskAi(doc.id, doc.originalFileName)}
+                              className="absolute top-1.5 right-1.5 flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-600/90 text-white opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-indigo-700"
+                              title="Ask AI"
+                              aria-label={`Ask AI about ${doc.originalFileName}`}
+                            >
+                              <Sparkles className="h-3 w-3" />
+                            </button>
+                          )}
+                        </div>
                         <div className="mt-2.5 px-1 min-w-0">
                           <p
                             className="truncate text-xs font-semibold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors"
@@ -1141,7 +1180,12 @@ export function FolderBrowser({
                             {doc.originalFileName}
                           </p>
                           <div className="mt-1 flex items-center justify-between text-[11px] text-gray-400 dark:text-gray-500">
-                            <span>{formatFileSize(doc.fileSize)}</span>
+                            <AiStatusBadge
+                              slug={slug}
+                              docId={doc.id}
+                              token={token || null}
+                              initialStatus={doc.indexingStatus}
+                            />
                             <span
                               className={`px-1 rounded text-[9px] font-bold ${typeInfo.badgeClass}`}
                             >
@@ -1167,6 +1211,7 @@ export function FolderBrowser({
                           <th className="py-3 px-4">Size</th>
                           <th className="py-3 px-4 hidden lg:table-cell">Uploaded By</th>
                           <th className="py-3 px-4 hidden sm:table-cell">Date</th>
+                          <th className="py-3 px-4 hidden md:table-cell">AI</th>
                           <th className="py-3 px-4 text-right">Actions</th>
                         </tr>
                       </thead>
@@ -1216,8 +1261,28 @@ export function FolderBrowser({
                               <td className="py-3 px-4 hidden sm:table-cell text-gray-400 dark:text-gray-500">
                                 {new Date(doc.createdAt).toLocaleDateString()}
                               </td>
+                              <td className="py-3 px-4 hidden md:table-cell">
+                                <AiStatusBadge
+                                  slug={slug}
+                                  docId={doc.id}
+                                  token={token || null}
+                                  initialStatus={doc.indexingStatus}
+                                />
+                              </td>
                               <td className="py-3 px-4 text-right">
                                 <div className="flex items-center justify-end gap-1.5">
+                                  {onAskAi && (
+                                    <button
+                                      type="button"
+                                      onClick={() => onAskAi(doc.id, doc.originalFileName)}
+                                      disabled={doc.indexingStatus !== "COMPLETED"}
+                                      className="p-1.5 rounded-lg text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                      title={doc.indexingStatus === "COMPLETED" ? "Ask AI" : "Not ready"}
+                                      aria-label={`Ask AI about ${doc.originalFileName}`}
+                                    >
+                                      <Sparkles className="h-4 w-4" />
+                                    </button>
+                                  )}
                                   <button
                                     type="button"
                                     onClick={() => handleDownloadDocument(doc)}

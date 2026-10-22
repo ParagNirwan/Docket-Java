@@ -27,7 +27,9 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class DocumentController {
     private final DocumentService documentService;
-    private final DocumentProcessingService documentProcessingService;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private DocumentProcessingService documentProcessingService;
 
     // ─── LIST DOCUMENTS IN A FOLDER ─────────────────────────────────────
     // GET /api/tenants/{slug}/folders/{folderId}/documents?page=0&size=20
@@ -141,6 +143,11 @@ public class DocumentController {
             @PathVariable UUID docId,
             Authentication authentication
     ) {
+        if (documentProcessingService == null) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE,
+                    "AI processing is not available in this environment");
+        }
         DocumentResponseDTO doc = documentService.getDocumentById(slug, docId, authentication);
         documentProcessingService.processDocument(doc.getId());
         return ResponseEntity.accepted().body(Map.of("status", "PROCESSING"));

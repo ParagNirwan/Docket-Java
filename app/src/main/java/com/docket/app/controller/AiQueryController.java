@@ -21,6 +21,7 @@ import org.springframework.web.server.ResponseStatusException;
 @RestController
 @RequestMapping("/api/tenants/{slug}")
 @RequiredArgsConstructor
+@org.springframework.context.annotation.Profile("gcp")
 public class AiQueryController {
 
     private final AiQueryService aiQueryService;

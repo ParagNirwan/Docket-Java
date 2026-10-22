@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Service
+@org.springframework.context.annotation.Profile("gcp")
 public class EmbeddingService {
 
     private static final Logger log = LoggerFactory.getLogger(EmbeddingService.class);

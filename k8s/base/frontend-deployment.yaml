@@ -8,6 +8,8 @@ metadata:
     app.kubernetes.io/part-of: docket
 spec:
   replicas: 2
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app.kubernetes.io/name: frontend

@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Configuration;
 import java.io.IOException;
 
 @Configuration
+@org.springframework.context.annotation.Profile("gcp")
 public class VertexAiConfig {
 
     @Value("${gcp.location}")

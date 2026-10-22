@@ -22,6 +22,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@org.springframework.context.annotation.Profile("gcp")
 public class AiQueryService {
 
     private static final Logger log = LoggerFactory.getLogger(AiQueryService.class);

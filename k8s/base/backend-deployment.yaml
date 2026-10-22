@@ -57,6 +57,10 @@ spec:
               port: 8080
             periodSeconds: 10
             failureThreshold: 3
+          volumeMounts:
+            - name: secrets-store
+              mountPath: "/mnt/secrets"
+              readOnly: true
 
         # --- Cloud SQL Auth Proxy sidecar ---
         - name: cloud-sql-proxy
@@ -75,3 +79,11 @@ spec:
               cpu: "100m"
           securityContext:
             runAsNonRoot: true
+
+      volumes:
+        - name: secrets-store
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: docket-secrets-provider

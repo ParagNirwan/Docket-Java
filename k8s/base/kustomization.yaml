@@ -5,6 +5,7 @@ resources:
   - namespace.yaml
   - service-account.yaml
   - configmap.yaml
+  - secret-provider-class.yaml
   - backend-deployment.yaml
   - backend-service.yaml
   - frontend-deployment.yaml

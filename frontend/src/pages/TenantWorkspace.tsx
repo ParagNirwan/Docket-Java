@@ -17,12 +17,14 @@ import {
   Plus,
   Search,
   ShieldCheck,
+  Sparkles,
   Trash2,
   UsersRound,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { CreateTrayModal } from "../components/CreateTrayModal";
 import { AiChatPanel } from "../components/AiChatPanel";
+import { WorkspaceAiSearch } from "../components/WorkspaceAiSearch";
 import { FolderBrowser } from "../components/FolderBrowser";
 import { TraysOverview } from "../components/TraysOverview";
 import { notify } from "../lib/notifications";
@@ -73,6 +75,7 @@ const emailAccounts = [
 
 const sectionLabels: Record<string, string> = {
   review: "Review",
+  "ai-search": "AI Search",
   trays: "Trays",
   general: "General",
   trash: "Trash",
@@ -267,6 +270,7 @@ export function TenantWorkspace() {
   // Main sidebar items (Review, Partners, Emails)
   const mainNavItems: WorkspaceNavItem[] = [
     { id: "review", label: "Review", icon: Inbox, permission: "documents.read", count: "6" },
+    { id: "ai-search", label: "AI Search", icon: Sparkles, permission: "documents.read" },
     { id: "partners", label: "Partners", icon: UsersRound, permission: "members.read" },
     { id: "emails", label: "Connected Emails", icon: Mail, permission: null, count: "2" },
   ];
@@ -401,8 +405,8 @@ export function TenantWorkspace() {
             </p>
           ) : (
             <>
-              {/* Review Queue (Top Item) */}
-              {visibleMainNavItems.filter((item) => item.id === "review").map((item) => (
+              {/* Top Nav Items (Review + AI Search) */}
+              {visibleMainNavItems.filter((item) => item.id === "review" || item.id === "ai-search").map((item) => (
                 <div key={item.id} className="space-y-1 max-md:flex max-md:shrink-0 max-md:items-center max-md:gap-1 max-md:space-y-0">
                   <NavItem item={item} collapsed={collapsed} active={currentSection === item.id} onClick={() => setActiveSection(item.id)} />
                 </div>
@@ -467,7 +471,7 @@ export function TenantWorkspace() {
               )}
 
               {/* Workspace Sections (Partners, Emails) */}
-              {visibleMainNavItems.filter((item) => item.id !== "review").map((item) => (
+              {visibleMainNavItems.filter((item) => item.id !== "review" && item.id !== "ai-search").map((item) => (
                 <div key={item.id} className="space-y-1 max-md:flex max-md:shrink-0 max-md:items-center max-md:gap-1 max-md:space-y-0">
                   {!collapsed && <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400 dark:text-gray-500 max-md:hidden">Workspace</p>}
                   <NavItem item={item} collapsed={collapsed} active={currentSection === item.id} onClick={() => setActiveSection(item.id)} />
@@ -540,6 +544,9 @@ export function TenantWorkspace() {
             {/* Dynamic Content View */}
             <div key={currentSection} className="workspace-content-enter flex-1 flex flex-col">
               {currentSection === "review" && <ReviewContent />}
+              {currentSection === "ai-search" && (
+                <WorkspaceAiSearch slug={slug || ""} token={token} />
+              )}
               {currentSection === "partners" && <PartnersContent canInvite={hasPermission(permissions, "members.invite")} />}
               {currentSection === "emails" && <ConnectedEmailsContent />}
               {currentSection === "trays" && (
@@ -596,6 +603,7 @@ export function TenantWorkspace() {
 function sectionDescription(section: string) {
   const descriptions: Record<string, string> = {
     review: "Here’s what needs your attention in this workspace.",
+    "ai-search": "Search across all documents with AI-powered answers.",
     general: "Documents and records in your General tray.",
     trash: "Items removed from this workspace appear here.",
     partners: "People and organizations you work with.",

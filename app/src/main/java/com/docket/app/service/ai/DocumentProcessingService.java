@@ -19,6 +19,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@org.springframework.context.annotation.Profile("gcp")
 public class DocumentProcessingService {
 
     private static final Logger log = LoggerFactory.getLogger(DocumentProcessingService.class);

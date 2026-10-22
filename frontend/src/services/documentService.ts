@@ -45,6 +45,7 @@ export interface DocumentDTO {
   fileSize: number;
   createdAt: string;
   updatedAt: string;
+  indexingStatus?: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED" | "NOT_PROCESSABLE";
 }
 
 // The paginated response from the server when listing documents.

@@ -89,12 +89,15 @@ jobs:
           cluster_name: autopilot-cluster-1
           location: europe-west3
 
-      - name: Deploy to GKE
+      - name: Set image tags via Kustomize
+        working-directory: k8s/prod
         run: |
-          kustomize build k8s/prod/ | \
-            sed "s|europe-west3-docker.pkg.dev/docket-java/docket/backend:latest|europe-west3-docker.pkg.dev/docket-java/docket/backend:${{ github.sha }}|g" | \
-            sed "s|europe-west3-docker.pkg.dev/docket-java/docket/frontend:latest|europe-west3-docker.pkg.dev/docket-java/docket/frontend:${{ github.sha }}|g" | \
-            kubectl apply -f -
+          kustomize edit set image \
+            ${{ env.IMAGE_BASE }}/backend=${{ env.IMAGE_BASE }}/backend:${{ github.sha }} \
+            ${{ env.IMAGE_BASE }}/frontend=${{ env.IMAGE_BASE }}/frontend:${{ github.sha }}
+
+      - name: Deploy to GKE
+        run: kustomize build k8s/prod/ | kubectl apply -f -
 
       - name: Wait for backend rollout
         run: kubectl rollout status deployment/backend -n docket --timeout=300s

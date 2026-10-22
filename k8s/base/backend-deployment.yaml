@@ -27,11 +27,15 @@ spec:
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
+          command: ["sh", "-c"]
+          args:
+            - |
+              export JWT_SECRET=$(tr -d '\r\n' < /mnt/secrets/JWT_SECRET)
+              export SPRING_DATASOURCE_PASSWORD=$(tr -d '\r\n' < /mnt/secrets/SPRING_DATASOURCE_PASSWORD)
+              exec java -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -jar app.jar
           envFrom:
             - configMapRef:
                 name: docket-config
-            - secretRef:
-                name: docket-secrets
           resources:
             requests:
               memory: "1536Mi"
@@ -84,7 +88,7 @@ spec:
       volumes:
         - name: secrets-store
           csi:
-            driver: secrets-store.csi.k8s.io
+            driver: secrets-store-gke.csi.k8s.io
             readOnly: true
             volumeAttributes:
               secretProviderClass: docket-secrets-provider

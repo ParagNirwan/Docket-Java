@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { CreateTrayModal } from "../components/CreateTrayModal";
+import { AiChatPanel } from "../components/AiChatPanel";
 import { FolderBrowser } from "../components/FolderBrowser";
 import { TraysOverview } from "../components/TraysOverview";
 import { notify } from "../lib/notifications";
@@ -132,6 +133,16 @@ export function TenantWorkspace() {
   const [activeSection, setActiveSection] = useState<WorkspaceSection>("review");
   const [trays, setTrays] = useState<Tray[]>(INITIAL_TRAYS);
   const [isCreateTrayModalOpen, setIsCreateTrayModalOpen] = useState(false);
+
+  const [aiPanel, setAiPanel] = useState<{
+    isOpen: boolean;
+    documentId: string;
+    documentName: string;
+  }>({ isOpen: false, documentId: "", documentName: "" });
+
+  function handleAskAi(docId: string, docName: string) {
+    setAiPanel({ isOpen: true, documentId: docId, documentName: docName });
+  }
 
   const [permissionState, setPermissionState] = useState<{
     slug: string | undefined;
@@ -553,6 +564,7 @@ export function TenantWorkspace() {
                   canDeleteTray={canDeleteTray}
                   canUpload={canUpload}
                   onDeleteTray={handleDeleteTray}
+                  onAskAi={handleAskAi}
                 />
               )}
             </div>
@@ -565,6 +577,16 @@ export function TenantWorkspace() {
         isOpen={isCreateTrayModalOpen}
         onClose={() => setIsCreateTrayModalOpen(false)}
         onSubmit={handleCreateTraySubmit}
+      />
+
+      {/* AI Chat Panel */}
+      <AiChatPanel
+        isOpen={aiPanel.isOpen}
+        onClose={() => setAiPanel((prev) => ({ ...prev, isOpen: false }))}
+        slug={slug || ""}
+        token={token}
+        documentId={aiPanel.documentId}
+        documentName={aiPanel.documentName}
       />
     </div>
   );

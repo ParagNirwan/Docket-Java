@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { randomUUID } from "../lib/uuid";
 import {
   Sparkles,
   Send,
@@ -110,7 +111,7 @@ export function WorkspaceAiSearch({ slug, token }: WorkspaceAiSearchProps) {
 
     // Optimistically add user message
     const tempUserMsg: ConversationMessage = {
-      id: crypto.randomUUID(),
+      id: randomUUID(),
       role: "user",
       content: question,
       sources: [],
@@ -146,7 +147,7 @@ export function WorkspaceAiSearch({ slug, token }: WorkspaceAiSearchProps) {
       notify.error("AI query failed", errorText);
 
       const errorMsg: ConversationMessage = {
-        id: crypto.randomUUID(),
+        id: randomUUID(),
         role: "ai",
         content: `I couldn't process that question. ${errorText}`,
         sources: [],

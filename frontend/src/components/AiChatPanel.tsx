@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { randomUUID } from "../lib/uuid";
 import { X, Send, Sparkles } from "lucide-react";
 import { AiMessage } from "./AiMessage";
 import { queryAi, type AiSourceChunk } from "../services/aiService";
@@ -71,7 +72,7 @@ export function AiChatPanel({
     if (!question || !token || isQuerying) return;
 
     const userMessage: ChatMessage = {
-      id: crypto.randomUUID(),
+      id: randomUUID(),
       role: "user",
       content: question,
     };
@@ -84,7 +85,7 @@ export function AiChatPanel({
       const response = await queryAi(slug, { question, documentId }, token);
 
       const aiMessage: ChatMessage = {
-        id: crypto.randomUUID(),
+        id: randomUUID(),
         role: "ai",
         content: response.answer,
         sources: response.sources,
@@ -96,7 +97,7 @@ export function AiChatPanel({
       notify.error("AI query failed", errorText);
 
       const errorMessage: ChatMessage = {
-        id: crypto.randomUUID(),
+        id: randomUUID(),
         role: "ai",
         content: `I couldn't process that question. ${errorText}`,
       };

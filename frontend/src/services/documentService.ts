@@ -1,3 +1,5 @@
+import { randomUUID } from "../lib/uuid";
+
 /**
  * ============================================================================
  * DOCUMENT UPLOAD & MANAGEMENT SERVICE
@@ -139,7 +141,7 @@ export class UploadManager {
       const validationError = validateFile(file);
 
       const task: UploadTask = {
-        id: crypto.randomUUID(),
+        id: randomUUID(),
         file,
         folderId,
         status: validationError ? "failed" : "queued",

@@ -30,6 +30,10 @@ public class VertexAiConfig {
 
     @Bean
     public VertexAI vertexAI() throws IOException {
-        return new VertexAI(projectId, "global");
+        return new VertexAI.Builder()
+                .setProjectId(projectId)
+                .setLocation("global")
+                .setApiEndpoint("aiplatform.googleapis.com")
+                .build();
     }
 }

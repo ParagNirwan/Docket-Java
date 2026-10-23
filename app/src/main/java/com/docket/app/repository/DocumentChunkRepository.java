@@ -48,4 +48,19 @@ public interface DocumentChunkRepository extends JpaRepository<DocumentChunk, UU
             @Param("documentId") UUID documentId,
             @Param("queryEmbedding") String queryEmbedding,
             @Param("limit") int limit);
+
+    @Query(value = """
+            SELECT dc.*, d.original_file_name AS document_name,
+                   0.0 AS distance
+            FROM document_chunks dc
+            JOIN documents d ON dc.document_id = d.id
+            WHERE dc.tenant_id = :tenantId
+              AND dc.document_id = :documentId
+            ORDER BY dc.chunk_index
+            LIMIT :limit
+            """, nativeQuery = true)
+    List<Object[]> findByDocumentOrdered(
+            @Param("tenantId") UUID tenantId,
+            @Param("documentId") UUID documentId,
+            @Param("limit") int limit);
 }

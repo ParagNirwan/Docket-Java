@@ -25,7 +25,8 @@ import java.util.UUID;
 public class AiQueryService {
 
     private static final Logger log = LoggerFactory.getLogger(AiQueryService.class);
-    private static final int TOP_K = 5;
+    private static final int TOP_K_SPECIFIC = 5;
+    private static final int TOP_K_BROAD = 20;
 
     private final EmbeddingService embeddingService;
     private final DocumentChunkRepository documentChunkRepository;
@@ -35,18 +36,23 @@ public class AiQueryService {
     private String geminiModel;
 
     public AiQueryResponseDTO query(UUID tenantId, String question, UUID documentId) {
-        // Step 1: Embed the user's question
-        List<float[]> questionEmbedding = embeddingService.embed(List.of(question));
-        String embeddingString = toVectorString(questionEmbedding.get(0));
+        boolean isBroadQuery = isBroadQuery(question);
 
-        // Step 2: Find nearest chunks via pgvector
         List<Object[]> rows;
-        if (documentId != null) {
+
+        if (documentId != null && isBroadQuery) {
+            rows = documentChunkRepository.findByDocumentOrdered(
+                    tenantId, documentId, TOP_K_BROAD);
+        } else if (documentId != null) {
+            List<float[]> questionEmbedding = embeddingService.embed(List.of(question));
+            String embeddingString = toVectorString(questionEmbedding.get(0));
             rows = documentChunkRepository.findNearestByTenantAndDocument(
-                    tenantId, documentId, embeddingString, TOP_K);
+                    tenantId, documentId, embeddingString, TOP_K_SPECIFIC);
         } else {
+            List<float[]> questionEmbedding = embeddingService.embed(List.of(question));
+            String embeddingString = toVectorString(questionEmbedding.get(0));
             rows = documentChunkRepository.findNearestByTenant(
-                    tenantId, embeddingString, TOP_K);
+                    tenantId, embeddingString, isBroadQuery ? TOP_K_BROAD : TOP_K_SPECIFIC);
         }
 
         if (rows.isEmpty()) {
@@ -55,7 +61,6 @@ public class AiQueryService {
                     List.of());
         }
 
-        // Step 3: Extract chunk data from raw rows
         List<AiSourceChunkDTO> sources = new ArrayList<>();
         StringBuilder contextBuilder = new StringBuilder();
 
@@ -73,10 +78,18 @@ public class AiQueryService {
                     .append(chunkText).append("\n\n");
         }
 
-        // Step 4: Build prompt and call Gemini
         String answer = callGemini(question, contextBuilder.toString());
 
         return new AiQueryResponseDTO(answer, sources);
+    }
+
+    private boolean isBroadQuery(String question) {
+        String lower = question.toLowerCase();
+        return lower.contains("summarize") || lower.contains("summary")
+                || lower.contains("overview") || lower.contains("main points")
+                || lower.contains("key takeaways") || lower.contains("what is this about")
+                || lower.contains("what's this about") || lower.contains("tell me about")
+                || lower.contains("describe");
     }
 
     private String callGemini(String question, String context) {
@@ -84,9 +97,9 @@ public class AiQueryService {
             String systemPrompt = """
                     You are a helpful document assistant for the Docket platform.
                     Answer the user's question based ONLY on the provided context from their documents.
-                    If the context doesn't contain enough information to answer, say "I don't have enough information in the provided documents to answer this question."
-                    When answering, reference which source(s) you used (e.g., "According to Source 1...").
-                    Keep answers concise and factual.
+                    If the context doesn't contain enough information to answer, say so clearly.
+                    When answering specific questions, reference which source(s) you used (e.g., "According to Source 1...").
+                    For summarization or overview requests, synthesize the information into a coherent summary with clear structure — use headings or bullet points where appropriate.
                     """;
 
             String fullPrompt = systemPrompt + "\n\n--- CONTEXT ---\n" + context
@@ -94,7 +107,7 @@ public class AiQueryService {
 
             GenerationConfig generationConfig = GenerationConfig.newBuilder()
                     .setTemperature(0.3f)
-                    .setMaxOutputTokens(1024)
+                    .setMaxOutputTokens(2048)
                     .build();
 
             GenerativeModel model = new GenerativeModel.Builder()

@@ -30,6 +30,6 @@ public class VertexAiConfig {
 
     @Bean
     public VertexAI vertexAI() throws IOException {
-        return new VertexAI(projectId, location);
+        return new VertexAI(projectId, "global");
     }
 }

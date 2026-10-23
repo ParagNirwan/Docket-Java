@@ -83,6 +83,11 @@
             <artifactId>pgvector</artifactId>
             <version>0.1.6</version>
         </dependency>
+        <!-- Hibernate vector type: bridges float[] <-> PostgreSQL vector -->
+        <dependency>
+            <groupId>org.hibernate.orm</groupId>
+            <artifactId>hibernate-vector</artifactId>
+        </dependency>
 
 
         <dependency>

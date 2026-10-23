@@ -1,95 +1,254 @@
 # Docket
 
-Full-stack application with PostgreSQL, Spring Boot (Java 21), and React + Vite (TypeScript).
+A multi-tenant document management platform with AI-powered search. Upload documents, organise them in a hierarchical folder system ("Trays"), and query their contents through a Retrieval-Augmented Generation (RAG) pipeline backed by Google Vertex AI.
 
-## 🚀 Quick Start (Docker + Local Backend)
+## Tech stack
 
-PostgreSQL and the frontend run in Docker. Run the Spring Boot backend locally so backend code changes take effect without rebuilding a Docker image.
+| Layer | Technology |
+| :--- | :--- |
+| **Frontend** | React 19, TypeScript 6, Vite 8, Tailwind CSS 4, React Router 7 |
+| **Backend** | Java 21, Spring Boot 4.1, Spring Security, Spring Data JPA, Flyway |
+| **Database** | PostgreSQL 18 with pgvector extension |
+| **AI / ML** | Google Vertex AI (Gemini 2.0 Flash, text-embedding-005), Apache Tika for text extraction |
+| **Infrastructure** | Docker Compose (dev), GKE Autopilot (prod), Kustomize, GitHub Actions CI/CD |
+| **Storage** | Local filesystem (dev), Google Cloud Storage (prod) |
 
-Start the Docker services using one of these options:
-1. **VS Code:** Press `Ctrl + Shift + B` (runs `🚀 Start Docker Services`).
-2. **Windows Explorer:** Double-click [`start.bat`](./start.bat).
-3. **NPM / Terminal:**
-   ```bash
-   npm start
-   ```
-   *(or `docker compose up --build --remove-orphans`)*
+## Project structure
 
-Then, in a separate PowerShell window from the repository root, start the backend:
+```
+├── app/                        # Spring Boot backend
+│   ├── src/main/java/com/docket/app/
+│   │   ├── controller/         # REST controllers (Auth, Tenant, Document, Folder, AI)
+│   │   ├── dto/                # Request/response DTOs
+│   │   ├── entity/             # JPA entities
+│   │   ├── enums/              # Roles, Permissions, statuses
+│   │   ├── repository/         # Spring Data repositories
+│   │   ├── security/           # JWT filter, role-permission matrix, SecurityConfig
+│   │   └── service/            # Business logic & AI pipeline
+│   │       └── ai/             # Chunking, embedding, RAG query, text extraction
+│   ├── src/main/resources/
+│   │   ├── db/migration/       # Flyway migrations (V1–V6)
+│   │   └── application*.properties
+│   └── Dockerfile
+├── frontend/                   # React SPA
+│   ├── src/
+│   │   ├── components/         # UI components (Sidebar, FolderBrowser, AiChat, etc.)
+│   │   ├── pages/              # Route pages (Login, Register, Workspace, Settings)
+│   │   ├── context/            # Auth context provider
+│   │   ├── services/           # API client modules
+│   │   └── lib/                # Utilities (JWT, permissions, validation)
+│   └── Dockerfile
+├── k8s/                        # Kubernetes manifests (Kustomize base + dev/prod overlays)
+├── .github/workflows/          # CI (build & test) and CD (GKE deploy) pipelines
+├── compose.yaml                # Docker Compose for local development
+├── compose.prod.yaml           # Production compose overrides
+└── .env.example                # Required environment variables
+```
+
+## Quick start (local development)
+
+PostgreSQL and the frontend run in Docker. The Spring Boot backend runs locally so code changes take effect without rebuilding an image.
+
+### 1. Environment
+
+Copy `.env.example` to `.env` and fill in the values:
+
+```
+POSTGRES_PASSWORD=docket_dev_password
+JWT_SECRET=<base64-encoded secret>
+```
+
+### 2. Start Docker services
+
+Pick one:
+
+| Method | Command |
+| :--- | :--- |
+| VS Code | `Ctrl + Shift + B` (runs "Start Docker Services" task) |
+| Windows Explorer | Double-click `start.bat` |
+| Terminal | `npm start` or `docker compose up --build --remove-orphans` |
+
+### 3. Start the backend
 
 ```powershell
 .\app\mvnw.cmd -f .\app\pom.xml spring-boot:run
 ```
 
-The backend connects to the Dockerized PostgreSQL on `localhost:5433`. Ensure the root `.env` contains the database password and a valid `JWT_SECRET`.
+The backend connects to Dockerised PostgreSQL on `localhost:5433`.
 
-## 🌐 Running Services
+### Running services
 
 | Service | URL | Notes |
 | :--- | :--- | :--- |
-| **Frontend** | [http://localhost:5173](http://localhost:5173) | React + Vite with HMR hot reloading |
-| **Backend API** | [http://localhost:8080](http://localhost:8080) | Run locally with the command above; frontend proxy targets `host.docker.internal:8080` |
-| **Actuator Health** | [http://localhost:8080/actuator/health](http://localhost:8080/actuator/health) | Backend health endpoint |
-| **PostgreSQL** | `localhost:5433` (db: `docketdb`) | User: `docket`, Pass: `docket_dev_password` |
+| **Frontend** | http://localhost:5173 | React + Vite with HMR |
+| **Backend API** | http://localhost:8080 | Frontend proxy targets `host.docker.internal:8080` |
+| **Actuator** | http://localhost:8080/actuator/health | Health check |
+| **PostgreSQL** | `localhost:5433` (db: `docketdb`) | User: `docket` |
 
----
-
-## 🛑 Stop Services
+### Stop services
 
 ```bash
 docker compose down --remove-orphans
 ```
-*(Or in VS Code: Run Task -> `🛑 Stop Docker Services`. Stop the locally running backend separately with `Ctrl+C`.)*
 
-# Docket-Java
+Stop the local backend separately with `Ctrl+C`.
 
-## Tenant authorization
+---
 
-All API routes except `/api/auth/**`, `/actuator/health`, and `/error` require authentication. Tenant authorization is checked against the authenticated user's current database membership; JWT tenant and role claims are not used to authorize tenant operations.
+## Core features
 
-### Current endpoint policy
+### Multi-tenancy
 
-| Endpoint | Scope | Authorization |
-| --- | --- | --- |
-| `POST /api/auth/register` | Public account creation | Public |
-| `POST /api/auth/login` | Public authentication | Public |
-| `POST /api/tenants/create` | Account-level tenant creation | Any authenticated user; creator becomes the active `OWNER` |
-| `GET /api/users/list-tenants` | Current user's tenant list | Authenticated user only; includes only active memberships in active tenants |
-| `GET /api/tenants/by-slug/{slug}` | Tenant metadata | Active membership plus `tenant.read` |
-| `GET /api/tenants/by-slug/{slug}/permissions` | Current user's tenant permissions | Active membership in an active tenant; values are computed server-side |
+Users register an account and create **tenants** (organisations). Each tenant is isolated — its data, folders, and documents are scoped by tenant ID at every layer. Tenant membership is checked on every request; JWT claims are not trusted for authorisation.
 
-Membership denial and unavailable tenant both return `404` to avoid revealing tenant existence. An authenticated member who lacks a specific permission receives `403`; unauthenticated requests receive `401`. Duplicate active memberships for a user and tenant fail with `409` rather than selecting an ambiguous role. Membership and tenant status changes are checked on each request, so an old JWT does not retain tenant access.
+### Folder hierarchy (Trays)
 
-### Default tenant role matrix
+Documents live inside a hierarchical folder system. **Trays** are root-level folders shown in the sidebar; sub-folders nest inside them. The `folders` table uses a self-referential `parent_folder_id` to represent the tree.
+
+### Document management
+
+- Upload files up to 50 MB (multipart)
+- Paginated listing per folder
+- Download with XSS-safe `Content-Disposition` headers
+- Soft-delete (recoverable)
+
+### AI-powered search (RAG)
+
+Available when the `gcp` Spring profile is active. The pipeline:
+
+1. **Upload** — file is stored and a `DocumentUploadedEvent` is published.
+2. **Text extraction** — Apache Tika extracts raw text from PDF, DOCX, etc.
+3. **Chunking** — text is split into overlapping segments (2 000 chars, 200 overlap).
+4. **Embedding** — each chunk is embedded with Vertex AI `text-embedding-005` (768-dim vectors).
+5. **Storage** — vectors are stored in pgvector `document_chunks` table.
+6. **Query** — user question is embedded, top-K similar chunks are retrieved via cosine similarity, and Gemini 2.0 Flash generates an answer grounded in those chunks with source citations.
+
+Conversational AI sessions are persisted (create, list, send follow-up, delete). Rate limiting caps queries at 10 per user per minute.
+
+---
+
+## API overview
+
+### Authentication
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| POST | `/api/auth/register` | Create account |
+| POST | `/api/auth/login` | Authenticate, receive JWT |
+
+### Tenants & users
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| POST | `/api/tenants/create` | Create a tenant (caller becomes OWNER) |
+| GET | `/api/users/list-tenants` | List current user's active tenants |
+| GET | `/api/tenants/by-slug/{slug}` | Tenant metadata |
+| GET | `/api/tenants/by-slug/{slug}/permissions` | Current user's permissions |
+
+### Folders
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| GET | `/api/tenants/{slug}/folders/{id}/children` | List sub-folders |
+| POST | `/api/tenants/{slug}/folders/{id}/children` | Create sub-folder |
+
+### Documents
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| GET | `/api/tenants/{slug}/folders/{id}/documents` | List documents (paginated) |
+| POST | `/api/tenants/{slug}/folders/{id}/documents` | Upload file |
+| GET | `/api/tenants/{slug}/documents/{id}` | Document metadata |
+| GET | `/api/tenants/{slug}/documents/{id}/download` | Download file |
+| DELETE | `/api/tenants/{slug}/documents/{id}` | Soft-delete |
+| GET | `/api/tenants/{slug}/documents/{id}/indexing-status` | AI indexing status |
+| POST | `/api/tenants/{slug}/documents/{id}/reindex` | Re-trigger AI processing |
+
+### AI (requires `gcp` profile)
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| POST | `/api/tenants/{slug}/ai/query` | Single-shot RAG query |
+| GET | `/api/tenants/{slug}/ai/conversations` | List conversations |
+| GET | `/api/tenants/{slug}/ai/conversations/{id}` | Get conversation with messages |
+| POST | `/api/tenants/{slug}/ai/conversations` | Start conversation |
+| POST | `/api/tenants/{slug}/ai/conversations/{id}/messages` | Send follow-up |
+| DELETE | `/api/tenants/{slug}/ai/conversations/{id}` | Delete conversation |
+
+---
+
+## Authorisation
+
+All routes except auth and health require a valid JWT. Tenant access is verified against live database membership, not JWT claims.
+
+### Role–permission matrix
 
 | Permission | OWNER | ADMIN | MANAGER | MEMBER |
-| --- | --- | --- | --- | --- |
-| `tenant.read` | Yes | Yes | Yes | Yes |
-| `tenant.update` | Yes | Yes | No | No |
-| `tenant.transfer_ownership` | Yes | No | No | No |
-| `members.read` | Yes | Yes | Yes | No |
-| `members.invite` | Yes | Yes | Yes | No |
-| `members.update_role` | Yes | Yes | No | No |
-| `members.remove` | Yes | Yes | No | No |
-| `documents.read` | Yes | Yes | Yes | Yes |
-| `documents.create` | Yes | Yes | Yes | No |
-| `documents.update` | Yes | Yes | Yes | No |
-| `documents.delete` | Yes | Yes | No | No |
+| :--- | :---: | :---: | :---: | :---: |
+| `tenant.read` | ✓ | ✓ | ✓ | ✓ |
+| `tenant.update` | ✓ | ✓ | | |
+| `tenant.transfer_ownership` | ✓ | | | |
+| `members.read` | ✓ | ✓ | ✓ | |
+| `members.invite` | ✓ | ✓ | ✓ | |
+| `members.update_role` | ✓ | ✓ | | |
+| `members.remove` | ✓ | ✓ | | |
+| `documents.read` | ✓ | ✓ | ✓ | ✓ |
+| `documents.create` | ✓ | ✓ | ✓ | |
+| `documents.update` | ✓ | ✓ | ✓ | |
+| `documents.delete` | ✓ | ✓ | | |
 
-The policy is implemented in `app/src/main/java/com/docket/app/security/RolePermissions.java`; permissions are stable API codes declared by `Permission`. Unmapped/null roles fail closed. Tenant creation is an account-level operation, not a tenant permission, because the user has no membership in that tenant until creation completes.
+Implemented in `RolePermissions.java`. Unmapped or null roles receive no permissions (fail closed). The frontend gates UI elements with server-returned permission codes, but all enforcement happens server-side.
 
-Migration `V2__add_tenant_status_and_membership_indexes.sql` backfills existing tenants as `ACTIVE`, makes tenant status required, and adds indexes for membership authorization and tenant listing. Existing memberships with null roles remain null and receive no permissions.
+### Adding a new tenant-scoped endpoint
 
-### Scope and extension rules
+1. Resolve the tenant from the route slug server-side.
+2. Call `TenantAuthorizationService.requirePermission` before any data access.
+3. Add the permission to the `Permission` enum and assign role grants in `RolePermissions`.
+4. Scope repository queries to the tenant; return minimum data.
+5. Write allow/deny and cross-tenant denial tests.
+6. Gate the corresponding frontend action with the server-returned permission code.
 
-The current application has no document CRUD or member-management API controllers. The corresponding permission codes and default grants are reserved for those future features; they do not protect data endpoints that do not yet exist. “Partners”, “Trash”, and email sections in the workspace are currently mock frontend content. The UI hides email tools until a backend permission and API policy are defined.
+---
 
-When adding a tenant-owned endpoint:
+## CI/CD
 
-1. Require the tenant identifier/slug from the route and resolve it server-side.
-2. Call `TenantAuthorizationService.requirePermission` before reading or mutating tenant data; scope repository queries to that tenant as well.
-3. Add the permission to `Permission`, assign explicit role grants in `RolePermissions`, and add allow/deny tests.
-4. Return only the minimum data needed and add cross-tenant denial tests for IDs, paths, and query parameters.
-5. Gate the corresponding frontend navigation/action with the server-returned permission code. UI visibility is not a substitute for backend enforcement.
+### CI (`ci.yml`)
 
-There are no APIs for assigning roles, removing members, transferring ownership, or custom permission administration yet. `RolePermissions.canAssignRole` encodes the default grant ceiling (only owners may grant `ADMIN`; no role may assign `OWNER` through ordinary role editing). Any future ownership transfer must separately require `tenant.transfer_ownership`. Do not expose those actions until the rules have endpoint-level enforcement and tests. Existing memberships with a null role receive no permissions and must be remediated rather than assigned an implicit elevated role.
+Runs on push/PR to `main`:
+- **Backend** — `mvn clean verify` (Java 21, Temurin)
+- **Frontend** — `npm ci` → lint (oxlint) → build → test (Vitest)
+
+### CD (`cd.yml`)
+
+Runs on push to `main`:
+1. Builds Docker images for backend and frontend.
+2. Pushes to Google Artifact Registry (`europe-west3-docker.pkg.dev/docket-java/docket`).
+3. Deploys to GKE Autopilot via Kustomize (`k8s/prod/`), with automatic rollback on failure.
+
+---
+
+## Database migrations
+
+Managed by Flyway. Migrations live in `app/src/main/resources/db/migration/`:
+
+| Migration | Purpose |
+| :--- | :--- |
+| V1 | Users, tenants, tenant memberships |
+| V2 | Tenant status, membership indexes |
+| V3 | Folders / Trays hierarchy |
+| V4 | Documents table |
+| V5 | pgvector extension, document chunks with embeddings |
+| V6 | AI conversations and messages |
+
+---
+
+## Environment variables
+
+| Variable | Required | Default | Description |
+| :--- | :---: | :--- | :--- |
+| `POSTGRES_PASSWORD` | Yes | `docket_dev_password` | Database password |
+| `JWT_SECRET` | Yes | — | Base64-encoded HMAC key for JWT signing |
+| `JWT_EXPIRATION` | No | `86400000` (24h) | JWT token lifetime in ms |
+| `GCP_PROJECT_ID` | Prod | — | Google Cloud project (for Vertex AI / GCS) |
+| `GCP_LOCATION` | No | `europe-west3` | GCP region |
+| `VITE_API_URL` | No | `/api` | Frontend API base path |

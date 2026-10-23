@@ -11,7 +11,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,7 +35,6 @@ public class DocumentProcessingService {
         processDocument(event.documentId());
     }
 
-    @Transactional
     public void processDocument(UUID documentId) {
         Document document = documentRepository.findById(documentId).orElse(null);
         if (document == null) {
@@ -48,7 +46,6 @@ public class DocumentProcessingService {
         updateStatus(document, IndexingStatus.PROCESSING);
 
         try {
-            // Step 1: Extract text
             ExtractionResult extraction = textExtractionService.extract(
                     document.getStoredFileName(), document.getContentType());
 
@@ -63,7 +60,6 @@ public class DocumentProcessingService {
                 return;
             }
 
-            // Step 2: Chunk the text
             List<String> chunks = chunkingService.chunk(extraction.text());
 
             if (chunks.isEmpty()) {
@@ -72,10 +68,8 @@ public class DocumentProcessingService {
                 return;
             }
 
-            // Step 3: Generate embeddings
             List<float[]> embeddings = embeddingService.embed(chunks);
 
-            // Step 4: Delete old chunks (idempotent re-indexing) and save new ones
             documentChunkRepository.deleteByDocumentId(documentId);
 
             List<DocumentChunk> chunkEntities = new ArrayList<>();

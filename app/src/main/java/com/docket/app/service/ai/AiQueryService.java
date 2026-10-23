@@ -3,10 +3,11 @@ package com.docket.app.service.ai;
 import com.docket.app.dto.AiQueryResponseDTO;
 import com.docket.app.dto.AiSourceChunkDTO;
 import com.docket.app.repository.DocumentChunkRepository;
-import com.google.cloud.aiplatform.v1.EndpointName;
-import com.google.cloud.aiplatform.v1.PredictResponse;
-import com.google.cloud.aiplatform.v1.PredictionServiceClient;
-import com.google.protobuf.Value;
+import com.google.cloud.vertexai.VertexAI;
+import com.google.cloud.vertexai.api.GenerateContentResponse;
+import com.google.cloud.vertexai.api.GenerationConfig;
+import com.google.cloud.vertexai.generativeai.GenerativeModel;
+import com.google.cloud.vertexai.generativeai.ResponseHandler;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,10 +16,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -30,13 +29,7 @@ public class AiQueryService {
 
     private final EmbeddingService embeddingService;
     private final DocumentChunkRepository documentChunkRepository;
-    private final PredictionServiceClient predictionClient;
-
-    @org.springframework.beans.factory.annotation.Value("${gcp.project-id}")
-    private String projectId;
-
-    @org.springframework.beans.factory.annotation.Value("${gcp.location}")
-    private String location;
+    private final VertexAI vertexAI;
 
     @org.springframework.beans.factory.annotation.Value("${docket.ai.gemini.model}")
     private String geminiModel;
@@ -88,9 +81,6 @@ public class AiQueryService {
 
     private String callGemini(String question, String context) {
         try {
-            EndpointName endpoint = EndpointName.ofProjectLocationPublisherModelName(
-                    projectId, location, "google", geminiModel);
-
             String systemPrompt = """
                     You are a helpful document assistant for the Docket platform.
                     Answer the user's question based ONLY on the provided context from their documents.
@@ -102,28 +92,20 @@ public class AiQueryService {
             String fullPrompt = systemPrompt + "\n\n--- CONTEXT ---\n" + context
                     + "\n--- QUESTION ---\n" + question;
 
-            Value instance = Value.newBuilder()
-                    .setStructValue(com.google.protobuf.Struct.newBuilder()
-                            .putFields("content", Value.newBuilder().setStringValue(fullPrompt).build())
-                            .build())
+            GenerationConfig generationConfig = GenerationConfig.newBuilder()
+                    .setTemperature(0.3f)
+                    .setMaxOutputTokens(1024)
                     .build();
 
-            Value parameters = Value.newBuilder()
-                    .setStructValue(com.google.protobuf.Struct.newBuilder()
-                            .putFields("temperature", Value.newBuilder().setNumberValue(0.3).build())
-                            .putFields("maxOutputTokens", Value.newBuilder().setNumberValue(1024).build())
-                            .build())
+            GenerativeModel model = new GenerativeModel.Builder()
+                    .setModelName(geminiModel)
+                    .setVertexAi(vertexAI)
+                    .setGenerationConfig(generationConfig)
                     .build();
 
-            PredictResponse response = predictionClient.predict(endpoint, List.of(instance), parameters);
+            GenerateContentResponse response = model.generateContent(fullPrompt);
 
-            if (response.getPredictionsList().isEmpty()) {
-                return "I was unable to generate an answer. Please try again.";
-            }
-
-            return response.getPredictions(0).getStructValue()
-                    .getFieldsOrThrow("content")
-                    .getStringValue();
+            return ResponseHandler.getText(response);
 
         } catch (Exception e) {
             log.error("Gemini call failed: {}", e.getMessage(), e);

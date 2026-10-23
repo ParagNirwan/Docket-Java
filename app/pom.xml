@@ -119,11 +119,15 @@
 
         </dependency>
 
-        <!--Google
-        Cloud AI Platform-->
+        <!--Google Cloud AI Platform (embeddings via PredictionServiceClient) -->
         <dependency>
             <groupId>com.google.cloud</groupId>
             <artifactId>google-cloud-aiplatform</artifactId>
+        </dependency>
+        <!-- Vertex AI Generative Models (Gemini) -->
+        <dependency>
+            <groupId>com.google.cloud</groupId>
+            <artifactId>google-cloud-vertexai</artifactId>
         </dependency>
 
         <!-- Google Cloud Vision OCR -->

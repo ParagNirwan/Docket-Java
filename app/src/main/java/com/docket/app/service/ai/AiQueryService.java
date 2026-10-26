@@ -2,7 +2,9 @@ package com.docket.app.service.ai;
 
 import com.docket.app.dto.AiQueryResponseDTO;
 import com.docket.app.dto.AiSourceChunkDTO;
+import com.docket.app.enums.FileStatus;
 import com.docket.app.repository.DocumentChunkRepository;
+import com.docket.app.repository.DocumentRepository;
 import com.google.cloud.vertexai.VertexAI;
 import com.google.cloud.vertexai.api.GenerateContentResponse;
 import com.google.cloud.vertexai.api.GenerationConfig;
@@ -32,10 +34,18 @@ public class AiQueryService {
     private final DocumentChunkRepository documentChunkRepository;
     private final VertexAI vertexAI;
 
+    private final DocumentRepository documentRepository;
+
     @org.springframework.beans.factory.annotation.Value("${docket.ai.gemini.model}")
     private String geminiModel;
 
     public AiQueryResponseDTO query(UUID tenantId, String question, UUID documentId) {
+        if (documentId != null) {
+            documentRepository.findByIdAndTenantId(documentId, tenantId)
+                    .filter(doc -> doc.getFileStatus() == FileStatus.ACTIVE)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Document not found"));
+        }
+
         boolean isBroadQuery = isBroadQuery(question);
 
         List<Object[]> rows;

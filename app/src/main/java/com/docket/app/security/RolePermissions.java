@@ -31,7 +31,8 @@ public class RolePermissions {
                     Permission.TRAYS_UPDATE,
                     Permission.TRAYS_DELETE,
                     Permission.FOLDERS_CREATE,
-                    Permission.FOLDERS_DELETE
+                    Permission.FOLDERS_DELETE,
+                    Permission.FOLDERS_UPDATE
             ),
 
             // Admin — can do almost everything, EXCEPT transfer ownership.
@@ -50,7 +51,8 @@ public class RolePermissions {
                     Permission.TRAYS_UPDATE,
                     Permission.TRAYS_DELETE,
                     Permission.FOLDERS_CREATE,
-                    Permission.FOLDERS_DELETE
+                    Permission.FOLDERS_DELETE,
+                    Permission.FOLDERS_UPDATE
             ),
 
             // Manager — can view things, invite people, work with documents, and create/delete sub-folders.
@@ -62,7 +64,8 @@ public class RolePermissions {
                     Permission.DOCUMENTS_CREATE,
                     Permission.DOCUMENTS_UPDATE,
                     Permission.FOLDERS_CREATE,
-                    Permission.FOLDERS_DELETE
+                    Permission.FOLDERS_DELETE,
+                    Permission.FOLDERS_UPDATE
             ),
 
             // Member — the most basic role. Can only view the org and read documents.

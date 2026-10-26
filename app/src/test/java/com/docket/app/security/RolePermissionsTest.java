@@ -3,7 +3,10 @@ package com.docket.app.security;
 import com.docket.app.enums.Permission;
 import com.docket.app.enums.Roles;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
+import java.util.Arrays;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -26,8 +29,8 @@ class RolePermissionsTest {
             Permission.TRAYS_UPDATE,
             Permission.TRAYS_DELETE,
             Permission.FOLDERS_CREATE,
-            Permission.FOLDERS_DELETE
-    );
+            Permission.FOLDERS_DELETE,
+            Permission.FOLDERS_UPDATE);
 
     @Test
     void ownerAndAdminHaveAdministrativeAndFeaturePermissions() {
@@ -49,10 +52,9 @@ class RolePermissionsTest {
                         Permission.TRAYS_UPDATE,
                         Permission.TRAYS_DELETE,
                         Permission.FOLDERS_CREATE,
-                        Permission.FOLDERS_DELETE
-                ),
-                RolePermissions.forRole(Roles.OWNER)
-        );
+                        Permission.FOLDERS_DELETE,
+                        Permission.FOLDERS_UPDATE),
+                RolePermissions.forRole(Roles.OWNER));
     }
 
     @Test
@@ -65,8 +67,8 @@ class RolePermissionsTest {
                 Permission.DOCUMENTS_CREATE,
                 Permission.DOCUMENTS_UPDATE,
                 Permission.FOLDERS_CREATE,
-                Permission.FOLDERS_DELETE
-        ), RolePermissions.forRole(Roles.MANAGER));
+                Permission.FOLDERS_DELETE,
+                Permission.FOLDERS_UPDATE), RolePermissions.forRole(Roles.MANAGER));
         assertFalse(RolePermissions.allows(Roles.MANAGER, Permission.TENANT_UPDATE));
         assertFalse(RolePermissions.allows(Roles.MANAGER, Permission.MEMBERS_UPDATE_ROLE));
         assertFalse(RolePermissions.allows(Roles.MANAGER, Permission.DOCUMENTS_DELETE));
@@ -76,11 +78,19 @@ class RolePermissionsTest {
     void memberHasReadOnlyAccess() {
         assertEquals(Set.of(
                 Permission.TENANT_READ,
-                Permission.DOCUMENTS_READ
-        ), RolePermissions.forRole(Roles.MEMBER));
+                Permission.DOCUMENTS_READ), RolePermissions.forRole(Roles.MEMBER));
         assertFalse(RolePermissions.allows(Roles.MEMBER, Permission.DOCUMENTS_CREATE));
         assertFalse(RolePermissions.allows(Roles.MEMBER, Permission.MEMBERS_READ));
         assertFalse(RolePermissions.allows(Roles.MEMBER, Permission.TENANT_UPDATE));
+    }
+
+    @ParameterizedTest
+    @EnumSource(Permission.class)
+    void everyPermissionIsGrantedToAtLeastOneRole(Permission permission) {
+        assertTrue(
+                Arrays.stream(Roles.values()).anyMatch(role -> RolePermissions.allows(role, permission)),
+                permission + " is not granted to any role"
+        );
     }
 
     @Test

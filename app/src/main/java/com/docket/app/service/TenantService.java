@@ -2,6 +2,7 @@ package com.docket.app.service;
 
 import com.docket.app.dto.CreateTenantRequestDTO;
 import com.docket.app.dto.CreateTrayRequestDTO;
+import com.docket.app.dto.TransferOwnershipRequestDTO;
 import com.docket.app.dto.UpdateTrayDTO;
 import com.docket.app.entity.Folder;
 import com.docket.app.entity.Tenant;
@@ -11,9 +12,11 @@ import com.docket.app.repository.TenantMembershipRepository;
 import com.docket.app.repository.TenantRepository;
 import com.docket.app.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -32,6 +35,7 @@ public class TenantService {
     private final TenantRepository tenantRepository;
     private final TenantAuthorizationService tenantAuthorizationService;
     private final FolderRepository folderRepository;
+    private final PasswordEncoder passwordEncoder;
 
     // Look up an organization by its URL-friendly name (slug), e.g. "acme-corp".
     // Before returning the org's details, asks the bouncer to verify the
@@ -107,6 +111,57 @@ public class TenantService {
         if(!createDefaultFoldersForTenant(tenant.getId(), user.getId())) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to create default folders for tenant. Contact Support for assistance.");
         } else return tenant;
+    }
+
+    // Hand the organization over to another active internal member.
+    // The current Owner becomes an Admin and the chosen member becomes the Owner.
+    // @Transactional means both role changes are saved together, or neither is.
+    @Transactional
+    public void transferOwnership(TransferOwnershipRequestDTO request, String slug, Authentication authentication) {
+        Tenant tenant = tenantRepository.findBySlug(slug)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Tenant not found"));
+
+        tenantAuthorizationService.requirePermission(
+                authentication,
+                tenant.getId(),
+                Permission.TENANT_TRANSFER_OWNERSHIP
+        );
+
+        var user = userRepository.findByEmailIgnoreCase(authentication.getName())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        // Ask for the password again so a stolen login token alone can't give the org away.
+        // This is a 403 rather than a 401 because the person's session is still valid.
+        if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Incorrect password");
+        }
+
+        var newOwner = tenantMembershipRepository.findById(request.getNewOwnerMembershipId())
+                .filter(membership -> tenant.getId().equals(membership.getTenantId()))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Member not found"));
+
+        if (newOwner.getRole() == Roles.OWNER) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "This member is already the owner");
+        }
+        if (newOwner.getMemberStatus() != MemberStatus.ACTIVE || newOwner.getUserType() != UserType.INTERNAL) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The new owner must be an active internal member");
+        }
+
+        var currentOwner = tenantMembershipRepository
+                .findByUserIdAndTenantIdAndMemberStatus(user.getId(), tenant.getId(), MemberStatus.ACTIVE)
+                .getFirst();
+
+        // The old Owner must be demoted first: the database allows only one active
+        // Owner per org, so promoting first would be rejected. A rejection here means
+        // another transfer got in first.
+        try {
+            currentOwner.setRole(Roles.ADMIN);
+            tenantMembershipRepository.saveAndFlush(currentOwner);
+            newOwner.setRole(Roles.OWNER);
+            tenantMembershipRepository.saveAndFlush(newOwner);
+        } catch (DataIntegrityViolationException e) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Ownership was changed by another request");
+        }
     }
 
 

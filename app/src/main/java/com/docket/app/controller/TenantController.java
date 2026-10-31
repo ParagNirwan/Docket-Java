@@ -2,6 +2,7 @@ package com.docket.app.controller;
 
 import com.docket.app.dto.CreateTenantRequestDTO;
 import com.docket.app.dto.CreateTrayRequestDTO;
+import com.docket.app.dto.TransferOwnershipRequestDTO;
 import com.docket.app.dto.UpdateTrayDTO;
 import com.docket.app.entity.Folder;
 import com.docket.app.entity.Tenant;
@@ -66,6 +67,21 @@ public class TenantController {
         return ResponseEntity.ok(tenantService.getPermissionCodes(slug, authentication));
     }
 
+    // POST /api/tenants/{slug}/transfer-ownership
+    // "I want to hand this organization over to another member."
+    // The Owner confirms with their password; they become an Admin and the
+    // chosen member becomes the new Owner.
+    @PostMapping("/{slug}/transfer-ownership")
+    public ResponseEntity<Void> transferOwnership(
+            @Valid
+            @RequestBody
+            TransferOwnershipRequestDTO request,
+            @PathVariable String slug,
+            Authentication authentication
+    ) {
+        tenantService.transferOwnership(request, slug, authentication);
+        return ResponseEntity.noContent().build();
+    }
 
     @GetMapping("/{slug}/trays")
     public ResponseEntity<List<Folder>> getTenantTrays(

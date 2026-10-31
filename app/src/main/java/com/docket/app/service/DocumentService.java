@@ -45,6 +45,7 @@ public class DocumentService {
     private final DocumentRepository documentRepository;
     private final StorageService storageService;
     private final UserRepository userRepository;
+    private final FolderAccessService folderAccessService;
 
     // These are the file types users are allowed to upload.
     // Anything not on this list will be rejected.
@@ -63,6 +64,7 @@ public class DocumentService {
             Pageable pageable) {
         Tenant tenant = findTenantOrThrow(slug);
         tenantAuthorizationService.requirePermission(authentication, tenant.getId(), Permission.DOCUMENTS_READ);
+        requireFolderAccess(authentication, tenant.getId(), folderId);
 
         Page<Document> documents = documentRepository.findByTenantIdAndFolderIdAndFileStatus(
                 tenant.getId(), folderId, FileStatus.ACTIVE, pageable);
@@ -87,6 +89,7 @@ public class DocumentService {
         // Step 1: Find the tenant and verify the user has upload permission
         Tenant tenant = findTenantOrThrow(slug);
         tenantAuthorizationService.requirePermission(authentication, tenant.getId(), Permission.DOCUMENTS_CREATE);
+        requireFolderAccess(authentication, tenant.getId(), folderId);
 
         // Step 2: Validate the file (not empty, within size limit, allowed type)
         validateFile(file);
@@ -140,8 +143,7 @@ public class DocumentService {
         Tenant tenant = findTenantOrThrow(slug);
         tenantAuthorizationService.requirePermission(authentication, tenant.getId(), Permission.DOCUMENTS_READ);
 
-        Document document = documentRepository.findByIdAndTenantId(docId, tenant.getId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Document not found"));
+        Document document = findAccessibleDocumentOrThrow(docId, tenant.getId(), authentication);
 
         String uploaderName = document.getUploadedBy() != null
                 ? userRepository.findById(document.getUploadedBy()).map(User::getName).orElse(null)
@@ -158,8 +160,7 @@ public class DocumentService {
         Tenant tenant = findTenantOrThrow(slug);
         tenantAuthorizationService.requirePermission(authentication, tenant.getId(), Permission.DOCUMENTS_READ);
 
-        Document document = documentRepository.findByIdAndTenantId(docId, tenant.getId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Document not found"));
+        Document document = findAccessibleDocumentOrThrow(docId, tenant.getId(), authentication);
 
         // Only allow downloading active files (not deleted ones)
         if (document.getFileStatus() != FileStatus.ACTIVE) {
@@ -180,8 +181,7 @@ public class DocumentService {
         Tenant tenant = findTenantOrThrow(slug);
         tenantAuthorizationService.requirePermission(authentication, tenant.getId(), Permission.DOCUMENTS_DELETE);
 
-        Document document = documentRepository.findByIdAndTenantId(docId, tenant.getId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Document not found"));
+        Document document = findAccessibleDocumentOrThrow(docId, tenant.getId(), authentication);
 
         document.setFileStatus(FileStatus.SOFT_DELETED);
         document.setUpdatedAt(Instant.now());
@@ -192,6 +192,22 @@ public class DocumentService {
     private Tenant findTenantOrThrow(String slug) {
         return tenantRepository.findBySlug(slug)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Tenant not found"));
+    }
+
+    // ─── HELPER: Check the user can see inside a folder or throw 404 ────
+    private void requireFolderAccess(Authentication authentication, UUID tenantId, UUID folderId) {
+        if (!folderAccessService.canAccessFolder(authentication, tenantId, folderId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Folder not found");
+        }
+    }
+
+    // ─── HELPER: Find a document the user can see or throw 404 ──────────
+    // A document in a tray the user can't see looks the same as one that
+    // doesn't exist, so they can't confirm it's there by guessing its ID.
+    private Document findAccessibleDocumentOrThrow(UUID docId, UUID tenantId, Authentication authentication) {
+        return documentRepository.findByIdAndTenantId(docId, tenantId)
+                .filter(doc -> folderAccessService.canAccessFolder(authentication, tenantId, doc.getFolderId()))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Document not found"));
     }
 
     // ─── HELPER: Validate the uploaded file ─────────────────────────────

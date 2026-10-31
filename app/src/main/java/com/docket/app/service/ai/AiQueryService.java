@@ -5,6 +5,7 @@ import com.docket.app.dto.AiSourceChunkDTO;
 import com.docket.app.enums.FileStatus;
 import com.docket.app.repository.DocumentChunkRepository;
 import com.docket.app.repository.DocumentRepository;
+import com.docket.app.service.FolderAccessService;
 import com.google.cloud.vertexai.VertexAI;
 import com.google.cloud.vertexai.api.GenerateContentResponse;
 import com.google.cloud.vertexai.api.GenerationConfig;
@@ -14,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -35,34 +37,37 @@ public class AiQueryService {
     private final VertexAI vertexAI;
 
     private final DocumentRepository documentRepository;
+    private final FolderAccessService folderAccessService;
 
     @org.springframework.beans.factory.annotation.Value("${docket.ai.gemini.model}")
     private String geminiModel;
 
-    public AiQueryResponseDTO query(UUID tenantId, String question, UUID documentId) {
+    public AiQueryResponseDTO query(Authentication authentication, UUID tenantId, String question, UUID documentId) {
         if (documentId != null) {
             documentRepository.findByIdAndTenantId(documentId, tenantId)
                     .filter(doc -> doc.getFileStatus() == FileStatus.ACTIVE)
+                    .filter(doc -> folderAccessService.canAccessFolder(authentication, tenantId, doc.getFolderId()))
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Document not found"));
         }
 
+        boolean includeRestricted = folderAccessService.canAccessRestrictedTrays(authentication, tenantId);
         boolean isBroadQuery = isBroadQuery(question);
 
         List<Object[]> rows;
 
         if (documentId != null && isBroadQuery) {
             rows = documentChunkRepository.findByDocumentOrdered(
-                    tenantId, documentId, TOP_K_BROAD);
+                    tenantId, documentId, includeRestricted, TOP_K_BROAD);
         } else if (documentId != null) {
             List<float[]> questionEmbedding = embeddingService.embed(List.of(question));
             String embeddingString = toVectorString(questionEmbedding.get(0));
             rows = documentChunkRepository.findNearestByTenantAndDocument(
-                    tenantId, documentId, embeddingString, TOP_K_SPECIFIC);
+                    tenantId, documentId, embeddingString, includeRestricted, TOP_K_SPECIFIC);
         } else {
             List<float[]> questionEmbedding = embeddingService.embed(List.of(question));
             String embeddingString = toVectorString(questionEmbedding.get(0));
             rows = documentChunkRepository.findNearestByTenant(
-                    tenantId, embeddingString, isBroadQuery ? TOP_K_BROAD : TOP_K_SPECIFIC);
+                    tenantId, embeddingString, includeRestricted, isBroadQuery ? TOP_K_BROAD : TOP_K_SPECIFIC);
         }
 
         if (rows.isEmpty()) {

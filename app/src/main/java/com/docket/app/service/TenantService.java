@@ -172,9 +172,7 @@ public class TenantService {
 
         Roles userRole = tenantAuthorizationService.getMembershipRole(authentication, tenant.getId());
         List<Folder> trays = folderRepository.findByTenantIdAndIsTrayIsTrue(tenant.getId());
-        if (userRole == Roles.MEMBER || userRole == Roles.MANAGER) {
-            trays.removeIf(t -> t.getVisibility() == Visibility.ADMIN_ONLY);
-        }
+        trays.removeIf(t -> !FolderAccessService.isVisibleTo(userRole, t.getVisibility()));
         return trays;
 
     }

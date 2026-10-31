@@ -51,7 +51,7 @@ public class AiQueryController {
         }
 
         AiQueryResponseDTO response = aiQueryService.query(
-                tenant.getId(), request.getQuestion(), request.getDocumentId());
+                authentication, tenant.getId(), request.getQuestion(), request.getDocumentId());
 
         return ResponseEntity.ok(response);
     }

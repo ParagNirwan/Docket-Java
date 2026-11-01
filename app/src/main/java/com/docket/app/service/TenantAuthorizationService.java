@@ -119,4 +119,12 @@ public class TenantAuthorizationService {
     public Roles getMembershipRole(Authentication authentication, UUID tenantId) {
         return findActiveMembership(authentication, tenantId).getRole();
     }
+
+    // Holding a member permission doesn't reach every role: an Admin can't touch another
+    // Admin, and a Manager can only invite Members. See RolePermissions.canAssignRole.
+    public void requireCanAssignRole(Authentication authentication, UUID tenantId, Roles targetRole) {
+        if (!RolePermissions.canAssignRole(getMembershipRole(authentication, tenantId), targetRole)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can't manage this role");
+        }
+    }
 }

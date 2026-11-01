@@ -1,7 +1,11 @@
 package com.docket.app.controller;
 
+import com.docket.app.dto.CopyDocumentRequestDTO;
 import com.docket.app.dto.DocumentResponseDTO;
+import com.docket.app.dto.UpdateDocumentRequestDTO;
 import com.docket.app.service.DocumentService;
+import com.docket.app.service.RetentionGuard;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
@@ -103,17 +107,49 @@ public class DocumentController {
 
     // ─── SOFT-DELETE A DOCUMENT ─────────────────────────────────────────
     // DELETE /api/tenants/{slug}/documents/{docId}
-    // Marks the document as deleted but doesn't remove the file from disk.
+    // Moves the document to the Trash but doesn't remove the file from disk.
     // This allows recovery if someone deletes something by accident.
+    // An Owner can add override=true and a reason to go past a Governance lock.
     // Returns 204 No Content (success, but nothing to send back).
     @DeleteMapping("/documents/{docId}")
     public ResponseEntity<Void> deleteDocument(
             @PathVariable String slug,
             @PathVariable UUID docId,
+            @RequestParam(defaultValue = "false") boolean override,
+            @RequestParam(required = false) String reason,
             Authentication authentication
     ) {
-        documentService.softDeleteDocument(slug, docId, authentication);
+        documentService.softDeleteDocument(slug, docId, new RetentionGuard.Override(override, reason), authentication);
         return ResponseEntity.noContent().build();
+    }
+
+    // ─── RENAME OR MOVE A DOCUMENT ─────────────────────────────────────
+    // PATCH /api/tenants/{slug}/documents/{docId}
+    // Send a new name, a new folderId, or both.
+    @PatchMapping("/documents/{docId}")
+    public ResponseEntity<DocumentResponseDTO> updateDocument(
+            @PathVariable String slug,
+            @PathVariable UUID docId,
+            @Valid @RequestBody UpdateDocumentRequestDTO request,
+            @RequestParam(defaultValue = "false") boolean override,
+            @RequestParam(required = false) String reason,
+            Authentication authentication
+    ) {
+        return ResponseEntity.ok(documentService.updateDocument(
+                slug, docId, request, new RetentionGuard.Override(override, reason), authentication));
+    }
+
+    // ─── COPY A DOCUMENT ───────────────────────────────────────────────
+    // POST /api/tenants/{slug}/documents/{docId}/copy
+    @PostMapping("/documents/{docId}/copy")
+    public ResponseEntity<DocumentResponseDTO> copyDocument(
+            @PathVariable String slug,
+            @PathVariable UUID docId,
+            @RequestBody CopyDocumentRequestDTO request,
+            Authentication authentication
+    ) {
+        DocumentResponseDTO copy = documentService.copyDocument(slug, docId, request, authentication);
+        return ResponseEntity.status(HttpStatus.CREATED).body(copy);
     }
 
     // ─── GET INDEXING STATUS ───────────────────────────────────────────
@@ -148,8 +184,8 @@ public class DocumentController {
                     org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE,
                     "AI processing is not available in this environment");
         }
-        DocumentResponseDTO doc = documentService.getDocumentById(slug, docId, authentication);
-        documentProcessingService.processDocument(doc.getId());
+        DocumentResponseDTO doc = documentService.getDocumentForReindex(slug, docId, authentication);
+        documentProcessingService.processDocumentAsync(doc.getId());
         return ResponseEntity.accepted().body(Map.of("status", "PROCESSING"));
     }
 

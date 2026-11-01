@@ -30,6 +30,17 @@ public class DocumentChunk {
     @Column(columnDefinition = "TEXT")
     private String chunkText;
 
+    private Integer pageStart;
+
+    private Integer pageEnd;
+
+    @Column(length = 500)
+    private String heading;
+
+    private Integer charStart;
+
+    private Integer charEnd;
+
     @Column(columnDefinition = "vector(768)")
     @JdbcTypeCode(SqlTypes.VECTOR)
     private float[] embedding;

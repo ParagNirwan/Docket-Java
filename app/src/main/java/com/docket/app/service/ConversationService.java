@@ -5,6 +5,8 @@ import com.docket.app.entity.Conversation;
 import com.docket.app.entity.ConversationMessage;
 import com.docket.app.repository.ConversationRepository;
 import com.docket.app.service.ai.AiQueryService;
+import com.docket.app.service.ai.ConversationTurn;
+import com.docket.app.service.ai.QueryRewriteService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -20,6 +22,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
@@ -27,9 +30,13 @@ import java.util.UUID;
 public class ConversationService {
 
     private static final Logger log = LoggerFactory.getLogger(ConversationService.class);
+    private static final int HISTORY_MESSAGES = 6;
+    private static final int MAX_HISTORY_MESSAGE_LENGTH = 1000;
+    private static final Pattern CITATION_MARKER = Pattern.compile("\\s*\\[\\d+]");
 
     private final ConversationRepository conversationRepository;
     private final AiQueryService aiQueryService;
+    private final QueryRewriteService queryRewriteService;
     private final ObjectMapper objectMapper;
 
     public List<ConversationDTO> listConversations(UUID tenantId, UUID userId) {
@@ -81,13 +88,18 @@ public class ConversationService {
                 .findByIdAndTenantIdAndUserId(conversationId, tenantId, userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Conversation not found"));
 
+        List<ConversationTurn> history = recentHistory(conversation);
+        String searchQuery = queryRewriteService.rewrite(history, question);
+
         ConversationMessage userMsg = new ConversationMessage();
         userMsg.setConversation(conversation);
         userMsg.setRole("user");
         userMsg.setContent(question);
+        userMsg.setRewrittenQuery(searchQuery);
         conversation.getMessages().add(userMsg);
 
-        AiQueryResponseDTO aiResponse = aiQueryService.query(authentication, tenantId, question, null);
+        AiQueryResponseDTO aiResponse = aiQueryService.query(
+                authentication, tenantId, question, null, searchQuery, history);
 
         ConversationMessage aiMsg = new ConversationMessage();
         aiMsg.setConversation(conversation);
@@ -107,6 +119,19 @@ public class ConversationService {
                 .findByIdAndTenantIdAndUserId(conversationId, tenantId, userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Conversation not found"));
         conversationRepository.delete(conversation);
+    }
+
+    // Old citation markers are removed, because their numbers would clash with the new sources.
+    private List<ConversationTurn> recentHistory(Conversation conversation) {
+        List<ConversationMessage> messages = conversation.getMessages();
+        return messages.subList(Math.max(0, messages.size() - HISTORY_MESSAGES), messages.size()).stream()
+                .map(msg -> {
+                    String content = CITATION_MARKER.matcher(msg.getContent()).replaceAll("");
+                    return new ConversationTurn(msg.getRole(), content.length() > MAX_HISTORY_MESSAGE_LENGTH
+                            ? content.substring(0, MAX_HISTORY_MESSAGE_LENGTH) + "..."
+                            : content);
+                })
+                .toList();
     }
 
     private ConversationDTO toDTO(Conversation c, boolean includeMessages) {

@@ -15,6 +15,9 @@ import com.docket.app.repository.FolderRepository;
 import com.docket.app.repository.TenantMembershipRepository;
 import com.docket.app.repository.TenantRepository;
 import com.docket.app.repository.UserRepository;
+import com.docket.app.service.email.EmailOutboxService;
+import com.docket.app.service.email.EmailTemplate;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -26,6 +29,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
@@ -37,6 +41,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -68,8 +73,32 @@ class TenantServiceTest {
     @Mock
     private SessionService sessionService;
 
+    @Mock
+    private EmailOutboxService emailOutboxService;
+
     @InjectMocks
     private TenantService tenantService;
+
+    @BeforeEach
+    void setUp() {
+        ReflectionTestUtils.setField(tenantService, "baseUrl", "https://docket.test");
+    }
+
+    @Test
+    void transferOwnershipEmailsBothPeople() {
+        TransferFixture fixture = new TransferFixture();
+        fixture.stubUpToTargetLookup();
+        when(tenantMembershipRepository.findByUserIdAndTenantIdAndMemberStatus(
+                fixture.owner.getId(), fixture.tenant.getId(), MemberStatus.ACTIVE
+        )).thenReturn(List.of(fixture.ownerMembership));
+        when(userRepository.findById(fixture.targetMembership.getUserId()))
+                .thenReturn(Optional.of(new User("Grace Hopper", "grace@example.com", "encoded")));
+
+        tenantService.transferOwnership(fixture.request("correct-password"), "acme", fixture.authentication);
+
+        verify(emailOutboxService).enqueue(eq("grace@example.com"), eq(EmailTemplate.NOTIFICATION), any(String.class), any());
+        verify(emailOutboxService).enqueue(eq("ada@example.com"), eq(EmailTemplate.NOTIFICATION), any(String.class), any());
+    }
 
     @Test
     void findBySlugRequiresTenantReadPermissionAndReturnsTenant() {

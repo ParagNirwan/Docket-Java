@@ -9,6 +9,8 @@ import { RegisterPage } from "./pages/RegisterPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import { VerifyEmailPage } from "./pages/VerifyEmailPage";
+import { AcceptInvitePage } from "./pages/AcceptInvitePage";
+import { SearchPage } from "./pages/SearchPage";
 import { EmailVerificationBanner } from "./components/EmailVerificationBanner";
 import { CreateFirstTenantPage } from "./pages/CreateFirstTenantPage";
 import { TenantsPage } from "./pages/TenantsPage";
@@ -62,9 +64,10 @@ function App() {
                   </GuestRoute>
                 }
               />
-              {/* These two open from an email link, so they work whether or not someone is signed in */}
+              {/* These open from an email link, so they work whether or not someone is signed in */}
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/verify-email" element={<VerifyEmailPage />} />
+              <Route path="/invite" element={<AcceptInvitePage />} />
 
               {/* Protected Routes */}
               <Route
@@ -88,6 +91,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <TenantWorkspace />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/workspace/:slug/search"
+                element={
+                  <ProtectedRoute>
+                    <SearchPage />
                   </ProtectedRoute>
                 }
               />

@@ -47,6 +47,9 @@ class AuthServiceTest {
     private AccountRecoveryService accountRecoveryService;
 
     @Mock
+    private InvitationService invitationService;
+
+    @Mock
     private AuditService auditService;
 
     @Mock
@@ -57,6 +60,38 @@ class AuthServiceTest {
 
     @InjectMocks
     private AuthService authService;
+
+    private RegisterRequestDTO registerFromInvite() {
+        RegisterRequestDTO request = new RegisterRequestDTO();
+        request.setFirstName("Ada");
+        request.setLastName("Lovelace");
+        request.setEmail("ada@example.com");
+        request.setPassword("plain-password");
+        request.setInviteToken("invite-token");
+        when(passwordEncoder.encode("plain-password")).thenReturn("encoded");
+        return request;
+    }
+
+    @Test
+    void registerFromInviteJoinsWithoutAVerificationEmail() {
+        RegisterRequestDTO request = registerFromInvite();
+        when(invitationService.acceptForNewUser(eq("invite-token"), any(User.class))).thenReturn(true);
+
+        authService.register(request);
+
+        verify(accountRecoveryService, never()).sendVerificationEmail(any(User.class));
+    }
+
+    @Test
+    void registerStillSucceedsWhenTheInviteHasExpired() {
+        RegisterRequestDTO request = registerFromInvite();
+        when(invitationService.acceptForNewUser(eq("invite-token"), any(User.class)))
+                .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "expired"));
+
+        authService.register(request);
+
+        verify(accountRecoveryService).sendVerificationEmail(any(User.class));
+    }
 
     private LoginRequestDTO loginRequest(String email) {
         LoginRequestDTO request = new LoginRequestDTO();

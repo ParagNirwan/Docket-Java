@@ -22,4 +22,10 @@ public interface TenantMembershipRepository extends JpaRepository<TenantMembersh
     // This is the main question the bouncer asks every time someone tries to do something.
     List<TenantMembership> findByUserIdAndTenantIdAndMemberStatus(
             UUID userId, UUID tenantId, MemberStatus memberStatus);
+
+    // Every membership this person has had in this org, including ended ones.
+    List<TenantMembership> findByUserIdAndTenantId(UUID userId, UUID tenantId);
+
+    // "Who is in this organization?"
+    List<TenantMembership> findByTenantIdAndMemberStatus(UUID tenantId, MemberStatus memberStatus);
 }

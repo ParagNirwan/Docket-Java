@@ -6,6 +6,11 @@ export interface AiSourceChunk {
   documentName: string;
   chunkText: string;
   chunkIndex: number;
+  // Missing on answers saved before these existed
+  relevanceScore?: number | null;
+  pageStart?: number | null;
+  pageEnd?: number | null;
+  heading?: string | null;
 }
 
 export interface AiQueryResponse {

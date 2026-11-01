@@ -1,9 +1,10 @@
-import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { registerSchema } from "../lib/validation";
 import { parseApiError, getFieldError, type ApiErrorResponse } from "../lib/apiError";
 import { retryAfterMessage } from "../lib/session";
 import { ErrorAlert } from "../components/ErrorAlert";
+import { previewInvitation, type InvitationPreview } from "../services/memberService";
 import { UserPlus, ArrowRight, User, Mail, Lock } from "lucide-react";
 
 export function RegisterPage() {
@@ -17,6 +18,34 @@ export function RegisterPage() {
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
+
+  // /register?invite=token, from an invite link: the address is the one that was invited,
+  // and registering joins the organization. An expired link just means a normal sign-up.
+  const [searchParams] = useSearchParams();
+  const inviteToken = searchParams.get("invite");
+  const [invitation, setInvitation] = useState<InvitationPreview | null>(null);
+
+  useEffect(() => {
+    if (!inviteToken) return;
+    let cancelled = false;
+    previewInvitation(inviteToken)
+      .then((preview) => {
+        if (cancelled) return;
+        setInvitation(preview);
+        setEmail(preview.email);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setApiError({
+            code: "INVITE_INVALID",
+            message: err instanceof Error ? err.message : "This invitation can't be used.",
+          });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [inviteToken]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -54,7 +83,13 @@ export function RegisterPage() {
       const response = await fetch(`${apiUrl}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ firstName, lastName, email, password }),
+        body: JSON.stringify({
+          firstName,
+          lastName,
+          email,
+          password,
+          ...(invitation ? { inviteToken } : {}),
+        }),
       });
 
       if (!response.ok) {
@@ -79,6 +114,17 @@ export function RegisterPage() {
           setFieldErrors((prev) => ({ ...prev, ...backendFieldErrors }));
         }
 
+        return;
+      }
+
+      if (invitation) {
+        navigate("/login", {
+          state: {
+            message: `Account created and you've joined ${invitation.tenantName}. Please sign in.`,
+            email: invitation.email,
+            redirectTo: `/workspace/${encodeURIComponent(invitation.tenantSlug)}`,
+          },
+        });
         return;
       }
 
@@ -110,7 +156,9 @@ export function RegisterPage() {
               Create an account
             </h1>
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              Join Docket to securely organize, stage, and review documents
+              {invitation
+                ? `Create your account to join ${invitation.tenantName}`
+                : "Join Docket to securely organize, stage, and review documents"}
             </p>
           </div>
 
@@ -172,6 +220,7 @@ export function RegisterPage() {
                   type="email"
                   placeholder="jane@company.com"
                   value={email}
+                  readOnly={invitation !== null}
                   onChange={(e) => {
                     setEmail(e.target.value);
                     if (fieldErrors.email) {

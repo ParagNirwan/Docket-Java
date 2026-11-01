@@ -17,6 +17,7 @@ import {
   PanelLeftOpen,
   Plus,
   Search,
+  Settings,
   ShieldCheck,
   Sparkles,
   Trash2,
@@ -28,8 +29,10 @@ import { CreateTrayModal } from "../components/CreateTrayModal";
 import { AiChatPanel } from "../components/AiChatPanel";
 import { WorkspaceAiSearch } from "../components/WorkspaceAiSearch";
 import { FolderBrowser } from "../components/FolderBrowser";
+import { TrashView } from "../components/TrashView";
 import { TraysOverview } from "../components/TraysOverview";
 import { ActivityLog } from "../components/ActivityLog";
+import { OrganizationSettings } from "../components/OrganizationSettings";
 import { notify } from "../lib/notifications";
 import type { Tray, CreateTrayRequestDTO } from "../services/trayService";
 import { getTenantTrays, createTray, deleteTray } from "../services/trayService";
@@ -85,6 +88,7 @@ const sectionLabels: Record<string, string> = {
   partners: "Partners",
   emails: "Connected Emails",
   activity: "Activity Log",
+  settings: "Settings",
 };
 
 // A single sidebar button. Shows an icon, label, and optional count badge.
@@ -134,10 +138,22 @@ export function TenantWorkspace() {
   const { slug } = useParams();
   const { token } = useAuth();
   const location = useLocation();
-  const routeState = location.state as { tenantName?: string } | null;
+  // A search result can send someone straight to the folder a document is in.
+  const routeState = location.state as { tenantName?: string; openTrayId?: string; openFolderId?: string } | null;
 
   const [collapsed, setCollapsed] = useState(false);
-  const [activeSection, setActiveSection] = useState<WorkspaceSection>("review");
+  // Links in notifications and emails can point at a part of the workspace.
+  const searchParams = new URLSearchParams(location.search);
+  const linkedSection = searchParams.get("section");
+  const linkedTab = searchParams.get("tab");
+  const [activeSection, setActiveSection] = useState<WorkspaceSection>(routeState?.openTrayId ?? linkedSection ?? "review");
+
+  // The workspace is already open when a link is followed from the bell.
+  useEffect(() => {
+    if (linkedSection) setActiveSection(linkedSection);
+  }, [linkedSection, location.key]);
+  // Bumped to load permissions again after they change, such as giving away ownership.
+  const [permissionsVersion, setPermissionsVersion] = useState(0);
   const [trays, setTrays] = useState<Tray[]>(INITIAL_TRAYS);
   const [isCreateTrayModalOpen, setIsCreateTrayModalOpen] = useState(false);
 
@@ -240,7 +256,7 @@ export function TenantWorkspace() {
       });
 
     return () => controller.abort();
-  }, [slug, token]);
+  }, [slug, token, permissionsVersion]);
 
   // 2. Fetch Trays for this tenant
   useEffect(() => {
@@ -278,6 +294,7 @@ export function TenantWorkspace() {
     { id: "partners", label: "Partners", icon: UsersRound, permission: "members.read" },
     { id: "emails", label: "Connected Emails", icon: Mail, permission: null, count: "2" },
     { id: "activity", label: "Activity Log", icon: History, permission: "audit.read" },
+    { id: "settings", label: "Settings", icon: Settings, permission: "tenant.read" },
   ];
 
   const accessStateMatchesRoute = permissionState.slug === slug && permissionState.token === token;
@@ -555,6 +572,17 @@ export function TenantWorkspace() {
               {currentSection === "partners" && <PartnersContent canInvite={hasPermission(permissions, "members.invite")} />}
               {currentSection === "emails" && <ConnectedEmailsContent />}
               {currentSection === "activity" && <ActivityLog slug={slug || ""} token={token} />}
+              {currentSection === "settings" && token && (
+                <OrganizationSettings
+                  slug={slug || ""}
+                  token={token}
+                  tenantName={tenantName}
+                  permissions={permissions}
+                  trays={visibleTrays}
+                  initialTab={linkedTab}
+                  onOwnershipTransferred={() => setPermissionsVersion((version) => version + 1)}
+                />
+              )}
               {currentSection === "trays" && (
                 <TraysOverview
                   trays={visibleTrays}
@@ -567,7 +595,10 @@ export function TenantWorkspace() {
               )}
 
               {/* If active section is a Tray, render FolderBrowser */}
-              {activeTray && (
+              {activeTray && activeTray.isDefault && activeTray.name === "Trash" && token && (
+                <TrashView slug={slug!} token={token} />
+              )}
+              {activeTray && !(activeTray.isDefault && activeTray.name === "Trash") && (
                 <FolderBrowser
                   slug={slug!}
                   token={token}
@@ -576,6 +607,14 @@ export function TenantWorkspace() {
                   canDeleteFolder={canDeleteFolder}
                   canDeleteTray={canDeleteTray}
                   canUpload={canUpload}
+                  canUpdateDocuments={hasPermission(permissions, "documents.update")}
+                  canCopyDocuments={hasPermission(permissions, "documents.create")}
+                  canUpdateFolders={hasPermission(permissions, "folders.update")}
+                  canDeleteDocuments={hasPermission(permissions, "documents.delete")}
+                  canOverrideLocks={hasPermission(permissions, "retention.override")}
+                  canApplyLegalHold={hasPermission(permissions, "retention.manage")}
+                  trays={visibleTrays.filter((tray) => tray.name.toLowerCase() !== "trash")}
+                  initialFolderId={activeTray.id === routeState?.openTrayId ? routeState.openFolderId : undefined}
                   onDeleteTray={handleDeleteTray}
                   onAskAi={handleAskAi}
                 />
@@ -614,6 +653,7 @@ function sectionDescription(section: string) {
     trash: "Items removed from this workspace appear here.",
     partners: "People and organizations you work with.",
     emails: "Email accounts connected to this workspace.",
+    settings: "People, retention and legal holds in this organization, and changes that are hard to undo.",
   };
   return descriptions[section] || "Manage workspace documents and folders.";
 }

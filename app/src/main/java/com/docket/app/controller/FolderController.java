@@ -1,5 +1,7 @@
 package com.docket.app.controller;
 
+import com.docket.app.dto.BreadcrumbDTO;
+import com.docket.app.dto.UpdateFolderRequestDTO;
 import com.docket.app.entity.Folder;
 import com.docket.app.service.FolderService;
 import lombok.RequiredArgsConstructor;
@@ -34,5 +36,38 @@ public class FolderController {
     ) {
         Folder created = folderService.createSubFolder(slug, folderId, request, authentication);
         return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED).body(created);
+    }
+
+    @GetMapping("/{folderId}/breadcrumb")
+    public ResponseEntity<List<BreadcrumbDTO>> getBreadcrumb(
+            @PathVariable String slug,
+            @PathVariable UUID folderId,
+            Authentication authentication
+    ) {
+        return ResponseEntity.ok(folderService.getBreadcrumb(slug, folderId, authentication));
+    }
+
+    // DELETE /api/tenants/{slug}/folders/{folderId}
+    // Documents inside go to the Trash. A 423 means some of them are locked.
+    @DeleteMapping("/{folderId}")
+    public ResponseEntity<Void> deleteFolder(
+            @PathVariable String slug,
+            @PathVariable UUID folderId,
+            Authentication authentication
+    ) {
+        folderService.deleteFolder(slug, folderId, authentication);
+        return ResponseEntity.noContent().build();
+    }
+
+    // PATCH /api/tenants/{slug}/folders/{folderId}
+    // Send a new name, a new parentFolderId, or both.
+    @PatchMapping("/{folderId}")
+    public ResponseEntity<Folder> updateFolder(
+            @PathVariable String slug,
+            @PathVariable UUID folderId,
+            @jakarta.validation.Valid @RequestBody UpdateFolderRequestDTO request,
+            Authentication authentication
+    ) {
+        return ResponseEntity.ok(folderService.updateFolder(slug, folderId, request, authentication));
     }
 }

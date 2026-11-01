@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import com.docket.app.enums.IndexingStatus;
+import com.docket.app.enums.LockMode;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -21,5 +22,11 @@ public class DocumentResponseDTO {
     private Instant createdAt;
     private Instant updatedAt;
     private IndexingStatus indexingStatus;
+    private UUID folderId;
+    // Why this document can't be changed, for the lock badge
+    private Instant retainUntil;
+    private LockMode lockMode;
+    private boolean legalHold;
+    private Instant archivedAt;
 
 }

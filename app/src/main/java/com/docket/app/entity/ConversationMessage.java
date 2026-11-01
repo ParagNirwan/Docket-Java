@@ -32,6 +32,9 @@ public class ConversationMessage {
     @Column(columnDefinition = "TEXT")
     private String sourcesJson;
 
+    @Column(columnDefinition = "TEXT")
+    private String rewrittenQuery;
+
     private Instant createdAt;
 
     @PrePersist

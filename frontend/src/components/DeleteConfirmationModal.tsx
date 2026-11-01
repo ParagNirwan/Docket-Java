@@ -1,12 +1,15 @@
 import { useEffect, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { AlertTriangle, Trash2, X } from "lucide-react";
 
 interface DeleteConfirmationModalProps {
   isOpen: boolean;
   title?: string;
   itemName: string;
-  itemType: "tray" | "folder" | "document";
+  itemType?: "tray" | "folder" | "document";
   description?: string;
+  // For confirming something other than a delete, such as removing a person.
+  confirmLabel?: string;
   onClose: () => void;
   onConfirm: () => Promise<void> | void;
 }
@@ -15,8 +18,9 @@ export function DeleteConfirmationModal({
   isOpen,
   title,
   itemName,
-  itemType,
+  itemType = "folder",
   description,
+  confirmLabel,
   onClose,
   onConfirm,
 }: DeleteConfirmationModalProps) {
@@ -60,10 +64,11 @@ export function DeleteConfirmationModal({
   const defaultDesc =
     description ||
     (itemType === "document"
-      ? `Are you sure you want to delete "${itemName}"? This file will be removed.`
-      : `Are you sure you want to permanently delete "${itemName}"? All files, documents, and sub-folders inside it will be permanently deleted. This action cannot be undone.`);
+      ? `Are you sure you want to delete "${itemName}"? It will go to the Trash, where it can be restored.`
+      : `Are you sure you want to delete "${itemName}"? Sub-folders inside it will be removed, and its documents will go to the Trash.`);
 
-  return (
+  // In a portal because the workspace's enter animation would otherwise make "fixed" relative to it.
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -132,12 +137,13 @@ export function DeleteConfirmationModal({
               className="inline-flex w-full sm:w-auto items-center justify-center gap-1.5 rounded-xl bg-red-600 px-4 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 transition-colors disabled:opacity-50"
             >
               <Trash2 className="h-4 w-4" />
-              <span>{isDeleting ? "Deleting..." : `Delete ${typeLabel}`}</span>
+              <span>{isDeleting ? "Working..." : confirmLabel || `Delete ${typeLabel}`}</span>
             </button>
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

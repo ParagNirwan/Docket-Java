@@ -19,6 +19,9 @@ public class EmbeddingService {
 
     private static final Logger log = LoggerFactory.getLogger(EmbeddingService.class);
     private static final int MAX_BATCH_SIZE = 250;
+    // A request over 20,000 tokens is rejected. A character is at most about one token,
+    // even in scripts like Chinese, so this stays under the limit for any language.
+    private static final int MAX_BATCH_CHARS = 15_000;
     private static final int MAX_RETRIES = 3;
 
     private final PredictionServiceClient predictionClient;
@@ -37,23 +40,33 @@ public class EmbeddingService {
         this.predictionClient = predictionClient;
     }
 
-    public List<float[]> embed(List<String> texts) {
+    public List<float[]> embed(List<String> texts, EmbeddingTaskType taskType) {
         List<float[]> allEmbeddings = new ArrayList<>();
+        int batchStart = 0;
+        int batchChars = 0;
 
-        for (int i = 0; i < texts.size(); i += MAX_BATCH_SIZE) {
-            List<String> batch = texts.subList(i, Math.min(i + MAX_BATCH_SIZE, texts.size()));
-            List<float[]> batchResult = embedBatchWithRetry(batch);
-            allEmbeddings.addAll(batchResult);
+        for (int i = 0; i < texts.size(); i++) {
+            int length = texts.get(i).length();
+            boolean batchFull = i - batchStart == MAX_BATCH_SIZE || batchChars + length > MAX_BATCH_CHARS;
+            if (batchFull && i > batchStart) {
+                allEmbeddings.addAll(embedBatchWithRetry(texts.subList(batchStart, i), taskType));
+                batchStart = i;
+                batchChars = 0;
+            }
+            batchChars += length;
+        }
+        if (batchStart < texts.size()) {
+            allEmbeddings.addAll(embedBatchWithRetry(texts.subList(batchStart, texts.size()), taskType));
         }
 
         return allEmbeddings;
     }
 
-    private List<float[]> embedBatchWithRetry(List<String> texts) {
+    private List<float[]> embedBatchWithRetry(List<String> texts, EmbeddingTaskType taskType) {
         int attempt = 0;
         while (true) {
             try {
-                return embedBatch(texts);
+                return embedBatch(texts, taskType);
             } catch (Exception e) {
                 attempt++;
                 if (attempt >= MAX_RETRIES) {
@@ -71,7 +84,7 @@ public class EmbeddingService {
         }
     }
 
-    private List<float[]> embedBatch(List<String> texts) {
+    private List<float[]> embedBatch(List<String> texts, EmbeddingTaskType taskType) {
         EndpointName endpoint = EndpointName.ofProjectLocationPublisherModelName(
                 projectId, location, "google", modelId);
 
@@ -79,6 +92,7 @@ public class EmbeddingService {
                 .map(text -> Value.newBuilder()
                         .setStructValue(com.google.protobuf.Struct.newBuilder()
                                 .putFields("content", Value.newBuilder().setStringValue(text).build())
+                                .putFields("task_type", Value.newBuilder().setStringValue(taskType.name()).build())
                                 .build())
                         .build())
                 .toList();

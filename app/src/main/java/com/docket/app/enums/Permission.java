@@ -56,7 +56,15 @@ public enum Permission {
 
     // --- Audit permissions ---
     // Can you see and export the organization's activity log?
-    AUDIT_READ("audit.read");
+    AUDIT_READ("audit.read"),
+
+    // --- Retention permissions ---
+    // Can you see retention policies and legal holds?
+    RETENTION_READ("retention.read"),
+    // Can you change retention policies and apply legal holds?
+    RETENTION_MANAGE("retention.manage"),
+    // Can you override a Governance lock, and release a legal hold?
+    RETENTION_OVERRIDE("retention.override");
 
     // The short text code sent to the frontend (e.g. "members.invite")
     private final String code;

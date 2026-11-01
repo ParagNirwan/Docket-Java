@@ -32,6 +32,8 @@ public class Folder {
     @NotNull
     private Boolean isDefault;
     @NotNull
+    private Boolean isArchive = false;
+    @NotNull
     @Enumerated(EnumType.STRING)
     private Visibility visibility;
     private Integer sortOrder;

@@ -3,8 +3,7 @@ package com.docket.app.service.email;
 import lombok.Getter;
 
 // Every email the app can send. templateName points at
-// resources/templates/email/{name}.html and {name}.txt. The invite, retention and
-// notification templates are ready for the features that will use them (#56, #47, #86).
+// resources/templates/email/{name}.html and {name}.txt.
 @Getter
 public enum EmailTemplate {
     INVITE("invite", "You've been invited to Docket"),

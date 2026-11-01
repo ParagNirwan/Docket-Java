@@ -73,7 +73,7 @@ public class ConversationController {
         requireRateLimit(user);
 
         ConversationDTO conversation = conversationService.createConversation(
-                tenant.getId(), user.getId(), request.getQuestion());
+                authentication, tenant.getId(), user.getId(), request.getQuestion());
 
         return ResponseEntity.status(HttpStatus.CREATED).body(conversation);
     }
@@ -92,7 +92,7 @@ public class ConversationController {
         requireRateLimit(user);
 
         ConversationMessageDTO aiMessage = conversationService.sendMessage(
-                conversationId, tenant.getId(), user.getId(), request.getQuestion());
+                authentication, conversationId, tenant.getId(), user.getId(), request.getQuestion());
 
         return ResponseEntity.ok(aiMessage);
     }

@@ -3,6 +3,7 @@ export interface AuthUser {
   role?: string;
   tenantId?: string;
   userType?: string;
+  emailVerified?: boolean;
   exp?: number;
   iat?: number;
 }
@@ -27,6 +28,7 @@ export function parseJwt(token: string): AuthUser | null {
       role: parsed.role,
       tenantId: parsed.tenantId,
       userType: parsed.userType,
+      emailVerified: parsed.emailVerified,
       exp: parsed.exp,
       iat: parsed.iat,
     };

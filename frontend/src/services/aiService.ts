@@ -1,3 +1,4 @@
+import { apiFetch } from "../lib/session";
 import { API_BASE } from "./documentService";
 
 export interface AiSourceChunk {
@@ -23,7 +24,7 @@ export async function queryAi(
 ): Promise<AiQueryResponse> {
   const url = `${API_BASE}/tenants/${encodeURIComponent(slug)}/ai/query`;
 
-  const response = await fetch(url, {
+  const response = await apiFetch(url, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -58,7 +59,7 @@ export async function getIndexingStatus(
 ): Promise<IndexingStatusResponse> {
   const url = `${API_BASE}/tenants/${encodeURIComponent(slug)}/documents/${docId}/indexing-status`;
 
-  const response = await fetch(url, {
+  const response = await apiFetch(url, {
     headers: { Authorization: `Bearer ${token}` },
   });
 

@@ -6,6 +6,10 @@ import { Header } from "./components/Header";
 import { AccountSettingsModal } from "./components/AccountSettingsModal";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
+import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
+import { ResetPasswordPage } from "./pages/ResetPasswordPage";
+import { VerifyEmailPage } from "./pages/VerifyEmailPage";
+import { EmailVerificationBanner } from "./components/EmailVerificationBanner";
 import { CreateFirstTenantPage } from "./pages/CreateFirstTenantPage";
 import { TenantsPage } from "./pages/TenantsPage";
 import { TenantWorkspace } from "./pages/TenantWorkspace";
@@ -25,6 +29,7 @@ function App() {
         <div className="min-h-screen flex flex-col bg-gray-50/50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 transition-colors duration-200">
           {/* Header is always visible across all pages */}
           <Header />
+          <EmailVerificationBanner />
 
           {/* Sidebar */}
           <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
@@ -49,6 +54,17 @@ function App() {
                   </GuestRoute>
                 }
               />
+              <Route
+                path="/forgot-password"
+                element={
+                  <GuestRoute>
+                    <ForgotPasswordPage />
+                  </GuestRoute>
+                }
+              />
+              {/* These two open from an email link, so they work whether or not someone is signed in */}
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
+              <Route path="/verify-email" element={<VerifyEmailPage />} />
 
               {/* Protected Routes */}
               <Route

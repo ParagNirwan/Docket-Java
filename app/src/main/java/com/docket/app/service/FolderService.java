@@ -21,6 +21,7 @@ public class FolderService {
     private final TenantRepository tenantRepository;
     private final TenantAuthorizationService tenantAuthorizationService;
     private final FolderRepository folderRepository;
+    private final FolderAccessService folderAccessService;
 
     private final com.docket.app.repository.UserRepository userRepository;
 
@@ -28,6 +29,9 @@ public class FolderService {
         Tenant tenant = tenantRepository.findBySlug(slug)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Tenant not found"));
         tenantAuthorizationService.requirePermission(auth, tenant.getId(), Permission.DOCUMENTS_READ);
+        if (!folderAccessService.canAccessFolder(auth, tenant.getId(), parentId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Folder not found");
+        }
         return folderRepository.findByTenantIdAndParentFolderId(tenant.getId(), parentId);
     }
 
@@ -36,12 +40,12 @@ public class FolderService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Tenant not found"));
         tenantAuthorizationService.requirePermission(auth, tenant.getId(), Permission.FOLDERS_CREATE);
 
+        if (!folderAccessService.canAccessFolder(auth, tenant.getId(), parentFolderId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Parent folder/tray not found");
+        }
+
         Folder parent = folderRepository.findById(parentFolderId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Parent folder/tray not found"));
-
-        if (!parent.getTenantId().equals(tenant.getId())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Parent does not belong to this tenant");
-        }
 
         UUID userId = userRepository.findByEmailIgnoreCase(auth.getName())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"))
@@ -50,6 +54,8 @@ public class FolderService {
         Folder subFolder = new Folder();
         subFolder.setTenantId(tenant.getId());
         subFolder.setParentFolderId(parent.getId());
+        // A tray is the root of its own tree, so its children point straight at it.
+        subFolder.setRootTrayId(parent.getRootTrayId() != null ? parent.getRootTrayId() : parent.getId());
         subFolder.setName(request.getName().trim());
         subFolder.setDescription(request.getDescription() != null ? request.getDescription().trim() : null);
         subFolder.setIsTray(false);

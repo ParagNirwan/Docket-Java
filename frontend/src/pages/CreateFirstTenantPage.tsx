@@ -1,3 +1,4 @@
+import { apiFetch } from "../lib/session";
 import { useState } from "react";
 import { type ApiErrorResponse, parseApiError, getFieldError } from "../lib/apiError";
 import { useNavigate, Link } from "react-router-dom";
@@ -59,7 +60,7 @@ export function CreateFirstTenantPage() {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || "/api";
       const token = localStorage.getItem("token");
-      const response = await fetch(`${apiUrl}/tenants/create`, {
+      const response = await apiFetch(`${apiUrl}/tenants/create`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

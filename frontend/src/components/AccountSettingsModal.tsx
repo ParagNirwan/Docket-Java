@@ -31,12 +31,6 @@ export function AccountSettingsModal() {
   const initial = (email.charAt(0) || "U").toUpperCase();
   const role = user?.role || "Member";
   const userType = user?.userType || "Standard User";
-  const expiresAt = user?.exp
-    ? new Date(user.exp * 1000).toLocaleString(undefined, {
-        dateStyle: "medium",
-        timeStyle: "short",
-      })
-    : "Active Session";
 
   function handleLogout() {
     closeSettingsModal();
@@ -104,10 +98,12 @@ export function AccountSettingsModal() {
                 <span className="font-semibold text-gray-900 dark:text-white truncate">
                   {email}
                 </span>
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300">
-                  <CheckIcon className="w-3 h-3" />
-                  Verified
-                </span>
+                {user?.emailVerified && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300">
+                    <CheckIcon className="w-3 h-3" />
+                    Verified
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-2 mt-1 text-xs text-gray-500 dark:text-gray-400">
                 <span className="capitalize">{role.toLowerCase()}</span>
@@ -183,10 +179,10 @@ export function AccountSettingsModal() {
               </div>
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-medium text-gray-900 dark:text-white">
-                  JWT Session Valid
+                  Signed in
                 </div>
                 <div className="text-xs text-gray-500 dark:text-gray-400">
-                  Expires: {expiresAt}
+                  Manage your devices in Account Settings.
                 </div>
               </div>
             </div>

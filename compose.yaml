@@ -28,6 +28,13 @@ services:
       SPRING_DATASOURCE_USERNAME: docket
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-docket_dev_password}
       JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
+      # Requests arrive through the frontend's nginx
+      TRUSTED_PROXY_HOPS: "1"
+      APP_BASE_URL: http://localhost
+      EMAIL_PROVIDER: smtp
+      EMAIL_FROM: Docket <no-reply@docket.local>
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
     ports:
       - "8080:8080"
     volumes:
@@ -35,6 +42,17 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      mailpit:
+        condition: service_started
+
+  # Catches all outgoing email locally. Read it at http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:v1.29
+    container_name: docket-java-mailpit
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
 
   frontend:
     build:

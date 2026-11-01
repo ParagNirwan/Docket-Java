@@ -9,6 +9,7 @@ import com.docket.app.enums.Permission;
 import com.docket.app.enums.Roles;
 import com.docket.app.enums.MemberStatus;
 import com.docket.app.enums.UserType;
+import com.docket.app.enums.Visibility;
 import com.docket.app.entity.Folder;
 import com.docket.app.repository.FolderRepository;
 import com.docket.app.repository.TenantMembershipRepository;
@@ -60,6 +61,12 @@ class TenantServiceTest {
 
     @Mock
     private PasswordEncoder passwordEncoder;
+
+    @Mock
+    private AuditService auditService;
+
+    @Mock
+    private SessionService sessionService;
 
     @InjectMocks
     private TenantService tenantService;
@@ -163,6 +170,27 @@ class TenantServiceTest {
         assertEquals(tenantId, membershipCaptor.getValue().getTenantId());
         assertEquals(Roles.OWNER, membershipCaptor.getValue().getRole());
         assertEquals(MemberStatus.ACTIVE, membershipCaptor.getValue().getMemberStatus());
+    }
+
+    @Test
+    void membersOnlySeeTraysOpenToAllMembers() {
+        Authentication authentication =
+                new UsernamePasswordAuthenticationToken("ada@example.com", "credentials", List.of());
+        Tenant tenant = new Tenant();
+        tenant.setId(UUID.randomUUID());
+        Folder openTray = trayWithVisibility(Visibility.ALL_MEMBERS);
+        when(tenantRepository.findBySlug("acme")).thenReturn(Optional.of(tenant));
+        when(tenantAuthorizationService.getMembershipRole(authentication, tenant.getId())).thenReturn(Roles.MEMBER);
+        when(folderRepository.findByTenantIdAndIsTrayIsTrue(tenant.getId())).thenReturn(new ArrayList<>(List.of(
+                openTray, trayWithVisibility(Visibility.ADMIN_ONLY), trayWithVisibility(Visibility.CUSTOM))));
+
+        assertEquals(List.of(openTray), tenantService.getTenantTrays("acme", authentication));
+    }
+
+    private Folder trayWithVisibility(Visibility visibility) {
+        Folder tray = new Folder();
+        tray.setVisibility(visibility);
+        return tray;
     }
 
     @Test

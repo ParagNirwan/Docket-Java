@@ -1,3 +1,4 @@
+import { apiFetch } from "../lib/session";
 import { useState, useEffect } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -20,6 +21,7 @@ import {
   Sparkles,
   Trash2,
   UsersRound,
+  History,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { CreateTrayModal } from "../components/CreateTrayModal";
@@ -27,6 +29,7 @@ import { AiChatPanel } from "../components/AiChatPanel";
 import { WorkspaceAiSearch } from "../components/WorkspaceAiSearch";
 import { FolderBrowser } from "../components/FolderBrowser";
 import { TraysOverview } from "../components/TraysOverview";
+import { ActivityLog } from "../components/ActivityLog";
 import { notify } from "../lib/notifications";
 import type { Tray, CreateTrayRequestDTO } from "../services/trayService";
 import { getTenantTrays, createTray, deleteTray } from "../services/trayService";
@@ -81,6 +84,7 @@ const sectionLabels: Record<string, string> = {
   trash: "Trash",
   partners: "Partners",
   emails: "Connected Emails",
+  activity: "Activity Log",
 };
 
 // A single sidebar button. Shows an icon, label, and optional count badge.
@@ -179,11 +183,11 @@ export function TenantWorkspace() {
     const headers = { Authorization: `Bearer ${token}` };
 
     Promise.all([
-      fetch(`${apiUrl}/tenants/by-slug/${encodedSlug}/permissions`, {
+      apiFetch(`${apiUrl}/tenants/by-slug/${encodedSlug}/permissions`, {
         headers,
         signal: controller.signal,
       }),
-      fetch(`${apiUrl}/tenants/by-slug/${encodedSlug}`, {
+      apiFetch(`${apiUrl}/tenants/by-slug/${encodedSlug}`, {
         headers,
         signal: controller.signal,
       }),
@@ -273,6 +277,7 @@ export function TenantWorkspace() {
     { id: "ai-search", label: "AI Search", icon: Sparkles, permission: "documents.read" },
     { id: "partners", label: "Partners", icon: UsersRound, permission: "members.read" },
     { id: "emails", label: "Connected Emails", icon: Mail, permission: null, count: "2" },
+    { id: "activity", label: "Activity Log", icon: History, permission: "audit.read" },
   ];
 
   const accessStateMatchesRoute = permissionState.slug === slug && permissionState.token === token;
@@ -549,6 +554,7 @@ export function TenantWorkspace() {
               )}
               {currentSection === "partners" && <PartnersContent canInvite={hasPermission(permissions, "members.invite")} />}
               {currentSection === "emails" && <ConnectedEmailsContent />}
+              {currentSection === "activity" && <ActivityLog slug={slug || ""} token={token} />}
               {currentSection === "trays" && (
                 <TraysOverview
                   trays={visibleTrays}

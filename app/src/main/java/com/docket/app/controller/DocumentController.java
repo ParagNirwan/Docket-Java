@@ -71,7 +71,7 @@ public class DocumentController {
             @PathVariable UUID docId,
             Authentication authentication
     ) {
-        return ResponseEntity.ok(documentService.getDocumentById(slug, docId, authentication));
+        return ResponseEntity.ok(documentService.viewDocument(slug, docId, authentication));
     }
 
     // ─── DOWNLOAD A FILE ────────────────────────────────────────────────

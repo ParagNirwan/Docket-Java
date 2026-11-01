@@ -1,5 +1,6 @@
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { ActiveSessions } from "../components/ActiveSessions";
 import {
   UserIcon,
   ShieldIcon,
@@ -17,12 +18,6 @@ export function SettingsPage() {
   const initial = (email.charAt(0) || "U").toUpperCase();
   const role = user?.role || "Administrator";
   const userType = user?.userType || "Standard User";
-  const expiresAt = user?.exp
-    ? new Date(user.exp * 1000).toLocaleString(undefined, {
-        dateStyle: "full",
-        timeStyle: "short",
-      })
-    : "Active Session";
 
   function handleLogout() {
     logout();
@@ -54,10 +49,12 @@ export function SettingsPage() {
                   <h2 className="text-xl font-bold text-gray-900 dark:text-white">
                     {email}
                   </h2>
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300">
-                    <CheckIcon className="w-3.5 h-3.5" />
-                    Verified
-                  </span>
+                  {user?.emailVerified && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300">
+                      <CheckIcon className="w-3.5 h-3.5" />
+                      Verified
+                    </span>
+                  )}
                 </div>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
                   Member of Docket Cloud Platform
@@ -147,26 +144,14 @@ export function SettingsPage() {
         <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-xs space-y-4">
           <div>
             <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-              Security & Active Session
+              Active Sessions
             </h3>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Details about your authenticated session.
+              Everywhere you're signed in. End any session you don't recognize.
             </p>
           </div>
 
-          <div className="p-4 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
-              <ShieldIcon className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                Valid JWT Authentication Token
-              </div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">
-                Session Expiration: {expiresAt}
-              </div>
-            </div>
-          </div>
+          <ActiveSessions />
         </div>
       </div>
     </div>

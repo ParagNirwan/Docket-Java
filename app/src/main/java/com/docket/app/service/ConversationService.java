@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -46,7 +47,7 @@ public class ConversationService {
     }
 
     @Transactional
-    public ConversationDTO createConversation(UUID tenantId, UUID userId, String question) {
+    public ConversationDTO createConversation(Authentication authentication, UUID tenantId, UUID userId, String question) {
         String title = question.length() > 80 ? question.substring(0, 80) + "..." : question;
 
         Conversation conversation = new Conversation();
@@ -60,7 +61,7 @@ public class ConversationService {
         userMsg.setContent(question);
         conversation.getMessages().add(userMsg);
 
-        AiQueryResponseDTO aiResponse = aiQueryService.query(tenantId, question, null);
+        AiQueryResponseDTO aiResponse = aiQueryService.query(authentication, tenantId, question, null);
 
         ConversationMessage aiMsg = new ConversationMessage();
         aiMsg.setConversation(conversation);
@@ -75,7 +76,7 @@ public class ConversationService {
     }
 
     @Transactional
-    public ConversationMessageDTO sendMessage(UUID conversationId, UUID tenantId, UUID userId, String question) {
+    public ConversationMessageDTO sendMessage(Authentication authentication, UUID conversationId, UUID tenantId, UUID userId, String question) {
         Conversation conversation = conversationRepository
                 .findByIdAndTenantIdAndUserId(conversationId, tenantId, userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Conversation not found"));
@@ -86,7 +87,7 @@ public class ConversationService {
         userMsg.setContent(question);
         conversation.getMessages().add(userMsg);
 
-        AiQueryResponseDTO aiResponse = aiQueryService.query(tenantId, question, null);
+        AiQueryResponseDTO aiResponse = aiQueryService.query(authentication, tenantId, question, null);
 
         ConversationMessage aiMsg = new ConversationMessage();
         aiMsg.setConversation(conversation);

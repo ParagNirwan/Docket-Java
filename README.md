@@ -239,6 +239,13 @@ Managed by Flyway. Migrations live in `app/src/main/resources/db/migration/`:
 | V4 | Documents table |
 | V5 | pgvector extension, document chunks with embeddings |
 | V6 | AI conversations and messages |
+| V7 | One active owner per organization |
+| V8 | Sub-folders record their tray |
+| V9 | Email outbox |
+| V10 | Append-only audit log |
+| V11 | Refresh tokens and token versions |
+| V12 | Auth rate limit counters |
+| V13 | Account tokens and email verification |
 
 ---
 
@@ -248,7 +255,16 @@ Managed by Flyway. Migrations live in `app/src/main/resources/db/migration/`:
 | :--- | :---: | :--- | :--- |
 | `POSTGRES_PASSWORD` | Yes | `docket_dev_password` | Database password |
 | `JWT_SECRET` | Yes | — | Base64-encoded HMAC key for JWT signing |
-| `JWT_EXPIRATION` | No | `86400000` (24h) | JWT token lifetime in ms |
+| `JWT_ACCESS_TOKEN_TTL_MS` | No | `900000` (15 min) | Access token lifetime in ms |
+| `AUTH_COOKIE_SECURE` | No | `false`, `true` in prod | Send the refresh cookie over HTTPS only |
+| `TRUSTED_PROXY_HOPS` | No | `0` | Proxies in front of the backend that append to `X-Forwarded-For` |
+| `CORS_ALLOWED_ORIGINS` | No | Local dev URLs, `APP_BASE_URL` in prod | Exact origins allowed to call the API |
+| `APP_BASE_URL` | Prod | `http://localhost:5173` | Public frontend URL, used for links in emails |
+| `EMAIL_PROVIDER` | No | `logging` | `logging` (local only), `smtp` or `resend`. See [docs/email.md](docs/email.md) |
+| `EMAIL_FROM` | Prod | `Docket <no-reply@docket.local>` | Sender of outgoing email |
+| `RESEND_API_KEY` | With `resend` | — | Resend API key |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USERNAME` / `SMTP_PASSWORD` | With `smtp` | `localhost` / `1025` | SMTP server |
+| `AUDIT_RETENTION_DAYS` | No | `365` | How long audit events are kept. Minimum 365 |
 | `GCP_PROJECT_ID` | Prod | — | Google Cloud project (for Vertex AI / GCS) |
 | `GCP_LOCATION` | No | `europe-west3` | GCP region |
 | `VITE_API_URL` | No | `/api` | Frontend API base path |

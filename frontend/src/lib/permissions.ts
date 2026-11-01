@@ -18,7 +18,8 @@ export type PermissionCode =
   | "trays.delete"
   | "folders.create"
   | "folders.update"
-  | "folders.delete";
+  | "folders.delete"
+  | "audit.read";
 
 // "Does this person have this specific permission?"
 // Used throughout the UI to decide whether to show or hide buttons/sections.

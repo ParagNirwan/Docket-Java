@@ -1,3 +1,4 @@
+import { apiFetch } from "../lib/session";
 /**
  * ============================================================================
  * TRAY & FOLDER API SERVICE (LEARNING GUIDE & INTEGRATION STUB)
@@ -235,7 +236,7 @@ export async function getTenantTrays(
   // If user is authenticated, call the live backend endpoint
   if (token) {
     try {
-      const response = await fetch(`${API_BASE}/tenants/${encodeURIComponent(slug)}/trays`, {
+      const response = await apiFetch(`${API_BASE}/tenants/${encodeURIComponent(slug)}/trays`, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -305,7 +306,7 @@ export async function createTray(
 ): Promise<Tray> {
   if (token) {
     try {
-      const response = await fetch(`${API_BASE}/tenants/${encodeURIComponent(slug)}/trays`, {
+      const response = await apiFetch(`${API_BASE}/tenants/${encodeURIComponent(slug)}/trays`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -393,7 +394,7 @@ export async function updateTray(
 ): Promise<Tray> {
   // --- PRODUCTION API CALL (Uncomment when connecting to backend) ---
   /*
-  const response = await fetch(`${API_BASE}/tenants/${encodeURIComponent(_slug)}/trays/${trayId}`, {
+  const response = await apiFetch(`${API_BASE}/tenants/${encodeURIComponent(_slug)}/trays/${trayId}`, {
     method: "PUT",
     headers: {
       Authorization: `Bearer ${_token}`,
@@ -455,7 +456,7 @@ export async function deleteTray(
 ): Promise<boolean> {
   // --- PRODUCTION API CALL (Uncomment when connecting to backend) ---
   /*
-  const response = await fetch(`${API_BASE}/tenants/${encodeURIComponent(_slug)}/trays/${trayId}`, {
+  const response = await apiFetch(`${API_BASE}/tenants/${encodeURIComponent(_slug)}/trays/${trayId}`, {
     method: "DELETE",
     headers: {
       Authorization: `Bearer ${_token}`,
@@ -514,7 +515,7 @@ export async function getFolderChildren(
 
   if (token && isUuid) {
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `${API_BASE}/tenants/${encodeURIComponent(slug)}/folders/${encodeURIComponent(folderId)}/children`,
         {
           method: "GET",
@@ -595,7 +596,7 @@ export async function createSubFolder(
 
   if (token && isUuid) {
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `${API_BASE}/tenants/${encodeURIComponent(slug)}/folders/${encodeURIComponent(parentFolderId)}/children`,
         {
           method: "POST",
@@ -692,7 +693,7 @@ export async function deleteFolder(
 ): Promise<boolean> {
   // --- PRODUCTION API CALL (Uncomment when connecting to backend) ---
   /*
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_BASE}/tenants/${encodeURIComponent(_slug)}/folders/${folderId}`,
     {
       method: "DELETE",

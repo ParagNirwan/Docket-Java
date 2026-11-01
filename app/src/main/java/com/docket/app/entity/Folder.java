@@ -23,6 +23,7 @@ public class Folder {
     @NotNull
     private UUID tenantId;
     private UUID parentFolderId;
+    private UUID rootTrayId;
     @NotNull
     private String name;
     private String description;

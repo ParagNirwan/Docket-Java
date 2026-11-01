@@ -1,0 +1,5 @@
+[(${documentCount})] documents in [(${tenantName})] reach the end of their retention period on [(${expiryDate})].
+
+Review them:
+
+[(${link})]

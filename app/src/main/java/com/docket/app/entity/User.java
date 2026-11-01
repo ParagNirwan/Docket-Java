@@ -31,6 +31,12 @@ public class User {
 
     private Instant createdAt;
 
+    // Access tokens carrying a different number than this are rejected.
+    @Column(nullable = false)
+    private int tokenVersion;
+
+    private Instant emailVerifiedAt;
+
     public User(String name, String email, String passwordHash) {
         this.name = name;
         this.email = email;

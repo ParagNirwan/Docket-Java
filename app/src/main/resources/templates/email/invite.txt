@@ -1,0 +1,5 @@
+[(${inviterName})] invited you to join [(${tenantName})] on Docket.
+
+Accept the invitation:
+
+[(${link})]

@@ -32,6 +32,7 @@ spec:
             - |
               export JWT_SECRET=$(tr -d '\r\n' < /mnt/secrets/JWT_SECRET)
               export SPRING_DATASOURCE_PASSWORD=$(tr -d '\r\n' < /mnt/secrets/SPRING_DATASOURCE_PASSWORD)
+              export RESEND_API_KEY=$(tr -d '\r\n' < /mnt/secrets/RESEND_API_KEY)
               exec java -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -jar app.jar
           envFrom:
             - configMapRef:

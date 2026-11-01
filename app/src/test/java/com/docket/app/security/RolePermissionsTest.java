@@ -30,7 +30,8 @@ class RolePermissionsTest {
             Permission.TRAYS_DELETE,
             Permission.FOLDERS_CREATE,
             Permission.FOLDERS_DELETE,
-            Permission.FOLDERS_UPDATE);
+            Permission.FOLDERS_UPDATE,
+            Permission.AUDIT_READ);
 
     @Test
     void ownerAndAdminHaveAdministrativeAndFeaturePermissions() {
@@ -53,7 +54,8 @@ class RolePermissionsTest {
                         Permission.TRAYS_DELETE,
                         Permission.FOLDERS_CREATE,
                         Permission.FOLDERS_DELETE,
-                        Permission.FOLDERS_UPDATE),
+                        Permission.FOLDERS_UPDATE,
+                        Permission.AUDIT_READ),
                 RolePermissions.forRole(Roles.OWNER));
     }
 

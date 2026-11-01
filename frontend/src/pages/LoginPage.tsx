@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { apiFetch, retryAfterMessage } from "../lib/session";
 import { Lock, Mail, ArrowRight, CheckCircle2 } from "lucide-react";
 
 export function LoginPage() {
@@ -24,11 +25,16 @@ export function LoginPage() {
       const response = await fetch(`${apiUrl}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ email, password }),
       });
 
       if (!response.ok) {
-        setError("Invalid email or password. Please try again.");
+        setError(
+          response.status === 429
+            ? retryAfterMessage(response)
+            : "Invalid email or password. Please try again."
+        );
         setLoading(false);
         return;
       }
@@ -36,7 +42,7 @@ export function LoginPage() {
       const data = await response.json();
       login(data.token);
 
-      const tenantsResp = await fetch(`${apiUrl}/users/list-tenants`, {
+      const tenantsResp = await apiFetch(`${apiUrl}/users/list-tenants`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -124,6 +130,12 @@ export function LoginPage() {
                 >
                   Password
                 </label>
+                <Link
+                  to="/forgot-password"
+                  className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors"
+                >
+                  Forgot password?
+                </Link>
               </div>
               <div className="relative">
                 <input

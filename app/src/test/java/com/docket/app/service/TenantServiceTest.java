@@ -62,6 +62,12 @@ class TenantServiceTest {
     @Mock
     private PasswordEncoder passwordEncoder;
 
+    @Mock
+    private AuditService auditService;
+
+    @Mock
+    private SessionService sessionService;
+
     @InjectMocks
     private TenantService tenantService;
 

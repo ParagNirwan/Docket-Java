@@ -5,7 +5,11 @@ import { useAuth } from "../context/AuthContext";
 type GuestRouteProps = { children: ReactNode };
 
 export function GuestRoute({ children }: GuestRouteProps) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isInitializing } = useAuth();
+
+  if (isInitializing) {
+    return null;
+  }
 
   if (isAuthenticated) {
     return <Navigate to="/tenants" replace />;

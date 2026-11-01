@@ -63,6 +63,9 @@ class DocumentServiceTest {
     @Mock
     private FolderAccessService folderAccessService;
 
+    @Mock
+    private AuditService auditService;
+
     @InjectMocks
     private DocumentService documentService;
 

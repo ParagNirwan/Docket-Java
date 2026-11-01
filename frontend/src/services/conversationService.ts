@@ -1,3 +1,4 @@
+import { apiFetch } from "../lib/session";
 import { API_BASE } from "./documentService";
 import type { AiSourceChunk } from "./aiService";
 
@@ -48,7 +49,7 @@ export async function listConversations(
   token: string,
 ): Promise<Conversation[]> {
   const url = `${API_BASE}/tenants/${encodeURIComponent(slug)}/ai/conversations`;
-  const response = await fetch(url, { headers: headers(token) });
+  const response = await apiFetch(url, { headers: headers(token) });
   return handleResponse<Conversation[]>(response);
 }
 
@@ -58,7 +59,7 @@ export async function getConversation(
   token: string,
 ): Promise<Conversation> {
   const url = `${API_BASE}/tenants/${encodeURIComponent(slug)}/ai/conversations/${conversationId}`;
-  const response = await fetch(url, { headers: headers(token) });
+  const response = await apiFetch(url, { headers: headers(token) });
   return handleResponse<Conversation>(response);
 }
 
@@ -68,7 +69,7 @@ export async function createConversation(
   token: string,
 ): Promise<Conversation> {
   const url = `${API_BASE}/tenants/${encodeURIComponent(slug)}/ai/conversations`;
-  const response = await fetch(url, {
+  const response = await apiFetch(url, {
     method: "POST",
     headers: headers(token),
     body: JSON.stringify({ question }),
@@ -83,7 +84,7 @@ export async function sendMessage(
   token: string,
 ): Promise<ConversationMessage> {
   const url = `${API_BASE}/tenants/${encodeURIComponent(slug)}/ai/conversations/${conversationId}/messages`;
-  const response = await fetch(url, {
+  const response = await apiFetch(url, {
     method: "POST",
     headers: headers(token),
     body: JSON.stringify({ question }),
@@ -97,7 +98,7 @@ export async function deleteConversation(
   token: string,
 ): Promise<void> {
   const url = `${API_BASE}/tenants/${encodeURIComponent(slug)}/ai/conversations/${conversationId}`;
-  const response = await fetch(url, {
+  const response = await apiFetch(url, {
     method: "DELETE",
     headers: { Authorization: `Bearer ${token}` },
   });

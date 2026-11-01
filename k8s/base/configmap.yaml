@@ -11,3 +11,12 @@ data:
   GCP_LOCATION: "europe-west3"
   DOCKET_STORAGE_TYPE: "gcs"
   DOCKET_STORAGE_GCS_BUCKET: "docket-java-uploads"
+  EMAIL_PROVIDER: "resend"
+  # The Google load balancer appends "client, load balancer" to X-Forwarded-For
+  TRUSTED_PROXY_HOPS: "2"
+  # The gateway only serves plain HTTP today, and browsers discard Secure cookies over
+  # HTTP. Remove this line as soon as HTTPS is on: production then defaults to Secure.
+  AUTH_COOKIE_SECURE: "false"
+  # Required, and specific to your domain. The backend won't start without them:
+  # APP_BASE_URL: "https://your-domain.com"
+  # EMAIL_FROM: "Docket <no-reply@your-domain.com>"

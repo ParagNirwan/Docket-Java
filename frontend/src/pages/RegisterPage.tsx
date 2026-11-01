@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { registerSchema } from "../lib/validation";
 import { parseApiError, getFieldError, type ApiErrorResponse } from "../lib/apiError";
+import { retryAfterMessage } from "../lib/session";
 import { ErrorAlert } from "../components/ErrorAlert";
 import { UserPlus, ArrowRight, User, Mail, Lock } from "lucide-react";
 
@@ -57,7 +58,9 @@ export function RegisterPage() {
       });
 
       if (!response.ok) {
-        const parsed = await parseApiError(response);
+        const parsed = response.status === 429
+          ? { code: "RATE_LIMITED", message: retryAfterMessage(response) }
+          : await parseApiError(response);
         setApiError(parsed);
 
         // Bind backend field errors to inputs
@@ -81,7 +84,7 @@ export function RegisterPage() {
 
       // Registration succeeded - navigate to login
       navigate("/login", {
-        state: { message: "Account created successfully! Please sign in." },
+        state: { message: "Account created! We sent you an email to verify your address. Please sign in." },
       });
     } catch {
       setApiError({

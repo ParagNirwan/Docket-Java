@@ -1,3 +1,4 @@
+import { apiFetch, getStoredToken, refreshAccessToken } from "../lib/session";
 import { randomUUID } from "../lib/uuid";
 
 /**
@@ -30,6 +31,7 @@ export interface UploadTask {
   file: File;                // The actual file the user picked
   folderId: string;          // Which folder to upload into
   status: "queued" | "uploading" | "done" | "failed";
+  authRetried?: boolean;     // Has this upload already refreshed an expired login?
   progress: number;          // 0 to 100 (percentage complete)
   speed: number;             // Upload speed in bytes per second
   error?: string;            // What went wrong (if anything)
@@ -248,6 +250,8 @@ export class UploadManager {
   private executeUpload(task: UploadTask) {
     const xhr = new XMLHttpRequest();
     const startTime = Date.now();
+    // A queued upload can start long after this manager was created.
+    const sentToken = getStoredToken() ?? this.token;
 
     // This event fires repeatedly while the file is being sent,
     // telling us how much has been uploaded so far
@@ -265,7 +269,22 @@ export class UploadManager {
 
     // The upload finished successfully
     xhr.addEventListener("load", () => {
-      if (xhr.status === 201) {
+      if (xhr.status === 401 && !task.authRetried) {
+        // The login expired while this file was waiting. XHR can't use apiFetch,
+        // so refresh here and send the file once more.
+        task.authRetried = true;
+        refreshAccessToken(sentToken).then((refreshed) => {
+          if (refreshed) {
+            this.executeUpload(task);
+          } else {
+            task.status = "failed";
+            task.error = this.parseErrorMessage(xhr);
+            this.activeCount--;
+            this.notifyChange();
+            this.processQueue();
+          }
+        });
+      } else if (xhr.status === 201) {
         // Server accepted the file
         task.status = "done";
         task.progress = 100;
@@ -321,7 +340,7 @@ export class UploadManager {
     formData.append("file", task.file);
 
     xhr.open("POST", url);
-    xhr.setRequestHeader("Authorization", `Bearer ${this.token}`);
+    xhr.setRequestHeader("Authorization", `Bearer ${sentToken}`);
     xhr.timeout = 5 * 60 * 1000; // 5 minute timeout for large files
     xhr.send(formData);
   }
@@ -407,7 +426,7 @@ export async function getDocuments(
 ): Promise<PagedDocuments> {
   const url = `${API_BASE}/tenants/${encodeURIComponent(slug)}/folders/${folderId}/documents?page=${page}&size=${size}`;
 
-  const response = await fetch(url, {
+  const response = await apiFetch(url, {
     headers: { Authorization: `Bearer ${token}` },
   });
 
@@ -426,7 +445,7 @@ export function downloadDocument(slug: string, docId: string, token: string) {
 
   // We need to use fetch + blob because the download endpoint requires
   // an Authorization header, and regular <a> links can't send headers.
-  fetch(url, {
+  apiFetch(url, {
     headers: { Authorization: `Bearer ${token}` },
   })
     .then((response) => {
@@ -456,7 +475,7 @@ export async function deleteDocument(
 ): Promise<void> {
   const url = `${API_BASE}/tenants/${encodeURIComponent(slug)}/documents/${docId}`;
 
-  const response = await fetch(url, {
+  const response = await apiFetch(url, {
     method: "DELETE",
     headers: { Authorization: `Bearer ${token}` },
   });

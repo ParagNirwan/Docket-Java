@@ -1,0 +1,7 @@
+Hello [(${name})],
+
+Please confirm this is your email address. This link expires in [(${expiryHours})] hours:
+
+[(${link})]
+
+If you didn't create a Docket account, you can ignore this email.

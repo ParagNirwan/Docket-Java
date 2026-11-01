@@ -1,3 +1,4 @@
+import { apiFetch } from "../lib/session";
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -66,7 +67,7 @@ export function Header() {
     async function loadTenants() {
       try {
         const apiUrl = import.meta.env.VITE_API_URL || "/api";
-        const response = await fetch(`${apiUrl}/users/list-tenants`, {
+        const response = await apiFetch(`${apiUrl}/users/list-tenants`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!response.ok) {

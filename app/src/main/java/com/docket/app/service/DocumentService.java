@@ -4,6 +4,7 @@ import com.docket.app.dto.DocumentResponseDTO;
 import com.docket.app.entity.Document;
 import com.docket.app.entity.Tenant;
 import com.docket.app.entity.User;
+import com.docket.app.enums.AuditAction;
 import com.docket.app.enums.FileStatus;
 import com.docket.app.enums.Permission;
 import com.docket.app.repository.DocumentRepository;
@@ -46,6 +47,7 @@ public class DocumentService {
     private final StorageService storageService;
     private final UserRepository userRepository;
     private final FolderAccessService folderAccessService;
+    private final AuditService auditService;
 
     // These are the file types users are allowed to upload.
     // Anything not on this list will be rejected.
@@ -132,6 +134,8 @@ public class DocumentService {
         Document saved = documentRepository.save(document);
 
         eventPublisher.publishEvent(new DocumentUploadedEvent(saved.getId(), saved.getTenantId()));
+        auditService.record(tenant.getId(), uploader.getId(), AuditAction.DOCUMENT_UPLOADED, "DOCUMENT", saved.getId(),
+                Map.of("fileName", originalFilename));
 
         return toDTO(saved, uploader.getName());
 
@@ -152,6 +156,17 @@ public class DocumentService {
         return toDTO(document, uploaderName);
     }
 
+    // ─── VIEW A DOCUMENT ────────────────────────────────────────────────
+    // The same as getDocumentById, but counted in the audit log. Kept separate
+    // because the frontend polls getDocumentById for indexing status, and
+    // polling isn't someone looking at a document.
+    public DocumentResponseDTO viewDocument(String slug, UUID docId, Authentication authentication) {
+        DocumentResponseDTO document = getDocumentById(slug, docId, authentication);
+        auditService.record(authentication, findTenantOrThrow(slug).getId(), AuditAction.DOCUMENT_VIEWED, "DOCUMENT", docId,
+                Map.of("fileName", String.valueOf(document.getOriginalFileName())));
+        return document;
+    }
+
     // ─── DOWNLOAD A DOCUMENT ────────────────────────────────────────────
     // Streams the actual file data back to the user's browser.
     // Returns the file as a Resource along with the document metadata
@@ -170,6 +185,9 @@ public class DocumentService {
         InputStream stream = storageService.retrieve(document.getStoredFileName());
         Resource resource = new InputStreamResource(stream);
 
+        auditService.record(authentication, tenant.getId(), AuditAction.DOCUMENT_DOWNLOADED, "DOCUMENT", docId,
+                Map.of("fileName", String.valueOf(document.getOriginalFileName())));
+
         return new DocumentDownload(resource, document);
     }
 
@@ -186,6 +204,8 @@ public class DocumentService {
         document.setFileStatus(FileStatus.SOFT_DELETED);
         document.setUpdatedAt(Instant.now());
         documentRepository.save(document);
+        auditService.record(authentication, tenant.getId(), AuditAction.DOCUMENT_DELETED, "DOCUMENT", docId,
+                Map.of("fileName", String.valueOf(document.getOriginalFileName())));
     }
 
     // ─── HELPER: Find tenant or throw 404 ───────────────────────────────

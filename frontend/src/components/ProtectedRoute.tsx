@@ -5,7 +5,11 @@ import { useAuth } from "../context/AuthContext";
 type ProtectedRouteProps = { children: ReactNode };
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isInitializing } = useAuth();
+
+  if (isInitializing) {
+    return null;
+  }
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;

@@ -52,7 +52,11 @@ public enum Permission {
     // Can you update Folders?
     FOLDERS_UPDATE("folders.update"),
     // Can you delete Folders?
-    FOLDERS_DELETE("folders.delete");
+    FOLDERS_DELETE("folders.delete"),
+
+    // --- Audit permissions ---
+    // Can you see and export the organization's activity log?
+    AUDIT_READ("audit.read");
 
     // The short text code sent to the frontend (e.g. "members.invite")
     private final String code;

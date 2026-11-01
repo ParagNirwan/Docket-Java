@@ -22,6 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -36,6 +38,8 @@ public class TenantService {
     private final TenantAuthorizationService tenantAuthorizationService;
     private final FolderRepository folderRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AuditService auditService;
+    private final SessionService sessionService;
 
     // Look up an organization by its URL-friendly name (slug), e.g. "acme-corp".
     // Before returning the org's details, asks the bouncer to verify the
@@ -162,6 +166,11 @@ public class TenantService {
         } catch (DataIntegrityViolationException e) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Ownership was changed by another request");
         }
+
+        auditService.record(tenant.getId(), user.getId(), AuditAction.OWNERSHIP_TRANSFERRED, "USER", newOwner.getUserId(),
+                Map.of("previousOwnerUserId", user.getId().toString()));
+        sessionService.invalidateAccessTokens(user.getId());
+        sessionService.invalidateAccessTokens(newOwner.getUserId());
     }
 
 
@@ -223,12 +232,19 @@ public class TenantService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Default trays cannot be modified");
         }
 
+        String previousName = folder.getName();
         folder.setName(request.getName());
         folder.setDescription(request.getDescription());
         folder.setVisibility(request.getVisibility());
         folder.setSortOrder(request.getSortOrder());
         folder.setUpdatedAt(java.time.Instant.now());
-        return folderRepository.save(folder);
+        Folder saved = folderRepository.save(folder);
+
+        if (!Objects.equals(previousName, request.getName())) {
+            auditService.record(authentication, tenant.getId(), AuditAction.TRAY_RENAMED, "TRAY", saved.getId(),
+                    Map.of("from", String.valueOf(previousName), "to", String.valueOf(request.getName())));
+        }
+        return saved;
     }
 
     public Boolean createDefaultFoldersForTenant(UUID tenantId, UUID userId) {

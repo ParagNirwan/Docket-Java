@@ -1,3 +1,4 @@
+import { apiFetch } from "../lib/session";
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -31,7 +32,7 @@ export function TenantsPage() {
       if (!token) return;
       try {
         const apiUrl = import.meta.env.VITE_API_URL || "/api";
-        const res = await fetch(`${apiUrl}/users/list-tenants`, {
+        const res = await apiFetch(`${apiUrl}/users/list-tenants`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },

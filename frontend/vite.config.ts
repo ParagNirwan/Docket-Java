@@ -16,6 +16,7 @@ export default defineConfig(({ mode }) => {
     plugins: [react(), tailwindcss()],
     test: {
       environment: 'jsdom',
+      setupFiles: ['./src/test-setup.ts'],
     },
     server: {
       host: '0.0.0.0',

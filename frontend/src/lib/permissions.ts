@@ -21,6 +21,30 @@ export type PermissionCode =
   | "folders.delete"
   | "audit.read";
 
+export type MemberRole = "OWNER" | "ADMIN" | "MANAGER" | "MEMBER";
+
+export const ROLE_LABELS: Record<MemberRole, string> = {
+  OWNER: "Owner",
+  ADMIN: "Admin",
+  MANAGER: "Manager",
+  MEMBER: "Member",
+};
+
+// The roles this person can give out or manage, for showing the right controls. Keep in
+// step with RolePermissions.canAssignRole on the backend, which is what enforces it.
+export function assignableRoles(actorRole: MemberRole | undefined): MemberRole[] {
+  switch (actorRole) {
+    case "OWNER":
+      return ["ADMIN", "MANAGER", "MEMBER"];
+    case "ADMIN":
+      return ["MANAGER", "MEMBER"];
+    case "MANAGER":
+      return ["MEMBER"];
+    default:
+      return [];
+  }
+}
+
 // "Does this person have this specific permission?"
 // Used throughout the UI to decide whether to show or hide buttons/sections.
 export function hasPermission(

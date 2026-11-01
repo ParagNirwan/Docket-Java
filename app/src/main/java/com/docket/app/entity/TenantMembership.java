@@ -8,6 +8,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.Instant;
 import java.util.UUID;
 
 // A "membership card" — each row in this table says:
@@ -50,5 +51,8 @@ public class TenantMembership {
     // This is what determines their permissions.
     @Enumerated(EnumType.STRING)
     private Roles role;
+
+    // When they joined. Null for people who joined before this was recorded.
+    private Instant joinedAt;
 
 }

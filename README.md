@@ -111,6 +111,26 @@ Documents live inside a hierarchical folder system. **Trays** are root-level fol
 - Paginated listing per folder
 - Download with XSS-safe `Content-Disposition` headers
 - Soft-delete (recoverable)
+- Rename, move and copy documents and folders from the `⋮` menu, a folder picker, or by dragging
+- Moving a folder takes everything inside it along. Who can see something always follows the tray it's in, so a move into a restricted tray hides it straight away
+
+### Search
+
+The search box in the header (`Ctrl+K` or `⌘K`) finds documents by file name, including misspelled names, and by the text inside them, with the match highlighted. Filter by type, tray and date. Results respect tray visibility, and leave out deleted documents and the Trash tray.
+
+### Members and invites
+
+Settings in the workspace sidebar lists who's in the organization. People are invited by email with a role, and the invite link works for existing accounts and new sign-ups alike. Links are single-use, expire after 7 days, and are only stored as a hash.
+
+What someone can do to another person depends on both their roles: see `RolePermissions.canAssignRole`.
+
+| Role | Can invite as | Can change or remove |
+| :--- | :--- | :--- |
+| **Owner** | Admin, Manager, Member | Admin, Manager, Member |
+| **Admin** | Manager, Member | Manager, Member |
+| **Manager** | Member | No one |
+
+Nobody can change their own role or remove themselves. Anyone except the Owner can leave. The Owner hands over the organization with their password in Settings → Danger zone, and both people are emailed.
 
 ### AI-powered search (RAG)
 
@@ -146,6 +166,27 @@ Conversational AI sessions are persisted (create, list, send follow-up, delete).
 | GET | `/api/users/list-tenants` | List current user's active tenants |
 | GET | `/api/tenants/by-slug/{slug}` | Tenant metadata |
 | GET | `/api/tenants/by-slug/{slug}/permissions` | Current user's permissions |
+| POST | `/api/tenants/{slug}/transfer-ownership` | Hand over the organization, confirmed by password |
+
+### Members
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| GET | `/api/tenants/{slug}/members` | List members |
+| PATCH | `/api/tenants/{slug}/members/{id}` | Change a member's role |
+| DELETE | `/api/tenants/{slug}/members/{id}` | Remove a member |
+| POST | `/api/tenants/{slug}/members/leave` | Leave the organization |
+
+### Invitations
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| POST | `/api/tenants/{slug}/invitations` | Invite someone by email |
+| GET | `/api/tenants/{slug}/invitations` | List pending invitations |
+| POST | `/api/tenants/{slug}/invitations/{id}/resend` | Send a new link. The old one stops working |
+| DELETE | `/api/tenants/{slug}/invitations/{id}` | Revoke |
+| GET | `/api/invitations/{token}` | Public: what the invite is for |
+| POST | `/api/invitations/{token}/accept` | Join, if signed in with the invited address |
 
 ### Folders
 
@@ -153,6 +194,8 @@ Conversational AI sessions are persisted (create, list, send follow-up, delete).
 | :--- | :--- | :--- |
 | GET | `/api/tenants/{slug}/folders/{id}/children` | List sub-folders |
 | POST | `/api/tenants/{slug}/folders/{id}/children` | Create sub-folder |
+| GET | `/api/tenants/{slug}/folders/{id}/breadcrumb` | Path from the tray down to this folder |
+| PATCH | `/api/tenants/{slug}/folders/{id}` | Rename and/or move |
 
 ### Documents
 
@@ -162,9 +205,12 @@ Conversational AI sessions are persisted (create, list, send follow-up, delete).
 | POST | `/api/tenants/{slug}/folders/{id}/documents` | Upload file |
 | GET | `/api/tenants/{slug}/documents/{id}` | Document metadata |
 | GET | `/api/tenants/{slug}/documents/{id}/download` | Download file |
+| PATCH | `/api/tenants/{slug}/documents/{id}` | Rename and/or move. A name that's taken is a 409, and the extension can't change |
+| POST | `/api/tenants/{slug}/documents/{id}/copy` | Copy. A name that's taken gets a suffix, like `report (1).pdf` |
 | DELETE | `/api/tenants/{slug}/documents/{id}` | Soft-delete |
 | GET | `/api/tenants/{slug}/documents/{id}/indexing-status` | AI indexing status |
 | POST | `/api/tenants/{slug}/documents/{id}/reindex` | Re-trigger AI processing |
+| GET | `/api/tenants/{slug}/search?q=&type=&tray=&from=&to=` | Keyword and file name search (paged) |
 
 ### AI (requires `gcp` profile)
 
@@ -249,6 +295,7 @@ Managed by Flyway. Migrations live in `app/src/main/resources/db/migration/`:
 | V12 | Auth rate limit counters |
 | V13 | Account tokens and email verification |
 | V14 | Chunk locations, full-text search, embedding versions, rewritten queries |
+| V15 | Invitations, membership join dates, one active membership per person, file name search index |
 
 ---
 
@@ -268,6 +315,8 @@ Managed by Flyway. Migrations live in `app/src/main/resources/db/migration/`:
 | `RESEND_API_KEY` | With `resend` | — | Resend API key |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USERNAME` / `SMTP_PASSWORD` | With `smtp` | `localhost` / `1025` | SMTP server |
 | `AUDIT_RETENTION_DAYS` | No | `365` | How long audit events are kept. Minimum 365 |
+| `INVITATION_TTL_DAYS` | No | `7` | How long an invite link works |
+| `INVITATION_LIMIT_PER_HOUR` | No | `50` | Invites one organization can send per hour |
 | `GCP_PROJECT_ID` | Prod | — | Google Cloud project (for Vertex AI / GCS) |
 | `GCP_LOCATION` | No | `europe-west3` | GCP region |
 | `AI_RETRIEVAL_MAX_DISTANCE` | No | `0.45` | Chunks further than this are dropped. See [docs/ai-search.md](docs/ai-search.md) |

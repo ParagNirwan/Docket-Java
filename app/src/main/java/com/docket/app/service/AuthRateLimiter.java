@@ -10,7 +10,7 @@ import java.util.List;
 
 // Counts attempts per key in fixed time windows, using Postgres so that every backend
 // pod shares the same counts. Keys are hashed before they reach the table. Future
-// endpoints such as invite acceptance (#56) and share links (#71) can use this as is.
+// endpoints such as share links (#71) can use this as is.
 @Service
 @RequiredArgsConstructor
 public class AuthRateLimiter {

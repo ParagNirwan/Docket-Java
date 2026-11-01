@@ -4,16 +4,23 @@ import { useAuth } from "../context/AuthContext";
 import { apiFetch, retryAfterMessage } from "../lib/session";
 import { Lock, Mail, ArrowRight, CheckCircle2 } from "lucide-react";
 
+type LoginLocationState = {
+  message?: string;
+  email?: string;
+  redirectTo?: string;
+} | null;
+
 export function LoginPage() {
-  const [email, setEmail] = useState("");
+  const location = useLocation();
+  const routeState = location.state as LoginLocationState;
+  const [email, setEmail] = useState(routeState?.email ?? "");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
-  const location = useLocation();
   const { login } = useAuth();
 
-  const successMessage = (location.state as { message?: string } | null)?.message;
+  const successMessage = routeState?.message;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -41,6 +48,11 @@ export function LoginPage() {
 
       const data = await response.json();
       login(data.token);
+
+      // GuestRoute takes it from here, sending them on to where they were going.
+      if (routeState?.redirectTo) {
+        return;
+      }
 
       const tenantsResp = await apiFetch(`${apiUrl}/users/list-tenants`, {
         method: "GET",

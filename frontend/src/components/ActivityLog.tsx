@@ -16,10 +16,14 @@ function actionLabel(action: string): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
-// What the event was about, for the Details column.
+// What the event was about, for the Details column. Raw IDs mean nothing to a reader,
+// and they're still in the CSV export.
 function eventDetail(metadata: Record<string, unknown> | null): string {
   if (!metadata) return "";
-  return Object.values(metadata).map(String).join(" → ");
+  return Object.entries(metadata)
+    .filter(([key]) => !key.endsWith("Id"))
+    .map(([, value]) => String(value))
+    .join(" → ");
 }
 
 type ActivityLogProps = {

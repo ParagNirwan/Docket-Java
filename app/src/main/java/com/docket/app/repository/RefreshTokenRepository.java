@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -26,6 +27,11 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID
             order by t.createdAt desc
             """)
     List<RefreshToken> findActiveByUserId(@Param("userId") UUID userId, @Param("now") Instant now);
+
+    // A token is issued at each login and about every 15 minutes while someone is using
+    // the app, which makes the newest one a good measure of when they were last active.
+    @Query("select t.userId, max(t.createdAt) from RefreshToken t where t.userId in :userIds group by t.userId")
+    List<Object[]> findLastIssuedByUserIds(@Param("userIds") Collection<UUID> userIds);
 
     @Modifying
     @Query("update RefreshToken t set t.revokedAt = :now where t.familyId = :familyId and t.revokedAt is null")

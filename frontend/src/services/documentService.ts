@@ -50,6 +50,7 @@ export interface DocumentDTO {
   createdAt: string;
   updatedAt: string;
   indexingStatus?: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED" | "NOT_PROCESSABLE";
+  folderId?: string;
 }
 
 // The paginated response from the server when listing documents.
@@ -483,6 +484,55 @@ export async function deleteDocument(
   if (!response.ok) {
     throw new Error(`Failed to delete document (${response.status})`);
   }
+}
+
+// Rename and/or move a document. The API answers with a status code and no text, so
+// the wording lives here.
+export async function updateDocument(
+  slug: string,
+  docId: string,
+  changes: { name?: string; folderId?: string },
+  token: string,
+): Promise<DocumentDTO> {
+  const response = await apiFetch(`${API_BASE}/tenants/${encodeURIComponent(slug)}/documents/${docId}`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(changes),
+  });
+
+  if (!response.ok) {
+    const messages: Record<number, string> = {
+      403: "You don't have permission to change this document",
+      404: "That document or folder is no longer available",
+      409: "A document with this name already exists in the folder",
+      422: "The file extension can't be changed",
+    };
+    throw new Error(messages[response.status] ?? `Failed to update document (${response.status})`);
+  }
+  return response.json();
+}
+
+// Copy a document. If the name is taken the copy gets a suffix, like "report (1).pdf".
+export async function copyDocument(
+  slug: string,
+  docId: string,
+  folderId: string,
+  token: string,
+): Promise<DocumentDTO> {
+  const response = await apiFetch(`${API_BASE}/tenants/${encodeURIComponent(slug)}/documents/${docId}/copy`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ folderId }),
+  });
+
+  if (!response.ok) {
+    const messages: Record<number, string> = {
+      403: "You don't have permission to copy documents",
+      404: "That document or folder is no longer available",
+    };
+    throw new Error(messages[response.status] ?? `Failed to copy document (${response.status})`);
+  }
+  return response.json();
 }
 
 // ─── UTILITY FUNCTIONS ──────────────────────────────────────────────────

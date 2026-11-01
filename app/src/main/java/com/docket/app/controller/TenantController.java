@@ -6,6 +6,7 @@ import com.docket.app.dto.TransferOwnershipRequestDTO;
 import com.docket.app.dto.UpdateTrayDTO;
 import com.docket.app.entity.Folder;
 import com.docket.app.entity.Tenant;
+import com.docket.app.service.AuthRateLimiter;
 import com.docket.app.service.TenantService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -27,6 +29,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class TenantController {
     private final TenantService tenantService;
+    private final AuthRateLimiter authRateLimiter;
 
     // POST /api/tenants/create
     // "I want to create a new organization."
@@ -79,6 +82,9 @@ public class TenantController {
             @PathVariable String slug,
             Authentication authentication
     ) {
+        // Stops a stolen login token being used to guess the password here. It's checked
+        // out here because the service's transaction would undo the count of a failed try.
+        authRateLimiter.check("transfer-ownership:account:" + authentication.getName(), 5, Duration.ofMinutes(15));
         tenantService.transferOwnership(request, slug, authentication);
         return ResponseEntity.noContent().build();
     }

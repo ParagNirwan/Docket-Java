@@ -31,6 +31,23 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
     // accessing documents that belong to a different organization.
     Optional<Document> findByIdAndTenantId(UUID id, UUID tenantId);
 
+    boolean existsByTenantIdAndFolderIdAndFileStatusAndOriginalFileNameIgnoreCase(
+            UUID tenantId, UUID folderId, FileStatus status, String originalFileName);
+
+    boolean existsByTenantIdAndFolderIdAndFileStatusAndOriginalFileNameIgnoreCaseAndIdNot(
+            UUID tenantId, UUID folderId, FileStatus status, String originalFileName, UUID id);
+
+    // Changes only these columns, so a rename can't undo an indexing status written while
+    // the document was being processed.
+    @Transactional
+    @Modifying
+    @Query("UPDATE Document d SET d.originalFileName = :name, d.folderId = :folderId, d.updatedAt = :now WHERE d.id = :id")
+    void updateNameAndFolder(
+            @Param("id") UUID id,
+            @Param("name") String name,
+            @Param("folderId") UUID folderId,
+            @Param("now") Instant now);
+
     // Processing can take minutes. These two updates change only the indexing columns, so
     // they can't undo a delete or a move that happened to the document in the meantime.
     @Transactional

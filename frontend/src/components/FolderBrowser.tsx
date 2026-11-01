@@ -33,10 +33,16 @@ import {
   Calendar,
   User,
   Sparkles,
+  Pencil,
+  FolderInput,
+  Copy,
 } from "lucide-react";
 import { BreadcrumbNav } from "./BreadcrumbNav";
 import { CreateFolderModal } from "./CreateFolderModal";
 import { DeleteConfirmationModal } from "./DeleteConfirmationModal";
+import { FolderPickerModal } from "./FolderPickerModal";
+import { ItemActionsMenu, type ItemAction } from "./ItemActionsMenu";
+import { RenameModal } from "./RenameModal";
 import { UploadProgressPanel } from "./UploadProgressPanel";
 import { ViewModeSwitcher, type ViewMode } from "./ViewModeSwitcher";
 import { DocumentThumbnail } from "./DocumentThumbnail";
@@ -55,12 +61,15 @@ import {
   createSubFolder,
   deleteFolder,
   getBreadcrumbs,
+  updateFolder,
 } from "../services/trayService";
 import {
   UploadManager,
   getDocuments,
   downloadDocument,
   deleteDocument,
+  updateDocument,
+  copyDocument,
   formatFileSize,
   type UploadTask,
   type DocumentDTO,
@@ -91,9 +100,26 @@ interface FolderBrowserProps {
   canDeleteFolder: boolean;
   canDeleteTray: boolean;
   canUpload: boolean;
+  canUpdateDocuments?: boolean;
+  canCopyDocuments?: boolean;
+  canUpdateFolders?: boolean;
+  // Where things can be moved or copied to
+  trays?: Tray[];
+  // Open a folder inside the tray straight away, such as from a search result
+  initialFolderId?: string;
   onDeleteTray?: (trayId: string) => void;
   onAskAi?: (docId: string, docName: string) => void;
 }
+
+// A folder or document that's being renamed, moved, copied or dragged.
+interface ItemRef {
+  type: "folder" | "document";
+  id: string;
+  name: string;
+}
+
+// Marks a drag as one of ours, as opposed to files dragged in from the computer.
+const ITEM_DRAG_TYPE = "application/x-docket-item";
 
 export function FolderBrowser({
   slug,
@@ -103,6 +129,11 @@ export function FolderBrowser({
   canDeleteFolder,
   canDeleteTray,
   canUpload,
+  canUpdateDocuments = false,
+  canCopyDocuments = false,
+  canUpdateFolders = false,
+  trays = [],
+  initialFolderId,
   onDeleteTray,
   onAskAi,
 }: FolderBrowserProps) {
@@ -111,7 +142,7 @@ export function FolderBrowser({
   // ── State ───────────────────────────────────────────────────────────
 
   // Current folder being viewed (starts at the tray root)
-  const [currentFolderId, setCurrentFolderId] = useState<string>(activeTray.id);
+  const [currentFolderId, setCurrentFolderId] = useState<string>(initialFolderId ?? activeTray.id);
 
   // The breadcrumb trail showing where we are in the folder hierarchy
   const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbNode[]>([
@@ -172,6 +203,13 @@ export function FolderBrowser({
     name: string;
     type: "tray" | "folder" | "document";
   } | null>(null);
+
+  // What's being renamed, or moved or copied with the folder picker
+  const [renaming, setRenaming] = useState<ItemRef | null>(null);
+  const [picking, setPicking] = useState<{ mode: "move" | "copy"; item: ItemRef } | null>(null);
+
+  // The folder an item is currently being dragged over
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
 
   // Upload state — the list of files being uploaded and their progress
   const [uploadTasks, setUploadTasks] = useState<UploadTask[]>([]);
@@ -435,6 +473,109 @@ export function FolderBrowser({
     });
   }
 
+  // ── Rename, Move and Copy ─────────────────────────────────────────
+
+  async function handleRename(item: ItemRef, name: string) {
+    if (name === item.name || !token) return;
+    if (item.type === "document") {
+      const updated = await updateDocument(slug, item.id, { name }, token);
+      setDocuments((prev) => prev.map((d) => (d.id === item.id ? { ...d, originalFileName: updated.originalFileName } : d)));
+    } else {
+      const updated = await updateFolder(slug, item.id, { name }, token);
+      setFolders((prev) => prev.map((f) => (f.id === item.id ? { ...f, name: updated.name } : f)));
+    }
+    notify.success("Renamed", `"${item.name}" is now "${name}"`);
+  }
+
+  // Everything moved here leaves the current view, wherever it was dropped.
+  async function moveItem(item: ItemRef, folderId: string) {
+    if (!token) return;
+    if (item.type === "document") {
+      await updateDocument(slug, item.id, { folderId }, token);
+      setDocuments((prev) => prev.filter((d) => d.id !== item.id));
+      setTotalElements((prev) => Math.max(0, prev - 1));
+    } else {
+      await updateFolder(slug, item.id, { parentFolderId: folderId }, token);
+      setFolders((prev) => prev.filter((f) => f.id !== item.id));
+    }
+    notify.success("Moved", `"${item.name}" was moved`);
+  }
+
+  async function copyItem(item: ItemRef, folderId: string) {
+    if (!token) return;
+    const copy = await copyDocument(slug, item.id, folderId, token);
+    if (folderId === currentFolderId) {
+      setDocuments((prev) => [...prev, copy]);
+      setTotalElements((prev) => prev + 1);
+    }
+    notify.success("Copied", `Saved as "${copy.originalFileName}"`);
+  }
+
+  function folderActions(folder: FolderItem): ItemAction[] {
+    const item: ItemRef = { type: "folder", id: folder.id, name: folder.name };
+    return [
+      ...(canUpdateFolders ? [
+        { label: "Rename", icon: Pencil, onSelect: () => setRenaming(item) },
+        { label: "Move to...", icon: FolderInput, onSelect: () => setPicking({ mode: "move", item }) },
+      ] : []),
+      ...(canDeleteFolder ? [
+        { label: "Delete", icon: Trash2, danger: true, onSelect: () => setPendingDelete({ id: folder.id, name: folder.name, type: "folder" }) },
+      ] : []),
+    ];
+  }
+
+  function documentActions(doc: DocumentDTO): ItemAction[] {
+    const item: ItemRef = { type: "document", id: doc.id, name: doc.originalFileName };
+    return [
+      ...(canUpdateDocuments ? [
+        { label: "Rename", icon: Pencil, onSelect: () => setRenaming(item) },
+        { label: "Move to...", icon: FolderInput, onSelect: () => setPicking({ mode: "move", item }) },
+      ] : []),
+      ...(canCopyDocuments ? [
+        { label: "Copy to...", icon: Copy, onSelect: () => setPicking({ mode: "copy", item }) },
+      ] : []),
+    ];
+  }
+
+  // ── Dragging Folders and Documents Into Folders ───────────────────
+
+  function dragProps(item: ItemRef, allowed: boolean) {
+    if (!allowed) return {};
+    return {
+      draggable: true,
+      onDragStart: (e: React.DragEvent) => {
+        e.dataTransfer.setData(ITEM_DRAG_TYPE, JSON.stringify(item));
+        e.dataTransfer.effectAllowed = "move";
+      },
+    };
+  }
+
+  // Drops carry on up to the page's own drop handler, which resets the file-upload overlay.
+  function dropProps(folderId: string) {
+    if (!canUpdateDocuments && !canUpdateFolders) return {};
+    return {
+      onDragOver: (e: React.DragEvent) => {
+        if (e.dataTransfer.types.includes(ITEM_DRAG_TYPE)) {
+          setDropTargetId(folderId);
+        }
+      },
+      onDragLeave: () => setDropTargetId((current) => (current === folderId ? null : current)),
+      onDrop: (e: React.DragEvent) => {
+        setDropTargetId(null);
+        const data = e.dataTransfer.getData(ITEM_DRAG_TYPE);
+        if (!data) return;
+        const item = JSON.parse(data) as ItemRef;
+        if (item.id === folderId) return;
+        moveItem(item, folderId).catch((err: unknown) => {
+          notify.error("Could not move this", err instanceof Error ? err.message : undefined);
+        });
+      },
+    };
+  }
+
+  const dropHighlight = (folderId: string) =>
+    dropTargetId === folderId ? "ring-2 ring-indigo-400" : "";
+
   // ── Upload Handlers ───────────────────────────────────────────────
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -543,6 +684,8 @@ export function FolderBrowser({
           <BreadcrumbNav
             items={breadcrumbs}
             onNavigate={handleBreadcrumbNavigate}
+            dropProps={(node) => dropProps(node.id)}
+            dropTargetId={dropTargetId}
           />
         </div>
 
@@ -782,8 +925,10 @@ export function FolderBrowser({
                   {filteredFolders.map((folder) => (
                     <div
                       key={folder.id}
-                      className="group flex flex-col justify-between rounded-2xl border border-gray-200 bg-white p-4 shadow-xs hover:border-indigo-300 hover:shadow-md dark:border-gray-800 dark:bg-gray-900 dark:hover:border-indigo-800 transition-all cursor-pointer relative"
+                      className={`group flex flex-col justify-between rounded-2xl border border-gray-200 bg-white p-4 shadow-xs hover:border-indigo-300 hover:shadow-md dark:border-gray-800 dark:bg-gray-900 dark:hover:border-indigo-800 transition-all cursor-pointer relative ${dropHighlight(folder.id)}`}
                       onClick={() => handleFolderClick(folder)}
+                      {...dragProps({ type: "folder", id: folder.id, name: folder.name }, canUpdateFolders)}
+                      {...dropProps(folder.id)}
                     >
                       <div>
                         <div className="flex items-start justify-between gap-3 mb-2.5">
@@ -800,47 +945,7 @@ export function FolderBrowser({
                                 <Users className="h-2.5 w-2.5" /> Members
                               </span>
                             )}
-                            {canDeleteFolder && (
-                              <div
-                                className="dropdown-menu-container relative"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setActiveMenuId(
-                                      activeMenuId === `folder-card-${folder.id}`
-                                        ? null
-                                        : `folder-card-${folder.id}`
-                                    )
-                                  }
-                                  className="p-1 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                                  title="Folder options"
-                                  aria-label={`Options for ${folder.name}`}
-                                >
-                                  <MoreVertical className="h-3.5 w-3.5" />
-                                </button>
-                                {activeMenuId === `folder-card-${folder.id}` && (
-                                  <div className="absolute right-0 top-full mt-1 w-36 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-xl p-1 z-30">
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setActiveMenuId(null);
-                                        setPendingDelete({
-                                          id: folder.id,
-                                          name: folder.name,
-                                          type: "folder",
-                                        });
-                                      }}
-                                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
-                                    >
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                      <span>Delete folder</span>
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
-                            )}
+                            <ItemActionsMenu itemName={folder.name} actions={folderActions(folder)} />
                           </div>
                         </div>
 
@@ -872,8 +977,10 @@ export function FolderBrowser({
                   {filteredFolders.map((folder) => (
                     <div
                       key={folder.id}
-                      className="group flex flex-col rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-2.5 shadow-2xs hover:border-amber-400 hover:shadow-md dark:hover:border-amber-600 transition-all cursor-pointer relative"
+                      className={`group flex flex-col rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-2.5 shadow-2xs hover:border-amber-400 hover:shadow-md dark:hover:border-amber-600 transition-all cursor-pointer relative ${dropHighlight(folder.id)}`}
                       onClick={() => handleFolderClick(folder)}
+                      {...dragProps({ type: "folder", id: folder.id, name: folder.name }, canUpdateFolders)}
+                      {...dropProps(folder.id)}
                     >
                       <FolderThumbnail
                         name={folder.name}
@@ -889,47 +996,7 @@ export function FolderBrowser({
                         </p>
                         <div className="mt-1 flex items-center justify-between text-[11px] text-gray-400 dark:text-gray-500">
                           <span>{folder.itemCount ?? 0} items</span>
-                          {canDeleteFolder && (
-                            <div
-                              className="dropdown-menu-container relative"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setActiveMenuId(
-                                    activeMenuId === `folder-thumb-${folder.id}`
-                                      ? null
-                                      : `folder-thumb-${folder.id}`
-                                  )
-                                }
-                                className="p-0.5 rounded text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
-                                title="Folder options"
-                                aria-label={`Options for ${folder.name}`}
-                              >
-                                <MoreVertical className="h-3 w-3" />
-                              </button>
-                              {activeMenuId === `folder-thumb-${folder.id}` && (
-                                <div className="absolute right-0 bottom-full mb-1 w-32 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-xl p-1 z-30">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setActiveMenuId(null);
-                                      setPendingDelete({
-                                        id: folder.id,
-                                        name: folder.name,
-                                        type: "folder",
-                                      });
-                                    }}
-                                    className="flex w-full items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                    <span>Delete</span>
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          )}
+                          <ItemActionsMenu itemName={folder.name} actions={folderActions(folder)} openUp />
                         </div>
                       </div>
                     </div>
@@ -956,8 +1023,10 @@ export function FolderBrowser({
                         {filteredFolders.map((folder) => (
                           <tr
                             key={folder.id}
-                            className="hover:bg-gray-50/80 dark:hover:bg-gray-800/40 transition-colors cursor-pointer group"
+                            className={`hover:bg-gray-50/80 dark:hover:bg-gray-800/40 transition-colors cursor-pointer group ${dropHighlight(folder.id)}`}
                             onClick={() => handleFolderClick(folder)}
+                            {...dragProps({ type: "folder", id: folder.id, name: folder.name }, canUpdateFolders)}
+                            {...dropProps(folder.id)}
                           >
                             <td className="py-3 px-4">
                               <div className="flex items-center gap-3">
@@ -1004,23 +1073,7 @@ export function FolderBrowser({
                                   <span>Open</span>
                                   <ChevronRight className="h-3.5 w-3.5" />
                                 </button>
-                                {canDeleteFolder && (
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setPendingDelete({
-                                        id: folder.id,
-                                        name: folder.name,
-                                        type: "folder",
-                                      })
-                                    }
-                                    className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
-                                    title="Delete folder"
-                                    aria-label={`Delete ${folder.name}`}
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </button>
-                                )}
+                                <ItemActionsMenu itemName={folder.name} actions={folderActions(folder)} />
                               </div>
                             </td>
                           </tr>
@@ -1054,6 +1107,7 @@ export function FolderBrowser({
                       <div
                         key={doc.id}
                         className="group flex flex-col justify-between rounded-2xl border border-gray-200 bg-white p-4 shadow-xs hover:border-indigo-300 hover:shadow-md dark:border-gray-800 dark:bg-gray-900 dark:hover:border-indigo-800 transition-all relative"
+                        {...dragProps({ type: "document", id: doc.id, name: doc.originalFileName }, canUpdateDocuments)}
                       >
                         <div>
                           {/* Header */}
@@ -1126,17 +1180,20 @@ export function FolderBrowser({
                               </button>
                             )}
                           </div>
-                          {canDeleteFolder && (
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteDocumentClick(doc)}
-                              className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
-                              title="Delete document"
-                              aria-label={`Delete ${doc.originalFileName}`}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          )}
+                          <div className="flex items-center gap-1">
+                            <ItemActionsMenu itemName={doc.originalFileName} actions={documentActions(doc)} openUp />
+                            {canDeleteFolder && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteDocumentClick(doc)}
+                                className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
+                                title="Delete document"
+                                aria-label={`Delete ${doc.originalFileName}`}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );
@@ -1153,6 +1210,7 @@ export function FolderBrowser({
                       <div
                         key={doc.id}
                         className="group flex flex-col rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-2.5 shadow-2xs hover:border-indigo-300 hover:shadow-md dark:hover:border-indigo-700 transition-all relative"
+                        {...dragProps({ type: "document", id: doc.id, name: doc.originalFileName }, canUpdateDocuments)}
                       >
                         <div className="relative">
                           <DocumentThumbnail
@@ -1191,6 +1249,7 @@ export function FolderBrowser({
                             >
                               {typeInfo.extension}
                             </span>
+                            <ItemActionsMenu itemName={doc.originalFileName} actions={documentActions(doc)} openUp />
                           </div>
                         </div>
                       </div>
@@ -1223,6 +1282,7 @@ export function FolderBrowser({
                             <tr
                               key={doc.id}
                               className="hover:bg-gray-50/80 dark:hover:bg-gray-800/40 transition-colors group"
+                              {...dragProps({ type: "document", id: doc.id, name: doc.originalFileName }, canUpdateDocuments)}
                             >
                               <td className="py-3 px-4">
                                 <div className="flex items-center gap-3">
@@ -1292,6 +1352,7 @@ export function FolderBrowser({
                                   >
                                     <Download className="h-4 w-4" />
                                   </button>
+                                  <ItemActionsMenu itemName={doc.originalFileName} actions={documentActions(doc)} />
                                   {canDeleteFolder && (
                                     <button
                                       type="button"
@@ -1436,6 +1497,28 @@ export function FolderBrowser({
         onClose={() => setPendingDelete(null)}
         onConfirm={handleConfirmDelete}
       />
+
+      {renaming && (
+        <RenameModal
+          itemType={renaming.type}
+          currentName={renaming.name}
+          onClose={() => setRenaming(null)}
+          onSubmit={(name) => handleRename(renaming, name)}
+        />
+      )}
+
+      {picking && (
+        <FolderPickerModal
+          slug={slug}
+          token={token}
+          mode={picking.mode}
+          itemName={picking.item.name}
+          excludeFolderId={picking.item.type === "folder" ? picking.item.id : undefined}
+          trays={trays.length > 0 ? trays : [activeTray]}
+          onClose={() => setPicking(null)}
+          onPick={(folderId) => picking.mode === "move" ? moveItem(picking.item, folderId) : copyItem(picking.item, folderId)}
+        />
+      )}
     </div>
   );
 }

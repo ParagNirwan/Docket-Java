@@ -1,7 +1,10 @@
 package com.docket.app.controller;
 
+import com.docket.app.dto.CopyDocumentRequestDTO;
 import com.docket.app.dto.DocumentResponseDTO;
+import com.docket.app.dto.UpdateDocumentRequestDTO;
 import com.docket.app.service.DocumentService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
@@ -114,6 +117,32 @@ public class DocumentController {
     ) {
         documentService.softDeleteDocument(slug, docId, authentication);
         return ResponseEntity.noContent().build();
+    }
+
+    // ─── RENAME OR MOVE A DOCUMENT ─────────────────────────────────────
+    // PATCH /api/tenants/{slug}/documents/{docId}
+    // Send a new name, a new folderId, or both.
+    @PatchMapping("/documents/{docId}")
+    public ResponseEntity<DocumentResponseDTO> updateDocument(
+            @PathVariable String slug,
+            @PathVariable UUID docId,
+            @Valid @RequestBody UpdateDocumentRequestDTO request,
+            Authentication authentication
+    ) {
+        return ResponseEntity.ok(documentService.updateDocument(slug, docId, request, authentication));
+    }
+
+    // ─── COPY A DOCUMENT ───────────────────────────────────────────────
+    // POST /api/tenants/{slug}/documents/{docId}/copy
+    @PostMapping("/documents/{docId}/copy")
+    public ResponseEntity<DocumentResponseDTO> copyDocument(
+            @PathVariable String slug,
+            @PathVariable UUID docId,
+            @RequestBody CopyDocumentRequestDTO request,
+            Authentication authentication
+    ) {
+        DocumentResponseDTO copy = documentService.copyDocument(slug, docId, request, authentication);
+        return ResponseEntity.status(HttpStatus.CREATED).body(copy);
     }
 
     // ─── GET INDEXING STATUS ───────────────────────────────────────────

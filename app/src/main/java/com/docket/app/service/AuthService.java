@@ -35,6 +35,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final SessionService sessionService;
     private final AccountRecoveryService accountRecoveryService;
+    private final InvitationService invitationService;
     private final AuditService auditService;
     private final AuthRateLimiter authRateLimiter;
     private final ClientRequestInfo clientRequestInfo;
@@ -65,12 +66,28 @@ public class AuthService {
         // The account exists by now, and the email can be re-sent from the app, so
         // a problem here shouldn't turn a successful registration into an error.
         try {
-            accountRecoveryService.sendVerificationEmail(user);
+            if (!acceptedInvite(request.getInviteToken(), user)) {
+                accountRecoveryService.sendVerificationEmail(user);
+            }
         } catch (RuntimeException exception) {
             log.error("Could not queue verification email for user {}", user.getId(), exception);
         }
 
         return new AuthResponseDTO(jwtService.generateAccessToken(user, null));
+    }
+
+    // Accepting proves the address, so there's nothing left to verify. An invite that has
+    // expired in the meantime just means this person registers without joining anything.
+    private boolean acceptedInvite(String inviteToken, User user) {
+        if (inviteToken == null || inviteToken.isBlank()) {
+            return false;
+        }
+        try {
+            return invitationService.acceptForNewUser(inviteToken, user);
+        } catch (RuntimeException exception) {
+            log.warn("Could not accept invite while registering user {}", user.getId(), exception);
+            return false;
+        }
     }
 
     public SessionService.IssuedSession login(LoginRequestDTO loginRequestDTO) {

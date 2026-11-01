@@ -102,7 +102,8 @@ public class RolePermissions {
     // Rules: Nobody can make someone an Owner (that's a special transfer).
     //        Owners can assign any other role.
     //        Admins can only set people to Manager or Member.
-    //        Managers and Members can't change anyone's role.
+    //        Managers can only invite Members (they can't change an existing member's role).
+    //        Members can't assign anything.
     public static boolean canAssignRole(Roles actorRole, Roles targetRole) {
         if (actorRole == null || targetRole == null || targetRole == Roles.OWNER) {
             return false;
@@ -111,7 +112,8 @@ public class RolePermissions {
         return switch (actorRole) {
             case OWNER -> true;
             case ADMIN -> targetRole == Roles.MANAGER || targetRole == Roles.MEMBER;
-            case MANAGER, MEMBER -> false;
+            case MANAGER -> targetRole == Roles.MEMBER;
+            case MEMBER -> false;
         };
     }
 }

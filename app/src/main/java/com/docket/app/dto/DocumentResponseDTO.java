@@ -21,5 +21,6 @@ public class DocumentResponseDTO {
     private Instant createdAt;
     private Instant updatedAt;
     private IndexingStatus indexingStatus;
+    private UUID folderId;
 
 }

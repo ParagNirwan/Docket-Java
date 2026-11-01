@@ -715,16 +715,62 @@ export async function deleteFolder(
 }
 
 /**
+ * RENAME OR MOVE A FOLDER
+ * ---------------------------------------------------------------------------
+ * Backend Endpoint: PATCH /api/tenants/{slug}/folders/{folderId}
+ * Required Permission: FOLDERS_UPDATE ("folders.update")
+ * The API answers with a status code and no text, so the wording lives here.
+ */
+export async function updateFolder(
+  slug: string,
+  folderId: string,
+  changes: { name?: string; parentFolderId?: string },
+  token: string,
+): Promise<FolderItem> {
+  const response = await apiFetch(
+    `${API_BASE}/tenants/${encodeURIComponent(slug)}/folders/${encodeURIComponent(folderId)}`,
+    {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(changes),
+    },
+  );
+
+  if (!response.ok) {
+    const messages: Record<number, string> = {
+      400: "A folder can't be moved into itself",
+      403: "You don't have permission to change this folder",
+      404: "That folder is no longer available",
+      409: "A folder with this name already exists here",
+    };
+    throw new Error(messages[response.status] ?? `Failed to update folder (${response.status})`);
+  }
+  return response.json();
+}
+
+/**
  * 8. GET BREADCRUMB ANCESTOR CHAIN
  * ---------------------------------------------------------------------------
  * Backend Endpoint: GET /api/tenants/{slug}/folders/{folderId}/breadcrumb
  * Returns the ancestor chain from the root Tray down to the current folder.
  */
 export async function getBreadcrumbs(
-  _slug: string,
+  slug: string,
   currentFolderOrTrayId: string,
-  _token?: string | null,
+  token?: string | null,
 ): Promise<BreadcrumbNode[]> {
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(currentFolderOrTrayId);
+  if (token && isUuid) {
+    const response = await apiFetch(
+      `${API_BASE}/tenants/${encodeURIComponent(slug)}/folders/${encodeURIComponent(currentFolderOrTrayId)}/breadcrumb`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to load the folder path (${response.status})`);
+    }
+    return response.json();
+  }
+
   // If the target is a Tray:
   const tray = mockTrays.find((t) => t.id === currentFolderOrTrayId);
   if (tray) {

@@ -16,4 +16,6 @@ public class RegisterRequestDTO {
     private String email;
     @ValidPassword
     private String password;
+    // Set when registering from an invite link, which joins the organization right away.
+    private String inviteToken;
 }

@@ -1,7 +1,8 @@
 import { apiFetch } from "../lib/session";
 import { useState, useEffect, useRef } from "react";
-import { Link, useNavigate, useLocation, useParams } from "react-router-dom";
+import { Link, matchPath, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { GlobalSearchBar } from "./GlobalSearchBar";
 import {
   LogoIcon,
   MenuIcon,
@@ -13,7 +14,7 @@ import {
   ShieldIcon,
   ChevronRightIcon,
 } from "./icons";
-import { Check, ChevronDown } from "lucide-react";
+import { Check, ChevronDown, Search } from "lucide-react";
 import "./Header.css";
 
 interface TenantItem {
@@ -37,7 +38,8 @@ export function Header() {
   const tenantMenuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const { slug: routeSlug } = useParams();
+  // The header sits outside the routes, so useParams can't see the workspace from here.
+  const routeSlug = matchPath({ path: "/workspace/:slug", end: false }, location.pathname)?.params.slug;
   const currentLocationKey = `${location.pathname}:${location.key}`;
   const isTenantMenuOpen = tenantMenuPath === currentLocationKey;
   const currentTenantResult =
@@ -91,7 +93,8 @@ export function Header() {
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, token]);
+    // Loaded again on navigation, so joining or leaving an organization shows up.
+  }, [isAuthenticated, token, location.pathname]);
 
   useEffect(() => {
     function handleOutsideClick(event: MouseEvent) {
@@ -272,6 +275,19 @@ export function Header() {
           <div className="flex items-center gap-3">
             {isAuthenticated ? (
               <>
+                {routeSlug && (
+                  <>
+                    <GlobalSearchBar slug={routeSlug} />
+                    <Link
+                      to={`/workspace/${encodeURIComponent(routeSlug)}/search`}
+                      aria-label="Search"
+                      className="p-2 rounded-xl text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-800 md:hidden"
+                    >
+                      <Search className="w-5 h-5" />
+                    </Link>
+                  </>
+                )}
+
                 {/* Hamburger Menu Toggle Button */}
                 <button
                   type="button"

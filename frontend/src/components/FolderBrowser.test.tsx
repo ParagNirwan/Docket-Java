@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, cleanup } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup, waitFor, within } from "@testing-library/react";
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { FolderBrowser } from "./FolderBrowser";
 import type { Tray } from "../services/trayService";
@@ -73,6 +73,8 @@ vi.mock("../services/documentService", async (importOriginal) => {
     })),
     downloadDocument: vi.fn(),
     deleteDocument: vi.fn(),
+    updateDocument: vi.fn(),
+    copyDocument: vi.fn(),
   };
 });
 
@@ -307,6 +309,183 @@ describe("FolderBrowser - View Mode Switcher (List, Thumbnail, Cards)", () => {
     expect(screen.queryByText("f310f545-09c3-488b-b83c-1b7774e1d7d0")).toBeNull();
     // Should display human-friendly name from currentUser or Member
     expect(screen.getByText("Sarah.connor")).toBeTruthy();
+  });
+});
+
+describe("FolderBrowser - rename, move and copy", () => {
+  afterEach(() => {
+    cleanup();
+    vi.clearAllMocks();
+  });
+
+  const uuidTray: Tray = { ...mockTray, id: "e9f73117-a068-45ec-b1ea-2d7c7144e548" };
+
+  function renderBrowser(overrides: Partial<React.ComponentProps<typeof FolderBrowser>> = {}) {
+    render(
+      <FolderBrowser
+        slug="test-tenant"
+        token="test-token"
+        activeTray={uuidTray}
+        canCreateFolder
+        canDeleteFolder={false}
+        canDeleteTray={false}
+        canUpload={false}
+        canUpdateDocuments
+        canCopyDocuments
+        canUpdateFolders
+        trays={[uuidTray]}
+        {...overrides}
+      />
+    );
+  }
+
+  const openMenu = async (name: string) =>
+    fireEvent.click(await screen.findByRole("button", { name: `More actions for ${name}` }));
+
+  it("hides the actions from people who can't use them", async () => {
+    renderBrowser({ canUpdateDocuments: false, canCopyDocuments: false, canUpdateFolders: false });
+
+    expect(await screen.findByText("Financial_Report_2026.xlsx")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /More actions/ })).toBeNull();
+  });
+
+  it("renames a document while keeping its extension out of reach", async () => {
+    const documentService = await import("../services/documentService");
+    vi.mocked(documentService.updateDocument).mockResolvedValueOnce({ originalFileName: "Summary.xlsx" } as never);
+    renderBrowser();
+
+    await openMenu("Financial_Report_2026.xlsx");
+    fireEvent.click(screen.getByRole("menuitem", { name: "Rename" }));
+
+    const input = screen.getByLabelText("New name") as HTMLInputElement;
+    expect(input.value).toBe("Financial_Report_2026");
+    fireEvent.change(input, { target: { value: "Summary" } });
+    fireEvent.click(screen.getByRole("button", { name: "Rename" }));
+
+    expect(await screen.findByText("Summary.xlsx")).toBeTruthy();
+    expect(documentService.updateDocument).toHaveBeenCalledWith("test-tenant", "doc-1", { name: "Summary.xlsx" }, "test-token");
+  });
+
+  it("shows why a rename was refused and keeps the dialog open", async () => {
+    const documentService = await import("../services/documentService");
+    vi.mocked(documentService.updateDocument).mockRejectedValueOnce(new Error("A document with this name already exists in the folder"));
+    renderBrowser();
+
+    await openMenu("Financial_Report_2026.xlsx");
+    fireEvent.click(screen.getByRole("menuitem", { name: "Rename" }));
+    fireEvent.change(screen.getByLabelText("New name"), { target: { value: "Taken" } });
+    fireEvent.click(screen.getByRole("button", { name: "Rename" }));
+
+    expect((await screen.findByRole("alert")).textContent).toContain("already exists");
+  });
+
+  it("moves a document with the picker, and it leaves the view", async () => {
+    const documentService = await import("../services/documentService");
+    vi.mocked(documentService.updateDocument).mockResolvedValueOnce({} as never);
+    renderBrowser();
+
+    await openMenu("Financial_Report_2026.xlsx");
+    fireEvent.click(screen.getByRole("menuitem", { name: "Move to..." }));
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "General", pressed: false }));
+    fireEvent.click(screen.getByRole("button", { name: "Move to General" }));
+
+    await waitFor(() => expect(screen.queryByText("Financial_Report_2026.xlsx")).toBeNull());
+    expect(documentService.updateDocument).toHaveBeenCalledWith("test-tenant", "doc-1", { folderId: uuidTray.id }, "test-token");
+  });
+
+  it("copies a document into this folder, and it appears", async () => {
+    const documentService = await import("../services/documentService");
+    vi.mocked(documentService.copyDocument).mockResolvedValueOnce({
+      id: "doc-2",
+      originalFileName: "Financial_Report_2026 (1).xlsx",
+      contentType: "application/vnd.ms-excel",
+      uploadedBy: "someone",
+      uploadedByName: "Sarah Connor",
+      fileSize: 10,
+      createdAt: "2026-10-18T14:30:00Z",
+      updatedAt: "2026-10-18T14:30:00Z",
+    });
+    renderBrowser();
+
+    await openMenu("Financial_Report_2026.xlsx");
+    fireEvent.click(screen.getByRole("menuitem", { name: "Copy to..." }));
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "General", pressed: false }));
+    fireEvent.click(screen.getByRole("button", { name: "Copy to General" }));
+
+    expect(await screen.findByText("Financial_Report_2026 (1).xlsx")).toBeTruthy();
+  });
+
+  it("doesn't offer a folder as its own destination", async () => {
+    const trayService = await import("../services/trayService");
+    renderBrowser();
+
+    await openMenu("Contracts & Agreements");
+    fireEvent.click(screen.getByRole("menuitem", { name: "Move to..." }));
+    const dialog = screen.getByRole("dialog");
+    vi.mocked(trayService.getFolderChildren).mockResolvedValueOnce({
+      folders: [
+        { id: "folder-1", name: "Contracts & Agreements", parentFolderId: uuidTray.id, isTray: false, isDefault: false, visibility: "ALL_MEMBERS" },
+        { id: "folder-2", name: "Other Folder", parentFolderId: uuidTray.id, isTray: false, isDefault: false, visibility: "ALL_MEMBERS" },
+      ],
+      files: [],
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Expand General" }));
+
+    expect(await within(dialog).findByText("Other Folder")).toBeTruthy();
+    expect(within(dialog).queryByRole("button", { name: "Contracts & Agreements" })).toBeNull();
+  });
+
+  // A stand-in for the browser's drag data, which jsdom doesn't provide.
+  function dataTransfer() {
+    const store: Record<string, string> = {};
+    return {
+      get types() { return Object.keys(store); },
+      files: [] as unknown as FileList,
+      effectAllowed: "",
+      setData: (type: string, value: string) => { store[type] = value; },
+      getData: (type: string) => store[type] ?? "",
+    };
+  }
+
+  it("moves a document by dragging it onto a folder", async () => {
+    const documentService = await import("../services/documentService");
+    vi.mocked(documentService.updateDocument).mockResolvedValueOnce({} as never);
+    renderBrowser();
+    fireEvent.click(screen.getByRole("button", { name: /cards view/i }));
+
+    const docCard = (await screen.findByText("Financial_Report_2026.xlsx")).closest("[draggable]")!;
+    const folderCard = screen.getByText("Contracts & Agreements").closest("[draggable]")!;
+    const transfer = dataTransfer();
+    fireEvent.dragStart(docCard, { dataTransfer: transfer });
+    fireEvent.dragOver(folderCard, { dataTransfer: transfer });
+    expect(folderCard.className).toContain("ring-indigo-400");
+    fireEvent.drop(folderCard, { dataTransfer: transfer });
+
+    await waitFor(() => expect(documentService.updateDocument).toHaveBeenCalledWith(
+      "test-tenant", "doc-1", { folderId: "folder-1" }, "test-token"));
+    await waitFor(() => expect(screen.queryByText("Financial_Report_2026.xlsx")).toBeNull());
+  });
+
+  it("ignores a folder dropped on itself", async () => {
+    const documentService = await import("../services/documentService");
+    renderBrowser();
+    fireEvent.click(screen.getByRole("button", { name: /cards view/i }));
+
+    const folderCard = (await screen.findByText("Contracts & Agreements")).closest("[draggable]")!;
+    const transfer = dataTransfer();
+    fireEvent.dragStart(folderCard, { dataTransfer: transfer });
+    fireEvent.drop(folderCard, { dataTransfer: transfer });
+
+    expect(documentService.updateDocument).not.toHaveBeenCalled();
+    expect(screen.getByText("Contracts & Agreements")).toBeTruthy();
+  });
+
+  it("opens straight into a folder when told to", async () => {
+    const trayService = await import("../services/trayService");
+    renderBrowser({ initialFolderId: "b8a53df4-6e82-41a4-bb50-2bcfe4df5481" });
+
+    await screen.findByText("Financial_Report_2026.xlsx");
+    expect(trayService.getFolderChildren).toHaveBeenCalledWith("test-tenant", "b8a53df4-6e82-41a4-bb50-2bcfe4df5481", "test-token");
   });
 });
 

@@ -11,7 +11,10 @@ import com.docket.app.repository.FolderRepository;
 import com.docket.app.repository.TenantMembershipRepository;
 import com.docket.app.repository.TenantRepository;
 import com.docket.app.repository.UserRepository;
+import com.docket.app.service.email.EmailOutboxService;
+import com.docket.app.service.email.EmailTemplate;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
@@ -20,6 +23,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.List;
 import java.util.Map;
@@ -40,6 +44,10 @@ public class TenantService {
     private final PasswordEncoder passwordEncoder;
     private final AuditService auditService;
     private final SessionService sessionService;
+    private final EmailOutboxService emailOutboxService;
+
+    @Value("${docket.app.base-url}")
+    private String baseUrl;
 
     // Look up an organization by its URL-friendly name (slug), e.g. "acme-corp".
     // Before returning the org's details, asks the bouncer to verify the
@@ -110,6 +118,7 @@ public class TenantService {
         membership.setUserType(UserType.INTERNAL);
         membership.setMemberStatus(MemberStatus.ACTIVE);
         membership.setRole(Roles.OWNER);
+        membership.setJoinedAt(java.time.Instant.now());
         tenantMembershipRepository.save(membership);
 
         if(!createDefaultFoldersForTenant(tenant.getId(), user.getId())) {
@@ -169,8 +178,29 @@ public class TenantService {
 
         auditService.record(tenant.getId(), user.getId(), AuditAction.OWNERSHIP_TRANSFERRED, "USER", newOwner.getUserId(),
                 Map.of("previousOwnerUserId", user.getId().toString()));
+        emailOwnershipTransfer(tenant, user, newOwner.getUserId());
         sessionService.invalidateAccessTokens(user.getId());
         sessionService.invalidateAccessTokens(newOwner.getUserId());
+    }
+
+    // Both people should hear about this, in case one of them didn't expect it.
+    private void emailOwnershipTransfer(Tenant tenant, com.docket.app.entity.User previousOwner, UUID newOwnerUserId) {
+        String link = UriComponentsBuilder.fromUriString(baseUrl)
+                .path("/workspace/{slug}")
+                .buildAndExpand(tenant.getSlug())
+                .encode()
+                .toUriString();
+        String subject = "Ownership of " + tenant.getName() + " has changed";
+
+        userRepository.findById(newOwnerUserId).ifPresent(newOwnerUser -> {
+            emailOutboxService.enqueue(newOwnerUser.getEmail(), EmailTemplate.NOTIFICATION, subject, Map.of(
+                    "message", previousOwner.getName() + " made you the owner of " + tenant.getName() + ".",
+                    "link", link));
+            emailOutboxService.enqueue(previousOwner.getEmail(), EmailTemplate.NOTIFICATION, subject, Map.of(
+                    "message", "You transferred ownership of " + tenant.getName() + " to " + newOwnerUser.getName()
+                            + ". You are now an Admin.",
+                    "link", link));
+        });
     }
 
 

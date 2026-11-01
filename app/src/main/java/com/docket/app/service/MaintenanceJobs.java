@@ -3,6 +3,7 @@ package com.docket.app.service;
 import com.docket.app.repository.AccountTokenRepository;
 import com.docket.app.repository.EmailOutboxRepository;
 import com.docket.app.repository.RefreshTokenRepository;
+import com.docket.app.repository.TenantInvitationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -26,6 +27,7 @@ public class MaintenanceJobs {
     private final AccountTokenRepository accountTokenRepository;
     private final EmailOutboxRepository emailOutboxRepository;
     private final AuthRateLimiter authRateLimiter;
+    private final TenantInvitationRepository tenantInvitationRepository;
 
     @Value("${docket.audit.retention-days}")
     private int auditRetentionDays;
@@ -39,6 +41,7 @@ public class MaintenanceJobs {
         accountTokenRepository.deleteExpiredBefore(cutoff);
         emailOutboxRepository.deleteFinishedBefore(Instant.now().minus(Duration.ofDays(30)));
         authRateLimiter.purgeOldCounters();
+        tenantInvitationRepository.expirePending(Instant.now());
     }
 
     // The trigger on audit_events only allows deletes after this setting is switched on

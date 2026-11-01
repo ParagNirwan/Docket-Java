@@ -110,7 +110,10 @@ class RolePermissionsTest {
         assertTrue(RolePermissions.canAssignRole(Roles.ADMIN, Roles.MANAGER));
         assertTrue(RolePermissions.canAssignRole(Roles.ADMIN, Roles.MEMBER));
         assertFalse(RolePermissions.canAssignRole(Roles.ADMIN, Roles.ADMIN));
-        assertFalse(RolePermissions.canAssignRole(Roles.MANAGER, Roles.MEMBER));
+        assertTrue(RolePermissions.canAssignRole(Roles.MANAGER, Roles.MEMBER));
+        assertFalse(RolePermissions.canAssignRole(Roles.MANAGER, Roles.MANAGER));
+        assertFalse(RolePermissions.canAssignRole(Roles.MANAGER, Roles.ADMIN));
+        assertFalse(RolePermissions.canAssignRole(Roles.MEMBER, Roles.MEMBER));
         assertFalse(RolePermissions.canAssignRole(null, Roles.MEMBER));
     }
 }

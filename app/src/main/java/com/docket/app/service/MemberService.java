@@ -6,6 +6,7 @@ import com.docket.app.entity.TenantMembership;
 import com.docket.app.entity.User;
 import com.docket.app.enums.AuditAction;
 import com.docket.app.enums.MemberStatus;
+import com.docket.app.enums.NotificationType;
 import com.docket.app.enums.Permission;
 import com.docket.app.enums.Roles;
 import com.docket.app.repository.RefreshTokenRepository;
@@ -39,6 +40,7 @@ public class MemberService {
     private final TenantAuthorizationService tenantAuthorizationService;
     private final SessionService sessionService;
     private final AuditService auditService;
+    private final NotificationService notificationService;
 
     public List<MemberDTO> list(String slug, Authentication authentication) {
         UUID tenantId = findTenant(slug).getId();
@@ -96,6 +98,10 @@ public class MemberService {
         membershipRepository.save(member);
         auditService.record(tenant.getId(), actor.getId(), AuditAction.MEMBER_ROLE_CHANGED, "USER", member.getUserId(),
                 Map.of("from", previousRole.name(), "to", newRole.name()));
+        notificationService.notify(tenant.getId(), member.getUserId(), NotificationType.ROLE_CHANGED,
+                "Your role in " + tenant.getName() + " changed",
+                "You are now " + newRole.name().charAt(0) + newRole.name().substring(1).toLowerCase() + ".",
+                NotificationService.workspaceLink(tenant.getSlug(), "review", null));
         sessionService.invalidateAccessTokens(member.getUserId());
     }
 

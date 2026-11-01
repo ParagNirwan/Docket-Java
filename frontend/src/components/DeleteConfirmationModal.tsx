@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { AlertTriangle, Trash2, X } from "lucide-react";
 
 interface DeleteConfirmationModalProps {
@@ -63,10 +64,11 @@ export function DeleteConfirmationModal({
   const defaultDesc =
     description ||
     (itemType === "document"
-      ? `Are you sure you want to delete "${itemName}"? This file will be removed.`
-      : `Are you sure you want to permanently delete "${itemName}"? All files, documents, and sub-folders inside it will be permanently deleted. This action cannot be undone.`);
+      ? `Are you sure you want to delete "${itemName}"? It will go to the Trash, where it can be restored.`
+      : `Are you sure you want to delete "${itemName}"? Sub-folders inside it will be removed, and its documents will go to the Trash.`);
 
-  return (
+  // In a portal because the workspace's enter animation would otherwise make "fixed" relative to it.
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -140,7 +142,8 @@ export function DeleteConfirmationModal({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

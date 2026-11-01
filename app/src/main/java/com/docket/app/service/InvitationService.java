@@ -11,6 +11,7 @@ import com.docket.app.entity.User;
 import com.docket.app.enums.AuditAction;
 import com.docket.app.enums.InvitationStatus;
 import com.docket.app.enums.MemberStatus;
+import com.docket.app.enums.NotificationType;
 import com.docket.app.enums.Permission;
 import com.docket.app.enums.TenantStatus;
 import com.docket.app.enums.UserType;
@@ -57,6 +58,7 @@ public class InvitationService {
     private final AuthRateLimiter authRateLimiter;
     private final EmailOutboxService emailOutboxService;
     private final AuditService auditService;
+    private final NotificationService notificationService;
 
     @Value("${docket.app.base-url}")
     private String baseUrl;
@@ -102,6 +104,12 @@ public class InvitationService {
         }
 
         sendEmail(invitation, rawToken, inviter, tenant);
+        // The link only exists in the email, as just its hash is stored, so this points there.
+        userRepository.findByEmailIgnoreCase(email).ifPresent(user ->
+                notificationService.notifyInAppOnly(tenantId, user.getId(), NotificationType.INVITED,
+                        inviter.getName() + " invited you to " + tenant.getName(),
+                        "Open the link in the email we sent to " + email + " to join.",
+                        null));
         auditService.record(tenantId, inviter.getId(), AuditAction.MEMBER_INVITED, "INVITATION", invitation.getId(),
                 Map.of("email", email, "role", request.getRole().name()));
         return toDTO(invitation, inviter.getName());
@@ -223,6 +231,12 @@ public class InvitationService {
 
         auditService.record(tenant.getId(), user.getId(), AuditAction.INVITATION_ACCEPTED, "INVITATION", invitation.getId(),
                 Map.of("email", invitation.getEmail(), "role", invitation.getRole().name()));
+        if (invitation.getInvitedBy() != null && !invitation.getInvitedBy().equals(user.getId())) {
+            notificationService.notify(tenant.getId(), invitation.getInvitedBy(), NotificationType.MEMBER_JOINED,
+                    user.getName() + " joined " + tenant.getName(),
+                    null,
+                    NotificationService.workspaceLink(tenant.getSlug(), "settings", "members"));
+        }
         return new AcceptedInvitationDTO(tenant.getName(), tenant.getSlug());
     }
 

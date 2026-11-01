@@ -39,6 +39,8 @@ class DocumentProcessingServiceTest {
     @Mock private TextExtractionService textExtractionService;
     @Mock private ChunkEnrichmentService chunkEnrichmentService;
     @Mock private EmbeddingService embeddingService;
+    @Mock private com.docket.app.service.NotificationService notificationService;
+    @Mock private com.docket.app.repository.TenantRepository tenantRepository;
 
     private DocumentProcessingService service;
     private final UUID documentId = UUID.randomUUID();
@@ -49,7 +51,7 @@ class DocumentProcessingServiceTest {
         service = new DocumentProcessingService(
                 documentRepository, documentChunkRepository, textExtractionService, new ChunkingService(),
                 chunkEnrichmentService, embeddingService,
-                new TransactionTemplate(mock(PlatformTransactionManager.class)));
+                new TransactionTemplate(mock(PlatformTransactionManager.class)), notificationService, tenantRepository);
 
         document = new Document();
         document.setId(documentId);

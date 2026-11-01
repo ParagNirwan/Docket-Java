@@ -6,7 +6,9 @@ import com.docket.app.entity.Folder;
 import com.docket.app.entity.Tenant;
 import com.docket.app.enums.AuditAction;
 import com.docket.app.enums.Permission;
+import com.docket.app.repository.DocumentRepository;
 import com.docket.app.repository.FolderRepository;
+import com.docket.app.repository.RetentionPolicyRepository;
 import com.docket.app.repository.TenantRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -33,6 +35,10 @@ public class FolderService {
     private final FolderAccessService folderAccessService;
     private final AuditService auditService;
     private final JdbcTemplate jdbcTemplate;
+    private final DocumentRepository documentRepository;
+    private final RetentionPolicyRepository retentionPolicyRepository;
+    private final RetentionService retentionService;
+    private final TrashService trashService;
 
     private final com.docket.app.repository.UserRepository userRepository;
 
@@ -54,6 +60,7 @@ public class FolderService {
         if (!folderAccessService.canAccessFolder(auth, tenant.getId(), parentFolderId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Parent folder/tray not found");
         }
+        trashService.requireNotInTrash(parentFolderId);
 
         Folder parent = folderRepository.findById(parentFolderId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Parent folder/tray not found"));
@@ -131,6 +138,8 @@ public class FolderService {
         // Checked before the name, or a 409 would confirm what's inside a hidden folder.
         if (moved) {
             findAccessibleFolder(tenant.getId(), parentId, auth);
+            trashService.requireNotInTrash(parentId);
+            requireMovable(folder);
         }
         if (folderRepository.existsByTenantIdAndParentFolderIdAndNameIgnoreCaseAndIdNot(
                 tenant.getId(), parentId, name, folderId)) {
@@ -151,6 +160,7 @@ public class FolderService {
         }
         if (moved) {
             folderRepository.updateDescendantsTray(saved.getId(), saved.getRootTrayId(), saved.getVisibility().name());
+            retentionService.applyToMovedFolder(saved.getId(), parentId);
         }
 
         if (renamed) {
@@ -164,6 +174,67 @@ public class FolderService {
                     Map.of("name", name, "fromFolderId", previousParentId.toString(), "toFolderId", parentId.toString()));
         }
         return saved;
+    }
+
+    // Deleting a folder sends its documents to the Trash rather than destroying them. A
+    // Manager can delete folders but not documents, so that only works on an empty one.
+    @Transactional
+    public void deleteFolder(String slug, UUID folderId, Authentication auth) {
+        Tenant tenant = findTenant(slug);
+        Folder folder = findAccessibleFolder(tenant.getId(), folderId, auth);
+        if (folder.getIsTray()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "This is a tray, not a folder");
+        }
+        tenantAuthorizationService.requirePermission(auth, tenant.getId(), Permission.FOLDERS_DELETE);
+        removeTree(folder, AuditAction.FOLDER_DELETED, "FOLDER", auth);
+    }
+
+    @Transactional
+    public void deleteTray(String slug, UUID trayId, Authentication auth) {
+        Tenant tenant = findTenant(slug);
+        Folder tray = findAccessibleFolder(tenant.getId(), trayId, auth);
+        if (!tray.getIsTray()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Tray not found");
+        }
+        tenantAuthorizationService.requirePermission(auth, tenant.getId(), Permission.TRAYS_DELETE);
+        if (tray.getIsDefault()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Default trays cannot be deleted");
+        }
+        removeTree(tray, AuditAction.TRAY_DELETED, "TRAY", auth);
+    }
+
+    // Checked here so the person gets an answer, though the trigger on documents would
+    // stop the database cascade anyway.
+    private void removeTree(Folder folder, AuditAction action, String targetType, Authentication auth) {
+        UUID tenantId = folder.getTenantId();
+        // Waits for any move in progress, so a document can't arrive during the checks.
+        jdbcTemplate.queryForObject("SELECT pg_advisory_xact_lock(hashtext(?))::text", String.class, "folder-move:" + tenantId);
+
+        if (documentRepository.existsLockedUnder(folder.getId())) {
+            throw new DocumentLockedException("This contains locked documents", null, null, false, false);
+        }
+        if (retentionPolicyRepository.existsComplianceUnder(folder.getId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This has a Compliance policy, which can't be removed");
+        }
+        if (documentRepository.countActiveUnder(folder.getId()) > 0) {
+            tenantAuthorizationService.requirePermission(auth, tenantId, Permission.DOCUMENTS_DELETE);
+        }
+
+        UUID actorId = userRepository.findByEmailIgnoreCase(auth.getName())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"))
+                .getId();
+        int trashed = trashService.moveSubtreeToTrash(tenantId, folder.getId(), actorId);
+        folderRepository.delete(folder);
+        folderRepository.flush();
+        auditService.record(auth, tenantId, action, targetType, folder.getId(),
+                Map.of("name", folder.getName(), "documentsMovedToTrash", trashed));
+    }
+
+    // Moving a folder moves what's in it, and locked and archived documents can't move.
+    private void requireMovable(Folder folder) {
+        if (documentRepository.existsLockedUnder(folder.getId()) || documentRepository.existsArchivedUnder(folder.getId())) {
+            throw new DocumentLockedException("This contains locked or archived documents", null, null, false, false);
+        }
     }
 
     // Two moves running side by side (A into B, B into A) could each pass the cycle check

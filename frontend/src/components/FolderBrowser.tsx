@@ -36,12 +36,18 @@ import {
   Pencil,
   FolderInput,
   Copy,
+  Archive,
+  ArchiveRestore,
+  Gavel,
+  ShieldAlert,
 } from "lucide-react";
 import { BreadcrumbNav } from "./BreadcrumbNav";
 import { CreateFolderModal } from "./CreateFolderModal";
 import { DeleteConfirmationModal } from "./DeleteConfirmationModal";
 import { FolderPickerModal } from "./FolderPickerModal";
+import { ArchiveModal, LegalHoldModal, OverrideLockModal } from "./DocumentLockModals";
 import { ItemActionsMenu, type ItemAction } from "./ItemActionsMenu";
+import { LockBadge } from "./LockBadge";
 import { RenameModal } from "./RenameModal";
 import { UploadProgressPanel } from "./UploadProgressPanel";
 import { ViewModeSwitcher, type ViewMode } from "./ViewModeSwitcher";
@@ -50,6 +56,7 @@ import { FolderThumbnail } from "./FolderThumbnail";
 import { AiStatusBadge } from "./AiStatusBadge";
 import { getFileTypeInfo } from "../lib/fileTypeUtils";
 import { notify } from "../lib/notifications";
+import { canBeOverridden, isLocked, isReadOnly, lockDescription } from "../lib/retention";
 import type {
   Tray,
   FolderItem,
@@ -74,6 +81,7 @@ import {
   type UploadTask,
   type DocumentDTO,
 } from "../services/documentService";
+import { archiveDocument, createLegalHold, unarchiveDocument } from "../services/retentionService";
 import { useAuth } from "../context/AuthContext";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -103,6 +111,10 @@ interface FolderBrowserProps {
   canUpdateDocuments?: boolean;
   canCopyDocuments?: boolean;
   canUpdateFolders?: boolean;
+  // Falls back to canDeleteFolder for callers that don't separate the two.
+  canDeleteDocuments?: boolean;
+  canOverrideLocks?: boolean;
+  canApplyLegalHold?: boolean;
   // Where things can be moved or copied to
   trays?: Tray[];
   // Open a folder inside the tray straight away, such as from a search result
@@ -132,6 +144,9 @@ export function FolderBrowser({
   canUpdateDocuments = false,
   canCopyDocuments = false,
   canUpdateFolders = false,
+  canDeleteDocuments = canDeleteFolder,
+  canOverrideLocks = false,
+  canApplyLegalHold = false,
   trays = [],
   initialFolderId,
   onDeleteTray,
@@ -207,6 +222,11 @@ export function FolderBrowser({
   // What's being renamed, or moved or copied with the folder picker
   const [renaming, setRenaming] = useState<ItemRef | null>(null);
   const [picking, setPicking] = useState<{ mode: "move" | "copy"; item: ItemRef } | null>(null);
+
+  // A document being archived, or deleted past a Governance lock
+  const [archiving, setArchiving] = useState<DocumentDTO | null>(null);
+  const [overriding, setOverriding] = useState<DocumentDTO | null>(null);
+  const [holding, setHolding] = useState<ItemRef | null>(null);
 
   // The folder an item is currently being dragged over
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
@@ -491,9 +511,15 @@ export function FolderBrowser({
   async function moveItem(item: ItemRef, folderId: string) {
     if (!token) return;
     if (item.type === "document") {
-      await updateDocument(slug, item.id, { folderId }, token);
+      const updated = await updateDocument(slug, item.id, { folderId }, token);
       setDocuments((prev) => prev.filter((d) => d.id !== item.id));
       setTotalElements((prev) => Math.max(0, prev - 1));
+      // A retention policy on the destination locks it straight away, so say so.
+      const lock = lockDescription(updated);
+      if (lock) {
+        notify.warning(`"${item.name}" was moved`, lock);
+        return;
+      }
     } else {
       await updateFolder(slug, item.id, { parentFolderId: folderId }, token);
       setFolders((prev) => prev.filter((f) => f.id !== item.id));
@@ -518,21 +544,74 @@ export function FolderBrowser({
         { label: "Rename", icon: Pencil, onSelect: () => setRenaming(item) },
         { label: "Move to...", icon: FolderInput, onSelect: () => setPicking({ mode: "move", item }) },
       ] : []),
+      ...(canApplyLegalHold ? [
+        { label: "Legal hold...", icon: Gavel, onSelect: () => setHolding(item) },
+      ] : []),
       ...(canDeleteFolder ? [
         { label: "Delete", icon: Trash2, danger: true, onSelect: () => setPendingDelete({ id: folder.id, name: folder.name, type: "folder" }) },
       ] : []),
     ];
   }
 
+  async function handleArchive(doc: DocumentDTO) {
+    if (!token) return;
+    await archiveDocument(slug, doc.id, token);
+    setDocuments((prev) => prev.filter((d) => d.id !== doc.id));
+    setTotalElements((prev) => Math.max(0, prev - 1));
+    notify.success("Archived", `"${doc.originalFileName}" was moved to the Archive`);
+  }
+
+  async function handleUnarchive(doc: DocumentDTO) {
+    if (!token) return;
+    try {
+      const updated = await unarchiveDocument(slug, doc.id, token);
+      if (updated.folderId !== currentFolderId) {
+        setDocuments((prev) => prev.filter((d) => d.id !== doc.id));
+        setTotalElements((prev) => Math.max(0, prev - 1));
+      }
+      notify.success("Unarchived", `"${updated.originalFileName}" is no longer read-only`);
+    } catch (err) {
+      notify.error("Could not unarchive this", err instanceof Error ? err.message : undefined);
+    }
+  }
+
+  async function handleOverrideDelete(doc: DocumentDTO, reason: string) {
+    if (!token) return;
+    await deleteDocument(slug, doc.id, token, { reason });
+    setDocuments((prev) => prev.filter((d) => d.id !== doc.id));
+    setTotalElements((prev) => Math.max(0, prev - 1));
+    notify.success("Lock overridden", `"${doc.originalFileName}" went to the Trash`);
+  }
+
+  async function handleApplyHold(item: ItemRef, name: string, reason: string) {
+    if (!token) return;
+    const targets = item.type === "document" ? { documentIds: [item.id] } : { folderIds: [item.id] };
+    const hold = await createLegalHold(slug, name, reason, targets, token);
+    if (item.type === "document") {
+      setDocuments((prev) => prev.map((d) => (d.id === item.id ? { ...d, legalHold: true } : d)));
+    }
+    notify.success("Legal hold applied", `${hold.documentCount} ${hold.documentCount === 1 ? "document" : "documents"} covered`);
+  }
+
   function documentActions(doc: DocumentDTO): ItemAction[] {
     const item: ItemRef = { type: "document", id: doc.id, name: doc.originalFileName };
     return [
-      ...(canUpdateDocuments ? [
+      ...(canUpdateDocuments && !isReadOnly(doc) ? [
         { label: "Rename", icon: Pencil, onSelect: () => setRenaming(item) },
         { label: "Move to...", icon: FolderInput, onSelect: () => setPicking({ mode: "move", item }) },
+        { label: "Archive...", icon: Archive, onSelect: () => setArchiving(doc) },
+      ] : []),
+      ...(canUpdateDocuments && doc.archivedAt && !isLocked(doc) ? [
+        { label: "Unarchive", icon: ArchiveRestore, onSelect: () => handleUnarchive(doc) },
       ] : []),
       ...(canCopyDocuments ? [
         { label: "Copy to...", icon: Copy, onSelect: () => setPicking({ mode: "copy", item }) },
+      ] : []),
+      ...(canApplyLegalHold ? [
+        { label: "Legal hold...", icon: Gavel, onSelect: () => setHolding(item) },
+      ] : []),
+      ...(canOverrideLocks && canBeOverridden(doc) ? [
+        { label: "Delete anyway...", icon: ShieldAlert, danger: true, onSelect: () => setOverriding(doc) },
       ] : []),
     ];
   }
@@ -1107,7 +1186,7 @@ export function FolderBrowser({
                       <div
                         key={doc.id}
                         className="group flex flex-col justify-between rounded-2xl border border-gray-200 bg-white p-4 shadow-xs hover:border-indigo-300 hover:shadow-md dark:border-gray-800 dark:bg-gray-900 dark:hover:border-indigo-800 transition-all relative"
-                        {...dragProps({ type: "document", id: doc.id, name: doc.originalFileName }, canUpdateDocuments)}
+                        {...dragProps({ type: "document", id: doc.id, name: doc.originalFileName }, canUpdateDocuments && !isReadOnly(doc))}
                       >
                         <div>
                           {/* Header */}
@@ -1118,6 +1197,7 @@ export function FolderBrowser({
                               <DocIcon className="h-5 w-5" />
                             </div>
                             <div className="flex items-center gap-1.5">
+                              <LockBadge doc={doc} />
                               <AiStatusBadge
                                 slug={slug}
                                 docId={doc.id}
@@ -1182,12 +1262,13 @@ export function FolderBrowser({
                           </div>
                           <div className="flex items-center gap-1">
                             <ItemActionsMenu itemName={doc.originalFileName} actions={documentActions(doc)} openUp />
-                            {canDeleteFolder && (
+                            {canDeleteDocuments && (
                               <button
                                 type="button"
                                 onClick={() => handleDeleteDocumentClick(doc)}
-                                className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
-                                title="Delete document"
+                                disabled={isLocked(doc)}
+                                className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-400"
+                                title={isLocked(doc) ? lockDescription(doc) ?? undefined : "Delete document"}
                                 aria-label={`Delete ${doc.originalFileName}`}
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
@@ -1210,7 +1291,7 @@ export function FolderBrowser({
                       <div
                         key={doc.id}
                         className="group flex flex-col rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-2.5 shadow-2xs hover:border-indigo-300 hover:shadow-md dark:hover:border-indigo-700 transition-all relative"
-                        {...dragProps({ type: "document", id: doc.id, name: doc.originalFileName }, canUpdateDocuments)}
+                        {...dragProps({ type: "document", id: doc.id, name: doc.originalFileName }, canUpdateDocuments && !isReadOnly(doc))}
                       >
                         <div className="relative">
                           <DocumentThumbnail
@@ -1238,6 +1319,7 @@ export function FolderBrowser({
                             {doc.originalFileName}
                           </p>
                           <div className="mt-1 flex items-center justify-between text-[11px] text-gray-400 dark:text-gray-500">
+                            <LockBadge doc={doc} />
                             <AiStatusBadge
                               slug={slug}
                               docId={doc.id}
@@ -1282,7 +1364,7 @@ export function FolderBrowser({
                             <tr
                               key={doc.id}
                               className="hover:bg-gray-50/80 dark:hover:bg-gray-800/40 transition-colors group"
-                              {...dragProps({ type: "document", id: doc.id, name: doc.originalFileName }, canUpdateDocuments)}
+                              {...dragProps({ type: "document", id: doc.id, name: doc.originalFileName }, canUpdateDocuments && !isReadOnly(doc))}
                             >
                               <td className="py-3 px-4">
                                 <div className="flex items-center gap-3">
@@ -1291,6 +1373,7 @@ export function FolderBrowser({
                                   >
                                     <DocIcon className="h-4 w-4" />
                                   </div>
+                                  <LockBadge doc={doc} />
                                   <div className="min-w-0">
                                     <p
                                       className="font-semibold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate max-w-xs"
@@ -1353,12 +1436,13 @@ export function FolderBrowser({
                                     <Download className="h-4 w-4" />
                                   </button>
                                   <ItemActionsMenu itemName={doc.originalFileName} actions={documentActions(doc)} />
-                                  {canDeleteFolder && (
+                                  {canDeleteDocuments && (
                                     <button
                                       type="button"
                                       onClick={() => handleDeleteDocumentClick(doc)}
-                                      className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
-                                      title="Delete document"
+                                      disabled={isLocked(doc)}
+                                      className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-400"
+                                      title={isLocked(doc) ? lockDescription(doc) ?? undefined : "Delete document"}
                                       aria-label={`Delete ${doc.originalFileName}`}
                                     >
                                       <Trash2 className="h-4 w-4" />
@@ -1498,6 +1582,35 @@ export function FolderBrowser({
         onConfirm={handleConfirmDelete}
       />
 
+      {archiving && token && (
+        <ArchiveModal
+          slug={slug}
+          token={token}
+          docId={archiving.id}
+          name={archiving.originalFileName}
+          onClose={() => setArchiving(null)}
+          onConfirm={() => handleArchive(archiving)}
+        />
+      )}
+
+      {overriding && (
+        <OverrideLockModal
+          name={overriding.originalFileName}
+          action="delete"
+          retainUntil={overriding.retainUntil}
+          onClose={() => setOverriding(null)}
+          onConfirm={(reason) => handleOverrideDelete(overriding, reason)}
+        />
+      )}
+
+      {holding && (
+        <LegalHoldModal
+          subject={holding.type === "document" ? `"${holding.name}"` : `Everything in "${holding.name}"`}
+          onClose={() => setHolding(null)}
+          onConfirm={(name, reason) => handleApplyHold(holding, name, reason)}
+        />
+      )}
+
       {renaming && (
         <RenameModal
           itemType={renaming.type}
@@ -1516,7 +1629,16 @@ export function FolderBrowser({
           excludeFolderId={picking.item.type === "folder" ? picking.item.id : undefined}
           trays={trays.length > 0 ? trays : [activeTray]}
           onClose={() => setPicking(null)}
-          onPick={(folderId) => picking.mode === "move" ? moveItem(picking.item, folderId) : copyItem(picking.item, folderId)}
+          onPick={async (folderId) => {
+            const document = documents.find((d) => d.id === picking.item.id);
+            // Going to the Archive can lock a document for years, so it gets the same
+            // confirmation as the Archive action rather than happening on one click.
+            if (picking.mode === "move" && document && trays.some((tray) => tray.id === folderId && tray.isArchive)) {
+              setArchiving(document);
+              return;
+            }
+            await (picking.mode === "move" ? moveItem(picking.item, folderId) : copyItem(picking.item, folderId));
+          }}
         />
       )}
     </div>

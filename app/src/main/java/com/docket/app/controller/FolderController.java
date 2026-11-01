@@ -47,6 +47,18 @@ public class FolderController {
         return ResponseEntity.ok(folderService.getBreadcrumb(slug, folderId, authentication));
     }
 
+    // DELETE /api/tenants/{slug}/folders/{folderId}
+    // Documents inside go to the Trash. A 423 means some of them are locked.
+    @DeleteMapping("/{folderId}")
+    public ResponseEntity<Void> deleteFolder(
+            @PathVariable String slug,
+            @PathVariable UUID folderId,
+            Authentication authentication
+    ) {
+        folderService.deleteFolder(slug, folderId, authentication);
+        return ResponseEntity.noContent().build();
+    }
+
     // PATCH /api/tenants/{slug}/folders/{folderId}
     // Send a new name, a new parentFolderId, or both.
     @PatchMapping("/{folderId}")

@@ -65,6 +65,9 @@ class MemberServiceTest {
     @Mock
     private AuditService auditService;
 
+    @Mock
+    private NotificationService notificationService;
+
     @InjectMocks
     private MemberService service;
 

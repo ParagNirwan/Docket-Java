@@ -33,6 +33,7 @@ export interface Tray {
   description?: string | null;
   isTray: boolean;
   isDefault: boolean;
+  isArchive?: boolean;
   visibility: FolderVisibility;
   sortOrder: number;
   createdBy?: string | null;
@@ -49,6 +50,7 @@ export interface FolderItem {
   description?: string | null;
   isTray: boolean;
   isDefault: boolean;
+  isArchive?: boolean;
   visibility: FolderVisibility;
   sortOrder?: number;
   createdBy?: string | null;
@@ -256,6 +258,7 @@ export async function getTenantTrays(
             description: item.description || null,
             isTray: Boolean(item.isTray ?? true),
             isDefault: Boolean(item.isDefault ?? false),
+            isArchive: Boolean(item.isArchive ?? false),
             visibility: (item.visibility as FolderVisibility) || "ALL_MEMBERS",
             sortOrder: item.sortOrder ?? 0,
             itemCount: item.itemCount ?? 0,
@@ -450,23 +453,14 @@ export async function updateTray(
  * ```
  */
 export async function deleteTray(
-  _slug: string,
+  slug: string,
   trayId: string,
-  _token?: string | null,
+  token?: string | null,
 ): Promise<boolean> {
-  // --- PRODUCTION API CALL (Uncomment when connecting to backend) ---
-  /*
-  const response = await apiFetch(`${API_BASE}/tenants/${encodeURIComponent(_slug)}/trays/${trayId}`, {
-    method: "DELETE",
-    headers: {
-      Authorization: `Bearer ${_token}`,
-    },
-  });
-  if (!response.ok) {
-    throw new Error(`Failed to delete tray (${response.status})`);
+  if (token) {
+    await sendDelete(`${API_BASE}/tenants/${encodeURIComponent(slug)}/trays/${trayId}`, token, "tray");
+    return true;
   }
-  return true;
-  */
 
   // --- LEARNING FALLBACK (Simulated in-memory) ---
   const existing = mockTrays.find((t) => t.id === trayId);
@@ -537,6 +531,7 @@ export async function getFolderChildren(
             description: item.description || null,
             isTray: Boolean(item.isTray ?? false),
             isDefault: Boolean(item.isDefault ?? false),
+            isArchive: Boolean(item.isArchive ?? false),
             visibility: (item.visibility as FolderVisibility) || "ALL_MEMBERS",
             sortOrder: item.sortOrder ?? 0,
             itemCount: item.itemCount ?? 0,
@@ -687,31 +682,33 @@ export async function createSubFolder(
  * ```
  */
 export async function deleteFolder(
-  _slug: string,
+  slug: string,
   folderId: string,
-  _token?: string | null,
+  token?: string | null,
 ): Promise<boolean> {
-  // --- PRODUCTION API CALL (Uncomment when connecting to backend) ---
-  /*
-  const response = await apiFetch(
-    `${API_BASE}/tenants/${encodeURIComponent(_slug)}/folders/${folderId}`,
-    {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${_token}`,
-      },
-    }
-  );
-  if (!response.ok) {
-    throw new Error(`Failed to delete folder (${response.status})`);
+  if (token) {
+    await sendDelete(`${API_BASE}/tenants/${encodeURIComponent(slug)}/folders/${folderId}`, token, "folder");
+    return true;
   }
-  return true;
-  */
 
   // --- LEARNING FALLBACK (Simulated in-memory) ---
   mockFolders = mockFolders.filter((f) => f.id !== folderId && f.parentFolderId !== folderId);
   mockFiles = mockFiles.filter((f) => f.folderId !== folderId);
   return true;
+}
+
+// Documents inside go to the Trash. The API answers with a status code and no text,
+// so the wording lives here.
+async function sendDelete(url: string, token: string, noun: "tray" | "folder"): Promise<void> {
+  const response = await apiFetch(url, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+  if (response.ok) return;
+  const messages: Record<number, string> = {
+    403: `You don't have permission to delete this ${noun}, or it still has documents in it`,
+    404: `That ${noun} is no longer available`,
+    409: `This ${noun} has a Compliance policy, so it can't be deleted`,
+    423: `This ${noun} contains locked documents, so it can't be deleted`,
+  };
+  throw new Error(messages[response.status] ?? `Failed to delete ${noun} (${response.status})`);
 }
 
 /**

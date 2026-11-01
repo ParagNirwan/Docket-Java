@@ -76,6 +76,15 @@ class DocumentServiceTest {
     @Mock
     private AuditService auditService;
 
+    @Mock
+    private RetentionGuard retentionGuard;
+
+    @Mock
+    private RetentionService retentionService;
+
+    @Mock
+    private TrashService trashService;
+
     @InjectMocks
     private DocumentService documentService;
 
@@ -275,5 +284,63 @@ class DocumentServiceTest {
         assertStatus(HttpStatus.FORBIDDEN, () -> documentService.copyDocument(SLUG, document.getId(),
                 new CopyDocumentRequestDTO(null), authentication));
         verifyNoInteractions(storageService);
+    }
+
+    @Test
+    void softDeleteDocument_movesToTrashOnlyAfterTheGuardAgrees() {
+        documentExists();
+        when(folderAccessService.canAccessFolder(authentication, tenantId, folderId)).thenReturn(true);
+        when(retentionGuard.assertMutable(document, RetentionGuard.Action.DELETE, RetentionGuard.Override.NONE, authentication))
+                .thenThrow(new DocumentLockedException("locked", null, null, true, false));
+
+        assertThrows(DocumentLockedException.class,
+                () -> documentService.softDeleteDocument(SLUG, document.getId(), authentication));
+
+        verify(trashService, never()).moveToTrash(any(), any());
+    }
+
+    @Test
+    void softDeleteDocument_overriddenLockIsDroppedBeforeTheDocumentGoesToTrash() {
+        documentExists();
+        when(folderAccessService.canAccessFolder(authentication, tenantId, folderId)).thenReturn(true);
+        RetentionGuard.Override override = new RetentionGuard.Override(true, "Filed in error");
+        when(retentionGuard.assertMutable(document, RetentionGuard.Action.DELETE, override, authentication)).thenReturn(true);
+        User user = new User("Ada", "ada@example.com", "x");
+        user.setId(UUID.randomUUID());
+        when(userRepository.findByEmailIgnoreCase("ada@example.com")).thenReturn(Optional.of(user));
+
+        documentService.softDeleteDocument(SLUG, document.getId(), override, authentication);
+
+        verify(retentionService).clearLock(document);
+        verify(trashService).moveToTrash(document, user.getId());
+    }
+
+    @Test
+    void updateDocument_lockedDocumentCantMove() {
+        documentExists();
+        UUID destination = UUID.randomUUID();
+        document.setOriginalFileName("a.pdf");
+        when(folderAccessService.canAccessFolder(authentication, tenantId, folderId)).thenReturn(true);
+        when(folderAccessService.canAccessFolder(authentication, tenantId, destination)).thenReturn(true);
+        when(retentionGuard.assertMutable(document, RetentionGuard.Action.MOVE, RetentionGuard.Override.NONE, authentication))
+                .thenThrow(new DocumentLockedException("locked", null, null, false, false));
+
+        assertThrows(DocumentLockedException.class, () -> documentService.updateDocument(
+                SLUG, document.getId(), new UpdateDocumentRequestDTO(null, destination), authentication));
+
+        verify(documentRepository, never()).updateNameAndFolder(any(), any(), any(), any());
+    }
+
+    @Test
+    void updateDocument_movedDocumentComesUnderTheNewFoldersPolicies() {
+        documentExists();
+        UUID destination = UUID.randomUUID();
+        document.setOriginalFileName("a.pdf");
+        when(folderAccessService.canAccessFolder(authentication, tenantId, folderId)).thenReturn(true);
+        when(folderAccessService.canAccessFolder(authentication, tenantId, destination)).thenReturn(true);
+
+        documentService.updateDocument(SLUG, document.getId(), new UpdateDocumentRequestDTO(null, destination), authentication);
+
+        verify(retentionService).applyOnEntry(document, destination);
     }
 }

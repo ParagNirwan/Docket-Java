@@ -1,16 +1,21 @@
 package com.docket.app.entity;
 
 import com.docket.app.enums.FileStatus;
+import com.docket.app.enums.LockMode;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.DynamicUpdate;
 import com.docket.app.enums.IndexingStatus;
 
 import java.time.Instant;
 import java.util.UUID;
 
+// Only changed columns are written. Processing updates the indexing status while other
+// requests change a document, and saving the whole row would undo what they wrote.
 @Entity
+@DynamicUpdate
 @Getter
 @Setter
 @NoArgsConstructor
@@ -36,4 +41,25 @@ public class Document {
     @Enumerated(EnumType.STRING)
     private IndexingStatus indexingStatus;
 
+    // Retention: see RetentionService. A document is locked while retainUntil is in the future.
+    private Instant retainUntil;
+    @Enumerated(EnumType.STRING)
+    private LockMode lockMode;
+    private UUID retentionPolicyId;
+    private Instant retentionClockAt;
+    private Instant expiringNotifiedAt;
+    private Instant expiryHandledAt;
+    private boolean legalHold;
+
+    private Instant archivedAt;
+    private UUID archivedFromFolderId;
+
+    // Trash: folderId points at the Trash tray while a document is deleted.
+    private Instant deletedAt;
+    private UUID deletedBy;
+    private UUID originalFolderId;
+
+    public boolean isRetentionLocked(Instant now) {
+        return retainUntil != null && retainUntil.isAfter(now);
+    }
 }

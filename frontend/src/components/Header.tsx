@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { Link, matchPath, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { GlobalSearchBar } from "./GlobalSearchBar";
+import { NotificationBell } from "./NotificationBell";
 import {
   LogoIcon,
   MenuIcon,
@@ -287,6 +288,8 @@ export function Header() {
                     </Link>
                   </>
                 )}
+
+                {token && <NotificationBell token={token} />}
 
                 {/* Hamburger Menu Toggle Button */}
                 <button

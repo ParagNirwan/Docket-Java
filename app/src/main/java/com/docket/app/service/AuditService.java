@@ -67,6 +67,12 @@ public class AuditService {
         record(tenantId, actorId, action, targetType, targetId, metadata);
     }
 
+    // Records something a scheduled job did on its own, with no person behind it.
+    @Transactional
+    public void recordSystem(UUID tenantId, AuditAction action, String targetType, UUID targetId, Map<String, Object> metadata) {
+        save(tenantId, null, AuditActorType.SYSTEM, action, targetType, targetId, metadata);
+    }
+
     // Records something that happened to an account rather than inside one organization,
     // such as a login. actorId is null if we don't know who it was.
     @Transactional
@@ -90,10 +96,15 @@ public class AuditService {
             UUID targetId,
             Map<String, Object> metadata
     ) {
+        save(tenantId, actorId, AuditActorType.USER, action, targetType, targetId, metadata);
+    }
+
+    private void save(UUID tenantId, UUID actorId, AuditActorType actorType, AuditAction action,
+                      String targetType, UUID targetId, Map<String, Object> metadata) {
         AuditEvent event = new AuditEvent();
         event.setTenantId(tenantId);
         event.setActorUserId(actorId);
-        event.setActorType(AuditActorType.USER);
+        event.setActorType(actorType);
         event.setAction(action);
         event.setTargetType(targetType);
         event.setTargetId(targetId);

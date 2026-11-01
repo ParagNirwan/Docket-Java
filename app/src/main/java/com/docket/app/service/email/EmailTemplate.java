@@ -3,8 +3,7 @@ package com.docket.app.service.email;
 import lombok.Getter;
 
 // Every email the app can send. templateName points at
-// resources/templates/email/{name}.html and {name}.txt. The retention template is
-// ready for the feature that will use it (#47).
+// resources/templates/email/{name}.html and {name}.txt.
 @Getter
 public enum EmailTemplate {
     INVITE("invite", "You've been invited to Docket"),

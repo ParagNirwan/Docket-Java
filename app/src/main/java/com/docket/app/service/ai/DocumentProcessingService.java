@@ -3,8 +3,11 @@ package com.docket.app.service.ai;
 import com.docket.app.entity.Document;
 import com.docket.app.entity.DocumentChunk;
 import com.docket.app.enums.IndexingStatus;
+import com.docket.app.enums.NotificationType;
 import com.docket.app.repository.DocumentChunkRepository;
 import com.docket.app.repository.DocumentRepository;
+import com.docket.app.repository.TenantRepository;
+import com.docket.app.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +35,8 @@ public class DocumentProcessingService {
     private final ChunkEnrichmentService chunkEnrichmentService;
     private final EmbeddingService embeddingService;
     private final TransactionTemplate transactionTemplate;
+    private final NotificationService notificationService;
+    private final TenantRepository tenantRepository;
 
     // Raising this makes the re-index job process every document again. Do that whenever
     // a change to extraction, chunking or embedding should reach existing documents.
@@ -76,7 +81,7 @@ public class DocumentProcessingService {
             }
 
             if (extraction.status() == IndexingStatus.FAILED) {
-                markFailed(documentId, alreadySearchable);
+                markFailed(document, alreadySearchable);
                 return;
             }
 
@@ -113,7 +118,7 @@ public class DocumentProcessingService {
 
         } catch (Exception e) {
             log.error("Document processing failed: {}", documentId, e);
-            markFailed(documentId, alreadySearchable);
+            markFailed(document, alreadySearchable);
         }
     }
 
@@ -126,9 +131,26 @@ public class DocumentProcessingService {
         });
     }
 
-    private void markFailed(UUID documentId, boolean alreadySearchable) {
+    private void markFailed(Document document, boolean alreadySearchable) {
         if (!alreadySearchable) {
-            documentRepository.updateIndexingStatus(documentId, IndexingStatus.FAILED);
+            documentRepository.updateIndexingStatus(document.getId(), IndexingStatus.FAILED);
+            notifyUploader(document);
+        }
+    }
+
+    // Telling someone is a courtesy, so a problem here can't fail the processing.
+    private void notifyUploader(Document document) {
+        if (document.getUploadedBy() == null) {
+            return;
+        }
+        try {
+            tenantRepository.findById(document.getTenantId()).ifPresent(tenant ->
+                    notificationService.notify(tenant.getId(), document.getUploadedBy(), NotificationType.INDEXING_FAILED,
+                            "AI search couldn't read " + document.getOriginalFileName(),
+                            "It's safely stored, but won't appear in AI answers. You can try re-indexing it.",
+                            NotificationService.workspaceLink(tenant.getSlug(), "review", null)));
+        } catch (RuntimeException e) {
+            log.warn("Could not send the indexing failure notification for {}", document.getId(), e);
         }
     }
 }

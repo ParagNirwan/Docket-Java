@@ -1,5 +1,6 @@
 import { apiFetch, getStoredToken, refreshAccessToken } from "../lib/session";
 import { randomUUID } from "../lib/uuid";
+import type { LockMode } from "../lib/retention";
 
 /**
  * ============================================================================
@@ -51,6 +52,44 @@ export interface DocumentDTO {
   updatedAt: string;
   indexingStatus?: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED" | "NOT_PROCESSABLE";
   folderId?: string;
+  retainUntil?: string | null;
+  lockMode?: LockMode | null;
+  legalHold?: boolean;
+  archivedAt?: string | null;
+}
+
+// A 423 from the server: says what's protecting the document.
+export class DocumentLockedError extends Error {
+  retainUntil: string | null;
+  lockMode: LockMode | null;
+  legalHold: boolean;
+
+  constructor(message: string, retainUntil: string | null, lockMode: LockMode | null, legalHold: boolean) {
+    super(message);
+    this.name = "DocumentLockedError";
+    this.retainUntil = retainUntil;
+    this.lockMode = lockMode;
+    this.legalHold = legalHold;
+  }
+
+  static async from(response: Response): Promise<DocumentLockedError> {
+    const body = await response.json().catch(() => ({}));
+    return new DocumentLockedError(
+      body.message ?? "This is locked and can't be changed",
+      body.retainUntil ?? null,
+      body.lockMode ?? null,
+      Boolean(body.legalHold),
+    );
+  }
+}
+
+// Only an Owner can use this, and only on a Governance lock.
+export interface LockOverride {
+  reason: string;
+}
+
+function overrideQuery(override?: LockOverride): string {
+  return override ? `?override=true&reason=${encodeURIComponent(override.reason)}` : "";
 }
 
 // The paginated response from the server when listing documents.
@@ -473,14 +512,18 @@ export async function deleteDocument(
   slug: string,
   docId: string,
   token: string,
+  override?: LockOverride,
 ): Promise<void> {
-  const url = `${API_BASE}/tenants/${encodeURIComponent(slug)}/documents/${docId}`;
+  const url = `${API_BASE}/tenants/${encodeURIComponent(slug)}/documents/${docId}${overrideQuery(override)}`;
 
   const response = await apiFetch(url, {
     method: "DELETE",
     headers: { Authorization: `Bearer ${token}` },
   });
 
+  if (response.status === 423) {
+    throw await DocumentLockedError.from(response);
+  }
   if (!response.ok) {
     throw new Error(`Failed to delete document (${response.status})`);
   }
@@ -493,13 +536,17 @@ export async function updateDocument(
   docId: string,
   changes: { name?: string; folderId?: string },
   token: string,
+  override?: LockOverride,
 ): Promise<DocumentDTO> {
-  const response = await apiFetch(`${API_BASE}/tenants/${encodeURIComponent(slug)}/documents/${docId}`, {
+  const response = await apiFetch(`${API_BASE}/tenants/${encodeURIComponent(slug)}/documents/${docId}${overrideQuery(override)}`, {
     method: "PATCH",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify(changes),
   });
 
+  if (response.status === 423) {
+    throw await DocumentLockedError.from(response);
+  }
   if (!response.ok) {
     const messages: Record<number, string> = {
       403: "You don't have permission to change this document",

@@ -4,6 +4,7 @@ import com.docket.app.dto.CopyDocumentRequestDTO;
 import com.docket.app.dto.DocumentResponseDTO;
 import com.docket.app.dto.UpdateDocumentRequestDTO;
 import com.docket.app.service.DocumentService;
+import com.docket.app.service.RetentionGuard;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
@@ -106,16 +107,19 @@ public class DocumentController {
 
     // ─── SOFT-DELETE A DOCUMENT ─────────────────────────────────────────
     // DELETE /api/tenants/{slug}/documents/{docId}
-    // Marks the document as deleted but doesn't remove the file from disk.
+    // Moves the document to the Trash but doesn't remove the file from disk.
     // This allows recovery if someone deletes something by accident.
+    // An Owner can add override=true and a reason to go past a Governance lock.
     // Returns 204 No Content (success, but nothing to send back).
     @DeleteMapping("/documents/{docId}")
     public ResponseEntity<Void> deleteDocument(
             @PathVariable String slug,
             @PathVariable UUID docId,
+            @RequestParam(defaultValue = "false") boolean override,
+            @RequestParam(required = false) String reason,
             Authentication authentication
     ) {
-        documentService.softDeleteDocument(slug, docId, authentication);
+        documentService.softDeleteDocument(slug, docId, new RetentionGuard.Override(override, reason), authentication);
         return ResponseEntity.noContent().build();
     }
 
@@ -127,9 +131,12 @@ public class DocumentController {
             @PathVariable String slug,
             @PathVariable UUID docId,
             @Valid @RequestBody UpdateDocumentRequestDTO request,
+            @RequestParam(defaultValue = "false") boolean override,
+            @RequestParam(required = false) String reason,
             Authentication authentication
     ) {
-        return ResponseEntity.ok(documentService.updateDocument(slug, docId, request, authentication));
+        return ResponseEntity.ok(documentService.updateDocument(
+                slug, docId, request, new RetentionGuard.Override(override, reason), authentication));
     }
 
     // ─── COPY A DOCUMENT ───────────────────────────────────────────────

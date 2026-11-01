@@ -33,7 +33,10 @@ public class RolePermissions {
                     Permission.FOLDERS_CREATE,
                     Permission.FOLDERS_DELETE,
                     Permission.FOLDERS_UPDATE,
-                    Permission.AUDIT_READ
+                    Permission.AUDIT_READ,
+                    Permission.RETENTION_READ,
+                    Permission.RETENTION_MANAGE,
+                    Permission.RETENTION_OVERRIDE
             ),
 
             // Admin — can do almost everything, EXCEPT transfer ownership.
@@ -54,7 +57,9 @@ public class RolePermissions {
                     Permission.FOLDERS_CREATE,
                     Permission.FOLDERS_DELETE,
                     Permission.FOLDERS_UPDATE,
-                    Permission.AUDIT_READ
+                    Permission.AUDIT_READ,
+                    Permission.RETENTION_READ,
+                    Permission.RETENTION_MANAGE
             ),
 
             // Manager — can view things, invite people, work with documents, and create/delete sub-folders.

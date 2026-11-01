@@ -19,7 +19,10 @@ export type PermissionCode =
   | "folders.create"
   | "folders.update"
   | "folders.delete"
-  | "audit.read";
+  | "audit.read"
+  | "retention.read"
+  | "retention.manage"
+  | "retention.override";
 
 export type MemberRole = "OWNER" | "ADMIN" | "MANAGER" | "MEMBER";
 

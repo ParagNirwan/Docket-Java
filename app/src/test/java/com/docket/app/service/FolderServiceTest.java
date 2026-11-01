@@ -69,6 +69,18 @@ class FolderServiceTest {
     @Mock
     private JdbcTemplate jdbcTemplate;
 
+    @Mock
+    private com.docket.app.repository.DocumentRepository documentRepository;
+
+    @Mock
+    private com.docket.app.repository.RetentionPolicyRepository retentionPolicyRepository;
+
+    @Mock
+    private RetentionService retentionService;
+
+    @Mock
+    private TrashService trashService;
+
     @InjectMocks
     private FolderService folderService;
 
@@ -307,5 +319,81 @@ class FolderServiceTest {
 
         verify(folderRepository).save(created);
         return created;
+    }
+
+    private com.docket.app.entity.Folder deletable(boolean tray) {
+        com.docket.app.entity.Folder folder = new com.docket.app.entity.Folder();
+        folder.setId(UUID.randomUUID());
+        folder.setTenantId(tenantId);
+        folder.setName("Contracts");
+        folder.setIsTray(tray);
+        folder.setIsDefault(false);
+        org.mockito.Mockito.when(folderAccessService.canAccessFolder(authentication, tenantId, folder.getId())).thenReturn(true);
+        org.mockito.Mockito.when(folderRepository.findById(folder.getId())).thenReturn(java.util.Optional.of(folder));
+        return folder;
+    }
+
+    @Test
+    void deleteFolder_withLockedDocuments_isRefusedBeforeAnythingChanges() {
+        com.docket.app.entity.Folder folder = deletable(false);
+        org.mockito.Mockito.when(documentRepository.existsLockedUnder(folder.getId())).thenReturn(true);
+
+        org.junit.jupiter.api.Assertions.assertThrows(DocumentLockedException.class,
+                () -> folderService.deleteFolder(SLUG, folder.getId(), authentication));
+
+        org.mockito.Mockito.verify(trashService, org.mockito.Mockito.never()).moveSubtreeToTrash(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+        org.mockito.Mockito.verify(folderRepository, org.mockito.Mockito.never()).delete(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void deleteTray_underComplianceIsRefused() {
+        com.docket.app.entity.Folder tray = deletable(true);
+        org.mockito.Mockito.when(retentionPolicyRepository.existsComplianceUnder(tray.getId())).thenReturn(true);
+
+        org.springframework.web.server.ResponseStatusException e = org.junit.jupiter.api.Assertions.assertThrows(
+                org.springframework.web.server.ResponseStatusException.class,
+                () -> folderService.deleteTray(SLUG, tray.getId(), authentication));
+
+        org.junit.jupiter.api.Assertions.assertEquals(org.springframework.http.HttpStatus.CONFLICT, e.getStatusCode());
+        org.mockito.Mockito.verify(folderRepository, org.mockito.Mockito.never()).delete(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void deleteTray_defaultTrayIsRefused() {
+        com.docket.app.entity.Folder tray = deletable(true);
+        tray.setIsDefault(true);
+
+        org.springframework.web.server.ResponseStatusException e = org.junit.jupiter.api.Assertions.assertThrows(
+                org.springframework.web.server.ResponseStatusException.class,
+                () -> folderService.deleteTray(SLUG, tray.getId(), authentication));
+
+        org.junit.jupiter.api.Assertions.assertEquals(org.springframework.http.HttpStatus.FORBIDDEN, e.getStatusCode());
+    }
+
+    @Test
+    void deleteFolder_managerCantDeleteOneWithDocumentsInIt() {
+        com.docket.app.entity.Folder folder = deletable(false);
+        org.mockito.Mockito.when(documentRepository.countActiveUnder(folder.getId())).thenReturn(2L);
+        org.mockito.Mockito.lenient().doThrow(new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.FORBIDDEN))
+                .when(tenantAuthorizationService).requirePermission(authentication, tenantId, com.docket.app.enums.Permission.DOCUMENTS_DELETE);
+
+        org.junit.jupiter.api.Assertions.assertThrows(org.springframework.web.server.ResponseStatusException.class,
+                () -> folderService.deleteFolder(SLUG, folder.getId(), authentication));
+
+        org.mockito.Mockito.verify(folderRepository, org.mockito.Mockito.never()).delete(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void deleteFolder_sendsDocumentsToTrashThenRemovesTheFolder() {
+        com.docket.app.entity.Folder folder = deletable(false);
+        com.docket.app.entity.User user = new com.docket.app.entity.User("Ada", "ada@example.com", "x");
+        user.setId(UUID.randomUUID());
+        org.mockito.Mockito.when(userRepository.findByEmailIgnoreCase(authentication.getName())).thenReturn(java.util.Optional.of(user));
+
+        folderService.deleteFolder(SLUG, folder.getId(), authentication);
+
+        org.mockito.InOrder order = org.mockito.Mockito.inOrder(trashService, folderRepository);
+        order.verify(trashService).moveSubtreeToTrash(tenantId, folder.getId(), user.getId());
+        order.verify(folderRepository).delete(folder);
     }
 }

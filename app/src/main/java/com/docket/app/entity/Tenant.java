@@ -23,6 +23,7 @@ public class Tenant {
     private Instant createdAt;
     @Enumerated(EnumType.STRING)
     private TenantStatus status;
+    private Integer trashRetentionDays = 30;
 
     @PrePersist
     void prePersist() {

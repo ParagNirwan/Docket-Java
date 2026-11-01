@@ -7,6 +7,7 @@ import com.docket.app.dto.UpdateTrayDTO;
 import com.docket.app.entity.Folder;
 import com.docket.app.entity.Tenant;
 import com.docket.app.service.AuthRateLimiter;
+import com.docket.app.service.FolderService;
 import com.docket.app.service.TenantService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +31,7 @@ import java.util.UUID;
 public class TenantController {
     private final TenantService tenantService;
     private final AuthRateLimiter authRateLimiter;
+    private final FolderService folderService;
 
     // POST /api/tenants/create
     // "I want to create a new organization."
@@ -119,6 +121,17 @@ public class TenantController {
             Authentication authentication
     ) {
         return ResponseEntity.ok(tenantService.updateTray(trayId, request, slug, authentication));
+    }
+
+    // Documents inside go to the Trash. A 423 means some of them are locked.
+    @DeleteMapping("/{slug}/trays/{trayId}")
+    public ResponseEntity<Void> deleteTray(
+            @PathVariable String slug,
+            @PathVariable UUID trayId,
+            Authentication authentication
+    ) {
+        folderService.deleteTray(slug, trayId, authentication);
+        return ResponseEntity.noContent().build();
     }
 
 }

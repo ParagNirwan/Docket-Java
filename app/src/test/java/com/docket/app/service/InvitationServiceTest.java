@@ -82,6 +82,9 @@ class InvitationServiceTest {
     @Mock
     private AuditService auditService;
 
+    @Mock
+    private NotificationService notificationService;
+
     @InjectMocks
     private InvitationService service;
 

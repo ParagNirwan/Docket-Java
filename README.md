@@ -110,9 +110,32 @@ Documents live inside a hierarchical folder system. **Trays** are root-level fol
 - Upload files up to 50 MB (multipart)
 - Paginated listing per folder
 - Download with XSS-safe `Content-Disposition` headers
-- Soft-delete (recoverable)
+- Deleting moves a document to the Trash, where it can be restored
 - Rename, move and copy documents and folders from the `⋮` menu, a folder picker, or by dragging
 - Moving a folder takes everything inside it along. Who can see something always follows the tray it's in, so a move into a restricted tray hides it straight away
+
+### Trash
+
+The Trash tray is admin-only and shows deleted documents. They can be restored to their folder, or to the Inbox if the folder is gone, and come back into search and AI answers. Each organization chooses how long they stay (30 days by default). After that a daily job removes the row and the stored file, unless the document is locked.
+
+Deleting a folder or tray sends its documents to the Trash. The default trays can't be deleted or renamed.
+
+### Retention and legal hold
+
+A retention policy on a tray or folder says how long its documents must be kept. Settings → Retention manages them. Dates only ever move later, and the strictest policy over a document wins. See [docs/retention.md](docs/retention.md).
+
+| Protection | Delete, move or rename | Who can go past it |
+| :--- | :--- | :--- |
+| **Legal hold** | Blocked until released | Nobody. Only the Owner can release it |
+| **Compliance lock** | Blocked until the date | Nobody. The policy can only be extended |
+| **Governance lock** | Blocked until the date | The Owner, with a reason that's audited |
+| **Archived** | Rename and move are blocked, delete is allowed | Unarchive first, once nothing else protects it |
+
+Every path goes through `RetentionGuard`, and a database trigger refuses to delete a locked row even by cascade.
+
+### Notifications
+
+The bell in the header shows notifications for invites, new members, role changes, failed indexing, retention expiry and legal holds. Each person chooses in-app, email or a daily digest.
 
 ### Search
 
@@ -168,6 +191,16 @@ Conversational AI sessions are persisted (create, list, send follow-up, delete).
 | GET | `/api/tenants/by-slug/{slug}/permissions` | Current user's permissions |
 | POST | `/api/tenants/{slug}/transfer-ownership` | Hand over the organization, confirmed by password |
 
+### Notifications
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| GET | `/api/me/notifications` | Your notifications (paged) |
+| GET | `/api/me/notifications/unread-count` | How many are unread |
+| POST | `/api/me/notifications/{id}/read` | Mark one read |
+| POST | `/api/me/notifications/read-all` | Mark all read |
+| GET, PUT | `/api/me/notification-preferences` | In-app, email and daily digest |
+
 ### Members
 
 | Method | Endpoint | Description |
@@ -196,6 +229,8 @@ Conversational AI sessions are persisted (create, list, send follow-up, delete).
 | POST | `/api/tenants/{slug}/folders/{id}/children` | Create sub-folder |
 | GET | `/api/tenants/{slug}/folders/{id}/breadcrumb` | Path from the tray down to this folder |
 | PATCH | `/api/tenants/{slug}/folders/{id}` | Rename and/or move |
+| DELETE | `/api/tenants/{slug}/folders/{id}` | Delete. Documents go to the Trash. 423 if any are locked |
+| DELETE | `/api/tenants/{slug}/trays/{id}` | The same for a tray. Default trays can't be deleted |
 
 ### Documents
 
@@ -207,10 +242,37 @@ Conversational AI sessions are persisted (create, list, send follow-up, delete).
 | GET | `/api/tenants/{slug}/documents/{id}/download` | Download file |
 | PATCH | `/api/tenants/{slug}/documents/{id}` | Rename and/or move. A name that's taken is a 409, and the extension can't change |
 | POST | `/api/tenants/{slug}/documents/{id}/copy` | Copy. A name that's taken gets a suffix, like `report (1).pdf` |
-| DELETE | `/api/tenants/{slug}/documents/{id}` | Soft-delete |
+| DELETE | `/api/tenants/{slug}/documents/{id}` | Move to the Trash. An Owner can add `?override=true&reason=` to go past a Governance lock, here and on PATCH |
+| POST | `/api/tenants/{slug}/documents/{id}/archive` | Move to the Archive tray, read-only |
+| POST | `/api/tenants/{slug}/documents/archive` | Archive up to 100, all or nothing |
+| GET | `/api/tenants/{slug}/documents/{id}/archive-preview` | What the lock date would be |
+| POST | `/api/tenants/{slug}/documents/{id}/unarchive` | Back to where it came from, if not locked |
 | GET | `/api/tenants/{slug}/documents/{id}/indexing-status` | AI indexing status |
 | POST | `/api/tenants/{slug}/documents/{id}/reindex` | Re-trigger AI processing |
 | GET | `/api/tenants/{slug}/search?q=&type=&tray=&from=&to=` | Keyword and file name search (paged) |
+
+### Trash
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| GET | `/api/tenants/{slug}/trash` | Deleted documents (paged) |
+| POST | `/api/tenants/{slug}/documents/{id}/restore` | Restore |
+| DELETE | `/api/tenants/{slug}/documents/{id}/purge` | Remove for good |
+| DELETE | `/api/tenants/{slug}/trash` | Empty the Trash. Says how many locked documents stayed |
+| GET, PUT | `/api/tenants/{slug}/trash-settings` | How long documents stay |
+
+### Retention and legal holds
+
+A locked document answers 423 with `{ message, retainUntil, lockMode, legalHold, archived }`.
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| GET, POST | `/api/tenants/{slug}/retention-policies` | List and create |
+| GET | `/api/tenants/{slug}/retention-policies/summary` | Locked and expiring counts |
+| GET, PUT, DELETE | `/api/tenants/{slug}/retention-policies/{id}` | A Compliance policy can only be extended (409 otherwise) |
+| GET, POST | `/api/tenants/{slug}/legal-holds` | List, and apply to documents, folders or a search |
+| GET, POST | `/api/tenants/{slug}/legal-holds/{id}/documents` | What it covers, and add more |
+| POST | `/api/tenants/{slug}/legal-holds/{id}/release` | Owner only |
 
 ### AI (requires `gcp` profile)
 
@@ -244,6 +306,9 @@ All routes except auth and health require a valid JWT. Tenant access is verified
 | `documents.create` | ✓ | ✓ | ✓ | |
 | `documents.update` | ✓ | ✓ | ✓ | |
 | `documents.delete` | ✓ | ✓ | | |
+| `retention.read` | ✓ | ✓ | | |
+| `retention.manage` | ✓ | ✓ | | |
+| `retention.override` | ✓ | | | |
 
 Implemented in `RolePermissions.java`. Unmapped or null roles receive no permissions (fail closed). The frontend gates UI elements with server-returned permission codes, but all enforcement happens server-side.
 
@@ -296,6 +361,7 @@ Managed by Flyway. Migrations live in `app/src/main/resources/db/migration/`:
 | V13 | Account tokens and email verification |
 | V14 | Chunk locations, full-text search, embedding versions, rewritten queries |
 | V15 | Invitations, membership join dates, one active membership per person, file name search index |
+| V16 | Retention policies, legal holds, trash and archive columns, delete trigger, notifications, job leases |
 
 ---
 
@@ -317,6 +383,9 @@ Managed by Flyway. Migrations live in `app/src/main/resources/db/migration/`:
 | `AUDIT_RETENTION_DAYS` | No | `365` | How long audit events are kept. Minimum 365 |
 | `INVITATION_TTL_DAYS` | No | `7` | How long an invite link works |
 | `INVITATION_LIMIT_PER_HOUR` | No | `50` | Invites one organization can send per hour |
+| `RETENTION_EXPIRY_CRON` | No | `0 30 2 * * *` | When the retention expiry job runs |
+| `TRASH_PURGE_CRON` | No | `0 0 4 * * *` | When old documents are removed from the Trash |
+| `NOTIFICATION_DIGEST_CRON` | No | `0 0 7 * * *` | When daily digests go out |
 | `GCP_PROJECT_ID` | Prod | — | Google Cloud project (for Vertex AI / GCS) |
 | `GCP_LOCATION` | No | `europe-west3` | GCP region |
 | `AI_RETRIEVAL_MAX_DISTANCE` | No | `0.45` | Chunks further than this are dropped. See [docs/ai-search.md](docs/ai-search.md) |

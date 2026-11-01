@@ -14,6 +14,8 @@ public interface FolderRepository extends JpaRepository<Folder, UUID> {
     List<Folder> findByTenantIdAndIsTrayIsTrue(UUID tenantId);
     Optional<Folder> findByTenantIdAndIsTrayIsTrueAndId(UUID tenantId, UUID id);
     List<Folder> findByTenantIdAndParentFolderId(UUID tenantId, UUID parentFolderId);
+    Optional<Folder> findByTenantIdAndIsTrayIsTrueAndIsDefaultIsTrueAndName(UUID tenantId, String name);
+    Optional<Folder> findFirstByTenantIdAndIsArchiveIsTrueAndIsTrayIsTrue(UUID tenantId);
 
     boolean existsByTenantIdAndParentFolderIdAndNameIgnoreCaseAndIdNot(
             UUID tenantId, UUID parentFolderId, String name, UUID id);

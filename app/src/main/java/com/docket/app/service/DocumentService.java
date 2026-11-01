@@ -20,6 +20,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.context.ApplicationEventPublisher;
@@ -50,6 +51,9 @@ public class DocumentService {
     private final UserRepository userRepository;
     private final FolderAccessService folderAccessService;
     private final AuditService auditService;
+    private final RetentionGuard retentionGuard;
+    private final RetentionService retentionService;
+    private final TrashService trashService;
 
     // These are the file types users are allowed to upload.
     // Anything not on this list will be rejected.
@@ -94,6 +98,7 @@ public class DocumentService {
         Tenant tenant = findTenantOrThrow(slug);
         tenantAuthorizationService.requirePermission(authentication, tenant.getId(), Permission.DOCUMENTS_CREATE);
         requireFolderAccess(authentication, tenant.getId(), folderId);
+        trashService.requireNotInTrash(folderId);
 
         // Step 2: Validate the file (not empty, within size limit, allowed type)
         validateFile(file);
@@ -132,6 +137,7 @@ public class DocumentService {
         document.setVersion(1);
         document.setCreatedAt(Instant.now());
         document.setUpdatedAt(Instant.now());
+        retentionService.applyOnEntry(document, folderId);
 
         Document saved = documentRepository.save(document);
 
@@ -203,18 +209,25 @@ public class DocumentService {
     }
 
     // ─── SOFT-DELETE A DOCUMENT ─────────────────────────────────────────
-    // Marks a document as deleted in the database, but does NOT remove
-    // the actual file from disk. This allows recovery if someone
-    // accidentally deletes something.
+    // Moves a document to the Trash, but does NOT remove the actual file
+    // from disk. This allows recovery if someone accidentally deletes something.
     public void softDeleteDocument(String slug, UUID docId, Authentication authentication) {
+        softDeleteDocument(slug, docId, RetentionGuard.Override.NONE, authentication);
+    }
+
+    @Transactional
+    public void softDeleteDocument(String slug, UUID docId, RetentionGuard.Override override, Authentication authentication) {
         Tenant tenant = findTenantOrThrow(slug);
         tenantAuthorizationService.requirePermission(authentication, tenant.getId(), Permission.DOCUMENTS_DELETE);
 
-        Document document = findAccessibleDocumentOrThrow(docId, tenant.getId(), authentication);
+        Document document = findActiveDocumentOrThrow(docId, tenant.getId(), authentication);
+        if (retentionGuard.assertMutable(document, RetentionGuard.Action.DELETE, override, authentication)) {
+            retentionService.clearLock(document);
+        }
 
-        document.setFileStatus(FileStatus.SOFT_DELETED);
-        document.setUpdatedAt(Instant.now());
-        documentRepository.save(document);
+        User actor = userRepository.findByEmailIgnoreCase(authentication.getName())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        trashService.moveToTrash(document, actor.getId());
         auditService.record(authentication, tenant.getId(), AuditAction.DOCUMENT_DELETED, "DOCUMENT", docId,
                 Map.of("fileName", String.valueOf(document.getOriginalFileName())));
     }
@@ -224,6 +237,12 @@ public class DocumentService {
     // by itself. A name that's taken in the destination is a 409, not a silent change.
     public DocumentResponseDTO updateDocument(String slug, UUID docId, UpdateDocumentRequestDTO request,
             Authentication authentication) {
+        return updateDocument(slug, docId, request, RetentionGuard.Override.NONE, authentication);
+    }
+
+    @Transactional
+    public DocumentResponseDTO updateDocument(String slug, UUID docId, UpdateDocumentRequestDTO request,
+            RetentionGuard.Override override, Authentication authentication) {
         Tenant tenant = findTenantOrThrow(slug);
         tenantAuthorizationService.requirePermission(authentication, tenant.getId(), Permission.DOCUMENTS_UPDATE);
 
@@ -239,8 +258,15 @@ public class DocumentService {
             return toDTO(document);
         }
 
+        if (renamed) {
+            retentionGuard.assertMutable(document, RetentionGuard.Action.RENAME, override, authentication);
+        }
         if (moved) {
             requireFolderAccess(authentication, tenant.getId(), folderId);
+            trashService.requireNotInTrash(folderId);
+            if (retentionGuard.assertMutable(document, RetentionGuard.Action.MOVE, override, authentication)) {
+                retentionService.clearLock(document);
+            }
         }
         if (documentRepository.existsByTenantIdAndFolderIdAndFileStatusAndOriginalFileNameIgnoreCaseAndIdNot(
                 tenant.getId(), folderId, FileStatus.ACTIVE, name, docId)) {
@@ -252,6 +278,9 @@ public class DocumentService {
         document.setOriginalFileName(name);
         document.setFolderId(folderId);
         document.setUpdatedAt(now);
+        if (moved) {
+            retentionService.applyOnEntry(document, folderId);
+        }
 
         if (renamed) {
             auditService.record(authentication, tenant.getId(), AuditAction.DOCUMENT_RENAMED, "DOCUMENT", docId,
@@ -276,11 +305,12 @@ public class DocumentService {
         Document source = findActiveDocumentOrThrow(docId, tenant.getId(), authentication);
         UUID folderId = request.getFolderId() == null ? source.getFolderId() : request.getFolderId();
         requireFolderAccess(authentication, tenant.getId(), folderId);
+        trashService.requireNotInTrash(folderId);
 
         User copier = userRepository.findByEmailIgnoreCase(authentication.getName())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
-        String name = availableName(tenant.getId(), folderId, source.getOriginalFileName());
+        String name = DocumentNames.available(documentRepository, tenant.getId(), folderId, source.getOriginalFileName());
         String storedFilename = buildStoragePath(tenant.getId(), UUID.randomUUID() + getExtension(name));
         String checksum;
         try (InputStream data = storageService.retrieve(source.getStoredFileName())) {
@@ -303,6 +333,7 @@ public class DocumentService {
         copy.setVersion(1);
         copy.setCreatedAt(now);
         copy.setUpdatedAt(now);
+        retentionService.applyOnEntry(copy, folderId);
         Document saved = documentRepository.save(copy);
 
         eventPublisher.publishEvent(new DocumentUploadedEvent(saved.getId(), saved.getTenantId()));
@@ -332,18 +363,6 @@ public class DocumentService {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "The file extension can't be changed");
         }
         return name;
-    }
-
-    // ─── HELPER: Find a name that's free in a folder ────────────────────
-    private String availableName(UUID tenantId, UUID folderId, String name) {
-        String extension = getExtension(name);
-        String base = name.substring(0, name.length() - extension.length());
-        String candidate = name;
-        for (int i = 1; documentRepository.existsByTenantIdAndFolderIdAndFileStatusAndOriginalFileNameIgnoreCase(
-                tenantId, folderId, FileStatus.ACTIVE, candidate); i++) {
-            candidate = base + " (" + i + ")" + extension;
-        }
-        return candidate;
     }
 
     // ─── HELPER: Find tenant or throw 404 ───────────────────────────────
@@ -412,10 +431,7 @@ public class DocumentService {
     // ─── HELPER: Get file extension ─────────────────────────────────────
     // Extracts ".pdf" from "report.pdf", or "" if there's no extension.
     private String getExtension(String filename) {
-        if (filename == null)
-            return "";
-        int dot = filename.lastIndexOf('.');
-        return dot >= 0 ? filename.substring(dot) : "";
+        return DocumentNames.extensionOf(filename);
     }
 
     // ─── HELPER: Build storage path ─────────────────────────────────────
@@ -451,7 +467,7 @@ public class DocumentService {
     // Internal fields like storedFileName and checksumSha256 are excluded
     // because the frontend doesn't need them and exposing them would be
     // a security concern.
-    private DocumentResponseDTO toDTO(Document doc) {
+    public DocumentResponseDTO toDTO(Document doc) {
         String uploaderName = doc.getUploadedBy() != null
                 ? userRepository.findById(doc.getUploadedBy()).map(User::getName).orElse(null)
                 : null;
@@ -470,6 +486,10 @@ public class DocumentService {
         dto.setUpdatedAt(doc.getUpdatedAt());
         dto.setIndexingStatus(doc.getIndexingStatus());
         dto.setFolderId(doc.getFolderId());
+        dto.setRetainUntil(doc.getRetainUntil());
+        dto.setLockMode(doc.getLockMode());
+        dto.setLegalHold(doc.isLegalHold());
+        dto.setArchivedAt(doc.getArchivedAt());
         return dto;
     }
 

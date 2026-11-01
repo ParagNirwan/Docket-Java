@@ -29,6 +29,7 @@ import { CreateTrayModal } from "../components/CreateTrayModal";
 import { AiChatPanel } from "../components/AiChatPanel";
 import { WorkspaceAiSearch } from "../components/WorkspaceAiSearch";
 import { FolderBrowser } from "../components/FolderBrowser";
+import { TrashView } from "../components/TrashView";
 import { TraysOverview } from "../components/TraysOverview";
 import { ActivityLog } from "../components/ActivityLog";
 import { OrganizationSettings } from "../components/OrganizationSettings";
@@ -141,7 +142,16 @@ export function TenantWorkspace() {
   const routeState = location.state as { tenantName?: string; openTrayId?: string; openFolderId?: string } | null;
 
   const [collapsed, setCollapsed] = useState(false);
-  const [activeSection, setActiveSection] = useState<WorkspaceSection>(routeState?.openTrayId ?? "review");
+  // Links in notifications and emails can point at a part of the workspace.
+  const searchParams = new URLSearchParams(location.search);
+  const linkedSection = searchParams.get("section");
+  const linkedTab = searchParams.get("tab");
+  const [activeSection, setActiveSection] = useState<WorkspaceSection>(routeState?.openTrayId ?? linkedSection ?? "review");
+
+  // The workspace is already open when a link is followed from the bell.
+  useEffect(() => {
+    if (linkedSection) setActiveSection(linkedSection);
+  }, [linkedSection, location.key]);
   // Bumped to load permissions again after they change, such as giving away ownership.
   const [permissionsVersion, setPermissionsVersion] = useState(0);
   const [trays, setTrays] = useState<Tray[]>(INITIAL_TRAYS);
@@ -568,6 +578,8 @@ export function TenantWorkspace() {
                   token={token}
                   tenantName={tenantName}
                   permissions={permissions}
+                  trays={visibleTrays}
+                  initialTab={linkedTab}
                   onOwnershipTransferred={() => setPermissionsVersion((version) => version + 1)}
                 />
               )}
@@ -583,7 +595,10 @@ export function TenantWorkspace() {
               )}
 
               {/* If active section is a Tray, render FolderBrowser */}
-              {activeTray && (
+              {activeTray && activeTray.isDefault && activeTray.name === "Trash" && token && (
+                <TrashView slug={slug!} token={token} />
+              )}
+              {activeTray && !(activeTray.isDefault && activeTray.name === "Trash") && (
                 <FolderBrowser
                   slug={slug!}
                   token={token}
@@ -595,6 +610,9 @@ export function TenantWorkspace() {
                   canUpdateDocuments={hasPermission(permissions, "documents.update")}
                   canCopyDocuments={hasPermission(permissions, "documents.create")}
                   canUpdateFolders={hasPermission(permissions, "folders.update")}
+                  canDeleteDocuments={hasPermission(permissions, "documents.delete")}
+                  canOverrideLocks={hasPermission(permissions, "retention.override")}
+                  canApplyLegalHold={hasPermission(permissions, "retention.manage")}
                   trays={visibleTrays.filter((tray) => tray.name.toLowerCase() !== "trash")}
                   initialFolderId={activeTray.id === routeState?.openTrayId ? routeState.openFolderId : undefined}
                   onDeleteTray={handleDeleteTray}
@@ -635,7 +653,7 @@ function sectionDescription(section: string) {
     trash: "Items removed from this workspace appear here.",
     partners: "People and organizations you work with.",
     emails: "Email accounts connected to this workspace.",
-    settings: "People in this organization, and changes that are hard to undo.",
+    settings: "People, retention and legal holds in this organization, and changes that are hard to undo.",
   };
   return descriptions[section] || "Manage workspace documents and folders.";
 }

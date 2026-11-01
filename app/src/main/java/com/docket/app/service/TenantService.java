@@ -298,6 +298,7 @@ public class TenantService {
             archive.setDescription("Default Archive Tray");
             archive.setIsTray(true);
             archive.setIsDefault(true);
+            archive.setIsArchive(true);
             archive.setVisibility(Visibility.ALL_MEMBERS);
             archive.setSortOrder(2);
             archive.setCreatedBy(userId);

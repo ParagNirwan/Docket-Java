@@ -117,11 +117,13 @@ Documents live inside a hierarchical folder system. **Trays** are root-level fol
 Available when the `gcp` Spring profile is active. The pipeline:
 
 1. **Upload** — file is stored and a `DocumentUploadedEvent` is published.
-2. **Text extraction** — Apache Tika extracts raw text from PDF, DOCX, etc.
+2. **Text extraction** — Apache Tika extracts text from PDF, DOCX, etc., keeping page numbers and headings. Cloud Vision OCR reads images and scanned PDFs.
 3. **Chunking** — text is split into overlapping segments (2 000 chars, 200 overlap).
-4. **Embedding** — each chunk is embedded with Vertex AI `text-embedding-005` (768-dim vectors).
-5. **Storage** — vectors are stored in pgvector `document_chunks` table.
-6. **Query** — user question is embedded, top-K similar chunks are retrieved via cosine similarity, and Gemini 2.0 Flash generates an answer grounded in those chunks with source citations.
+4. **Embedding** — each chunk is embedded with Vertex AI `text-embedding-005` (768-dim vectors), with its file name, folder and heading as context.
+5. **Storage** — vectors are stored in pgvector `document_chunks` table, alongside a full-text index.
+6. **Query** — follow-up questions are rewritten to stand alone, vector and keyword search results are merged, unrelated chunks are dropped, and Gemini generates an answer. Only the sources it cites are returned.
+
+See [docs/ai-search.md](docs/ai-search.md) for details, Google Cloud setup and re-indexing.
 
 Conversational AI sessions are persisted (create, list, send follow-up, delete). Rate limiting caps queries at 10 per user per minute.
 
@@ -246,6 +248,7 @@ Managed by Flyway. Migrations live in `app/src/main/resources/db/migration/`:
 | V11 | Refresh tokens and token versions |
 | V12 | Auth rate limit counters |
 | V13 | Account tokens and email verification |
+| V14 | Chunk locations, full-text search, embedding versions, rewritten queries |
 
 ---
 
@@ -267,4 +270,9 @@ Managed by Flyway. Migrations live in `app/src/main/resources/db/migration/`:
 | `AUDIT_RETENTION_DAYS` | No | `365` | How long audit events are kept. Minimum 365 |
 | `GCP_PROJECT_ID` | Prod | — | Google Cloud project (for Vertex AI / GCS) |
 | `GCP_LOCATION` | No | `europe-west3` | GCP region |
+| `AI_RETRIEVAL_MAX_DISTANCE` | No | `0.45` | Chunks further than this are dropped. See [docs/ai-search.md](docs/ai-search.md) |
+| `AI_RETRIEVAL_HYBRID` | No | `true` | Combine keyword search with vector search |
+| `AI_REINDEX_ENABLED` | No | `true` | Bring existing documents up to the current embedding version |
+| `AI_OCR_ENDPOINT` | No | `vision.googleapis.com:443` | Use `eu-vision.googleapis.com:443` to keep OCR in the EU |
+| `AI_OCR_MAX_PAGES` | No | `200` | Longest scanned PDF to send to OCR |
 | `VITE_API_URL` | No | `/api` | Frontend API base path |

@@ -54,7 +54,7 @@ public class DocumentService {
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of(
             ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
             ".txt", ".csv", ".png", ".jpg", ".jpeg", ".gif", ".svg",
-            ".webp", ".zip", ".rar", ".7z");
+            ".webp", ".tif", ".tiff", ".zip", ".rar", ".7z");
 
     // Maximum file size: 50 megabytes (matching the Spring config)
     private static final long MAX_FILE_SIZE = 50 * 1024 * 1024;
@@ -154,6 +154,15 @@ public class DocumentService {
                 : null;
 
         return toDTO(document, uploaderName);
+    }
+
+    // ─── CHECK A DOCUMENT CAN BE RE-INDEXED ──────────────────────────────
+    // Re-indexing costs money (OCR and embeddings), so being able to read
+    // a document isn't enough to trigger it.
+    public DocumentResponseDTO getDocumentForReindex(String slug, UUID docId, Authentication authentication) {
+        Tenant tenant = findTenantOrThrow(slug);
+        tenantAuthorizationService.requirePermission(authentication, tenant.getId(), Permission.DOCUMENTS_UPDATE);
+        return getDocumentById(slug, docId, authentication);
     }
 
     // ─── VIEW A DOCUMENT ────────────────────────────────────────────────

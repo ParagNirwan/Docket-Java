@@ -2,7 +2,11 @@ package com.docket.app.config;
 
 import com.google.cloud.aiplatform.v1.PredictionServiceClient;
 import com.google.cloud.aiplatform.v1.PredictionServiceSettings;
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageOptions;
 import com.google.cloud.vertexai.VertexAI;
+import com.google.cloud.vision.v1.ImageAnnotatorClient;
+import com.google.cloud.vision.v1.ImageAnnotatorSettings;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -26,6 +30,20 @@ public class VertexAiConfig {
                 .setEndpoint(endpoint)
                 .build();
         return PredictionServiceClient.create(settings);
+    }
+
+    @Bean
+    public ImageAnnotatorClient imageAnnotatorClient(
+            @Value("${docket.ai.ocr.endpoint}") String ocrEndpoint) throws IOException {
+        ImageAnnotatorSettings settings = ImageAnnotatorSettings.newBuilder()
+                .setEndpoint(ocrEndpoint)
+                .build();
+        return ImageAnnotatorClient.create(settings);
+    }
+
+    @Bean
+    public Storage ocrStorage() {
+        return StorageOptions.getDefaultInstance().getService();
     }
 
     @Bean

@@ -11,6 +11,14 @@ interface AiMessageProps {
   isLoading?: boolean;
 }
 
+function sourceLocation({ pageStart, pageEnd, heading }: AiSourceChunk): string {
+  let page = "";
+  if (pageStart != null) {
+    page = pageEnd != null && pageEnd !== pageStart ? `pp. ${pageStart}–${pageEnd}` : `p. ${pageStart}`;
+  }
+  return [page, heading].filter(Boolean).join(" · ");
+}
+
 function SourceChips({ sources }: { sources: AiSourceChunk[] }) {
   const [expanded, setExpanded] = useState<number | null>(null);
 
@@ -39,11 +47,16 @@ function SourceChips({ sources }: { sources: AiSourceChunk[] }) {
             >
               <div className="flex items-center gap-2 rounded-md px-2 py-1.5 text-[11px] hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                 <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-indigo-100 dark:bg-indigo-950/60 text-[9px] font-bold text-indigo-600 dark:text-indigo-400">
-                  {source.chunkIndex + 1}
+                  {i + 1}
                 </span>
                 <span className="truncate font-medium text-gray-700 dark:text-gray-300">
                   {source.documentName}
                 </span>
+                {sourceLocation(source) && (
+                  <span className="ml-auto shrink-0 text-[10px] text-gray-400 dark:text-gray-500">
+                    {sourceLocation(source)}
+                  </span>
+                )}
               </div>
               {expanded === i && (
                 <p className="mt-1 rounded-md bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 px-3 py-2 text-[11px] leading-relaxed text-gray-600 dark:text-gray-400">

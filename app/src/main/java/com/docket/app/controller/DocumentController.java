@@ -148,8 +148,8 @@ public class DocumentController {
                     org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE,
                     "AI processing is not available in this environment");
         }
-        DocumentResponseDTO doc = documentService.getDocumentById(slug, docId, authentication);
-        documentProcessingService.processDocument(doc.getId());
+        DocumentResponseDTO doc = documentService.getDocumentForReindex(slug, docId, authentication);
+        documentProcessingService.processDocumentAsync(doc.getId());
         return ResponseEntity.accepted().body(Map.of("status", "PROCESSING"));
     }
 

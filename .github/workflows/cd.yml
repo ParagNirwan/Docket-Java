@@ -71,8 +71,11 @@ jobs:
       id-token: write
 
     steps:
+      # Full history, so a rollback can read the previous version of the config.
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -96,8 +99,17 @@ jobs:
             ${{ env.IMAGE_BASE }}/backend=${{ env.IMAGE_BASE }}/backend:${{ github.sha }} \
             ${{ env.IMAGE_BASE }}/frontend=${{ env.IMAGE_BASE }}/frontend:${{ github.sha }}
 
+      - name: Render manifests
+        run: kustomize build k8s/prod/ > "$RUNNER_TEMP/manifests.yaml"
+
+      # Needs roles/secretmanager.viewer on the CD service account. Metadata only:
+      # that role can't read secret values.
+      - name: Check secrets and settings exist
+        run: bash .github/scripts/preflight.sh docket-java "$RUNNER_TEMP/manifests.yaml"
+
       - name: Deploy to GKE
-        run: kustomize build k8s/prod/ | kubectl apply -f -
+        id: deploy
+        run: kubectl apply -f "$RUNNER_TEMP/manifests.yaml"
 
       - name: Wait for backend rollout
         run: kubectl rollout status deployment/backend -n docket --timeout=300s
@@ -106,7 +118,12 @@ jobs:
         run: kubectl rollout status deployment/frontend -n docket --timeout=120s
 
       - name: Rollback on failure
-        if: failure()
+        # Only if the cluster was touched: undoing after a failed check would roll back a healthy deploy.
+        if: failure() && steps.deploy.outcome != 'skipped'
         run: |
+          # rollout undo only restores the Deployment. The old pods need the old secret
+          # list and settings too, or they can't start either.
+          git show ${{ github.event.before }}:k8s/base/secret-provider-class.yaml | kubectl apply -f -
+          git show ${{ github.event.before }}:k8s/base/configmap.yaml | kubectl apply -f -
           kubectl rollout undo deployment/backend -n docket
           kubectl rollout undo deployment/frontend -n docket

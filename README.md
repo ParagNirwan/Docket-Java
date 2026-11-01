@@ -260,7 +260,7 @@ Managed by Flyway. Migrations live in `app/src/main/resources/db/migration/`:
 | `TRUSTED_PROXY_HOPS` | No | `0` | Proxies in front of the backend that append to `X-Forwarded-For` |
 | `CORS_ALLOWED_ORIGINS` | No | Local dev URLs, `APP_BASE_URL` in prod | Exact origins allowed to call the API |
 | `APP_BASE_URL` | Prod | `http://localhost:5173` | Public frontend URL, used for links in emails |
-| `EMAIL_PROVIDER` | No | `logging` | `logging` (local only), `smtp` or `resend`. See [docs/email.md](docs/email.md) |
+| `EMAIL_PROVIDER` | No | `logging` | `logging` (local only), `smtp`, `resend` or `disabled`. See [docs/email.md](docs/email.md) |
 | `EMAIL_FROM` | Prod | `Docket <no-reply@docket.local>` | Sender of outgoing email |
 | `RESEND_API_KEY` | With `resend` | — | Resend API key |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USERNAME` / `SMTP_PASSWORD` | With `smtp` | `localhost` / `1025` | SMTP server |

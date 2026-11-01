@@ -11,10 +11,11 @@ contain password reset links.
 
 ## Production
 
-The Kubernetes deployment uses [Resend](https://resend.com). Any SMTP service also works:
-set `EMAIL_PROVIDER=smtp` and the `SMTP_*` variables.
+The Kubernetes deployment starts with `EMAIL_PROVIDER: "disabled"`. The app runs normally
+but sends nothing, so nobody receives reset or verification emails.
 
-Before deploying:
+To turn email on with [Resend](https://resend.com) (any SMTP service also works, using
+`EMAIL_PROVIDER=smtp` and the `SMTP_*` variables):
 
 1. Verify your sending domain in Resend and create an API key.
 2. Store the key in Google Secret Manager under the name the deployment expects:
@@ -24,8 +25,19 @@ Before deploying:
    ```
 
    The backend's service account needs `roles/secretmanager.secretAccessor` on it, the
-   same as the existing `jwt-secret`. The pod won't start if the secret is missing.
-3. Set `APP_BASE_URL` and `EMAIL_FROM` in `k8s/base/configmap.yaml`.
+   same as the existing `jwt-secret`.
+3. Add the secret to `k8s/base/secret-provider-class.yaml`:
+
+   ```yaml
+   - resourceName: "projects/docket-java/secrets/resend-api-key/versions/latest"
+     path: "RESEND_API_KEY"
+   ```
+
+4. In `k8s/base/configmap.yaml`, set `EMAIL_PROVIDER: "resend"` and update `APP_BASE_URL`
+   and `EMAIL_FROM`.
+
+The CD pipeline checks that the secrets and settings exist before it touches the cluster,
+and stops with production still running if anything is missing.
 
 ## DNS records
 

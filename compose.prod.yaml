@@ -4,9 +4,9 @@ services:
       SPRING_PROFILES_ACTIVE: prod
       JWT_SECRET: ${JWT_SECRET}
       APP_BASE_URL: ${APP_BASE_URL}
-      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-resend}
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-disabled}
       EMAIL_FROM: ${EMAIL_FROM}
-      RESEND_API_KEY: ${RESEND_API_KEY}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
     # No volume mounts for source code — use the built image only
     volumes:
       - uploads_data:/app/uploads

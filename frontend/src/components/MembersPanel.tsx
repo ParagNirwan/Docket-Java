@@ -110,7 +110,7 @@ export function MembersPanel({ slug, token, permissions }: MembersPanelProps) {
           <button
             type="button"
             onClick={() => setIsInviteOpen(true)}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-indigo-700"
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-indigo-700"
           >
             <UserPlus className="h-4 w-4" />
             Invite people
@@ -168,7 +168,7 @@ export function MembersPanel({ slug, token, permissions }: MembersPanelProps) {
                           onClick={() => setPendingRemoval(member)}
                           aria-label={`Remove ${member.name}`}
                           title="Remove from organization"
-                          className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40"
+                          className="rounded-full p-1.5 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
@@ -208,11 +208,11 @@ export function MembersPanel({ slug, token, permissions }: MembersPanelProps) {
                 </div>
                 {canInvite && reachableRoles.includes(invitation.role) && (
                   <div className="flex shrink-0 items-center gap-1">
-                    <button type="button" onClick={() => void handleResend(invitation)} className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 font-medium text-indigo-600 transition-colors hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-950/40">
+                    <button type="button" onClick={() => void handleResend(invitation)} className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 font-medium text-indigo-600 transition-colors hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-950/40">
                       <RefreshCw className="h-3.5 w-3.5" />
                       Resend
                     </button>
-                    <button type="button" onClick={() => setPendingRevoke(invitation)} className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 font-medium text-red-600 transition-colors hover:bg-red-50 dark:hover:bg-red-950/40">
+                    <button type="button" onClick={() => setPendingRevoke(invitation)} className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 font-medium text-red-600 transition-colors hover:bg-red-50 dark:hover:bg-red-950/40">
                       <X className="h-3.5 w-3.5" />
                       Revoke
                     </button>

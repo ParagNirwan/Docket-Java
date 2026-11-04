@@ -198,7 +198,7 @@ export function WorkspaceAiSearch({ slug, token }: WorkspaceAiSearchProps) {
           <button
             type="button"
             onClick={handleNewConversation}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200 transition-colors"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200 transition-colors"
             title="Back to conversations"
           >
             <ChevronLeft className="h-4 w-4" />
@@ -214,7 +214,7 @@ export function WorkspaceAiSearch({ slug, token }: WorkspaceAiSearchProps) {
           <button
             type="button"
             onClick={handleNewConversation}
-            className="flex items-center gap-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-2.5 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors"
+            className="flex items-center gap-1.5 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-2.5 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors"
           >
             <Plus className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">New Chat</span>
@@ -265,7 +265,7 @@ export function WorkspaceAiSearch({ slug, token }: WorkspaceAiSearchProps) {
               type="button"
               onClick={handleSend}
               disabled={!input.trim() || isQuerying}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-xs hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white shadow-xs hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               aria-label="Send message"
             >
               <Send className="h-4 w-4" />
@@ -317,7 +317,7 @@ export function WorkspaceAiSearch({ slug, token }: WorkspaceAiSearchProps) {
             type="button"
             onClick={handleSend}
             disabled={!input.trim() || isQuerying}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-xs hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white shadow-xs hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             aria-label="Send message"
           >
             <Send className="h-4 w-4" />
@@ -419,7 +419,7 @@ export function WorkspaceAiSearch({ slug, token }: WorkspaceAiSearchProps) {
                   <button
                     type="button"
                     onClick={(e) => handleDeleteConversation(conv.id, e)}
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-gray-300 opacity-0 group-hover:opacity-100 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/40 transition-all"
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-gray-300 opacity-0 group-hover:opacity-100 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/40 transition-all"
                     title="Delete conversation"
                     aria-label={`Delete "${conv.title}"`}
                   >

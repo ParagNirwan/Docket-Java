@@ -54,7 +54,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
           <span className="heading font-semibold text-[var(--color-ink)] text-lg">Registry</span>
           <button 
             onClick={() => setIsOpen(false)}
-            className="p-1 rounded-md hover:bg-[var(--color-line)] text-[var(--color-muted)] transition-colors"
+            className="p-1.5 rounded-full hover:bg-[var(--color-line)] text-[var(--color-muted)] transition-colors"
             aria-label="Close sidebar"
           >
             <CloseIcon className="w-5 h-5" />
@@ -70,9 +70,9 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                   key={item.path}
                   to={item.path}
                   className={`
-                    block px-3 py-2 rounded-md text-sm font-medium transition-colors
-                    ${location.pathname === item.path 
-                      ? "bg-[var(--color-line)] text-[var(--color-vault)]" 
+                    block px-4 py-2.5 rounded-lg text-sm font-medium transition-colors
+                    ${location.pathname === item.path
+                      ? "bg-[var(--color-line)] text-[var(--color-ink)] font-semibold"
                       : "text-[var(--color-muted)] hover:bg-[var(--color-line)] hover:text-[var(--color-ink)]"}
                   `}
                 >

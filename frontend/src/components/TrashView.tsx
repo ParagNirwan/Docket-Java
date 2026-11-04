@@ -89,7 +89,7 @@ export function TrashView({ slug, token }: TrashViewProps) {
           <button
             type="button"
             onClick={() => setIsEmptying(true)}
-            className="inline-flex items-center gap-2 self-start rounded-xl border border-red-200 px-3.5 py-2 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 dark:border-red-900/60 dark:text-red-400 dark:hover:bg-red-950/40 sm:self-auto"
+            className="inline-flex items-center gap-2 self-start rounded-full border border-red-200 px-3.5 py-2 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 dark:border-red-900/60 dark:text-red-400 dark:hover:bg-red-950/40 sm:self-auto"
           >
             <Trash2 className="h-4 w-4" />
             Empty Trash
@@ -155,7 +155,7 @@ export function TrashView({ slug, token }: TrashViewProps) {
                           type="button"
                           onClick={() => handleRestore(item)}
                           disabled={busyId === item.id}
-                          className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 font-medium text-indigo-600 transition-colors hover:bg-indigo-50 disabled:opacity-50 dark:text-indigo-400 dark:hover:bg-indigo-950/40"
+                          className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-medium text-indigo-600 transition-colors hover:bg-indigo-50 disabled:opacity-50 dark:text-indigo-400 dark:hover:bg-indigo-950/40"
                           aria-label={`Restore ${item.originalFileName}`}
                         >
                           <RotateCcw className="h-3.5 w-3.5" />
@@ -167,7 +167,7 @@ export function TrashView({ slug, token }: TrashViewProps) {
                           disabled={locked}
                           title={locked ? description ?? undefined : "Delete permanently"}
                           aria-label={`Delete ${item.originalFileName} permanently`}
-                          className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:hover:bg-red-950/40"
+                          className="rounded-full p-1.5 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:hover:bg-red-950/40"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
@@ -180,9 +180,9 @@ export function TrashView({ slug, token }: TrashViewProps) {
           </table>
           {totalPages > 1 && (
             <div className="flex items-center justify-between border-t border-gray-100 px-4 py-2.5 text-xs text-gray-500 dark:border-gray-800 dark:text-gray-400">
-              <button type="button" disabled={page === 0} onClick={() => setPage(page - 1)} className="rounded-lg px-2 py-1 font-medium hover:bg-gray-100 disabled:opacity-40 dark:hover:bg-gray-800">Previous</button>
+              <button type="button" disabled={page === 0} onClick={() => setPage(page - 1)} className="rounded-full px-2 py-1 font-medium hover:bg-gray-100 disabled:opacity-40 dark:hover:bg-gray-800">Previous</button>
               <span>Page {page + 1} of {totalPages}</span>
-              <button type="button" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)} className="rounded-lg px-2 py-1 font-medium hover:bg-gray-100 disabled:opacity-40 dark:hover:bg-gray-800">Next</button>
+              <button type="button" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)} className="rounded-full px-2 py-1 font-medium hover:bg-gray-100 disabled:opacity-40 dark:hover:bg-gray-800">Next</button>
             </div>
           )}
         </div>

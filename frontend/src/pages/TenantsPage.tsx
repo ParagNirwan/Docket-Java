@@ -71,14 +71,14 @@ export function TenantsPage() {
           <button
             type="button"
             onClick={openSettingsModal}
-            className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-medium border border-gray-200 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl text-gray-700 dark:text-gray-200 transition-colors"
+            className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-medium border border-gray-200 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full text-gray-700 dark:text-gray-200 transition-colors"
           >
             <SettingsIcon className="w-4 h-4" />
             Account Settings
           </button>
           <Link
             to="/create-first-tenant"
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-xs transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-full shadow-xs transition-colors"
           >
             <PlusIcon className="w-4 h-4" />
             New Tenant
@@ -110,7 +110,7 @@ export function TenantsPage() {
           </p>
           <Link
             to="/create-first-tenant"
-            className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-full shadow-sm transition-colors"
           >
             <PlusIcon className="w-4 h-4" />
             Create Your First Tenant

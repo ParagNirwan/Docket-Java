@@ -20,7 +20,7 @@ function ModalCard({ title, icon, onClose, children }: { title: string; icon: Re
     <div role="dialog" aria-modal="true" aria-label={title} className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="fixed inset-0 bg-black/50 backdrop-blur-xs" onClick={onClose} />
       <div className="relative z-10 w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-gray-800 dark:bg-gray-900">
-        <button type="button" onClick={onClose} aria-label="Close dialog" className="absolute right-4 top-4 rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200">
+        <button type="button" onClick={onClose} aria-label="Close dialog" className="absolute right-4 top-4 rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200">
           <X className="h-5 w-5" />
         </button>
         <div className="mb-3 flex items-center gap-3">
@@ -46,13 +46,13 @@ function Failure({ message }: { message: string }) {
 function Actions({ onClose, label, busy, disabled, danger }: { onClose: () => void; label: string; busy: boolean; disabled?: boolean; danger?: boolean }) {
   return (
     <div className="mt-5 flex justify-end gap-2">
-      <button type="button" onClick={onClose} className="rounded-xl border border-gray-200 px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">
+      <button type="button" onClick={onClose} className="rounded-full border border-gray-200 px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">
         Cancel
       </button>
       <button
         type="submit"
         disabled={busy || disabled}
-        className={`rounded-xl px-4 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50 ${danger ? "bg-red-600 hover:bg-red-700" : "bg-indigo-600 hover:bg-indigo-700"}`}
+        className={`rounded-full px-4 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50 ${danger ? "bg-red-600 hover:bg-red-700" : "bg-indigo-600 hover:bg-indigo-700"}`}
       >
         {busy ? "Working..." : label}
       </button>

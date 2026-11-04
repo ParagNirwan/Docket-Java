@@ -93,7 +93,7 @@ export function UploadProgressPanel({
           <button
             type="button"
             onClick={() => setMinimized(!minimized)}
-            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+            className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
             title={minimized ? "Expand" : "Minimize"}
           >
             {minimized ? (
@@ -108,7 +108,7 @@ export function UploadProgressPanel({
             <button
               type="button"
               onClick={onClearFinished}
-              className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+              className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
               title="Close"
             >
               <X className="h-4 w-4" />
@@ -139,7 +139,7 @@ export function UploadProgressPanel({
                   <button
                     type="button"
                     onClick={() => onCancel(task.id)}
-                    className="shrink-0 rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800"
+                    className="shrink-0 rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800"
                     title="Cancel upload"
                   >
                     <X className="h-3.5 w-3.5" />
@@ -149,7 +149,7 @@ export function UploadProgressPanel({
                   <button
                     type="button"
                     onClick={() => onRetry(task.id)}
-                    className="shrink-0 rounded-lg p-1 text-amber-500 hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-950/40"
+                    className="shrink-0 rounded-full p-1 text-amber-500 hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-950/40"
                     title="Retry upload"
                   >
                     <RefreshCw className="h-3.5 w-3.5" />

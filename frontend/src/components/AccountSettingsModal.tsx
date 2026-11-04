@@ -79,7 +79,7 @@ export function AccountSettingsModal() {
           <button
             type="button"
             onClick={closeSettingsModal}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            className="p-1.5 rounded-full text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
             aria-label="Close settings"
           >
             <CloseIcon className="w-5 h-5" />
@@ -90,7 +90,7 @@ export function AccountSettingsModal() {
         <div className="p-6 space-y-6 overflow-y-auto">
           {/* User Profile Badge */}
           <div className="flex items-center gap-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
-            <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-indigo-600 via-indigo-500 to-violet-500 flex items-center justify-center text-white font-bold text-xl shadow-md shrink-0">
+            <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-indigo-600 via-indigo-500 to-amber-400 flex items-center justify-center text-white font-bold text-xl shadow-md shrink-0">
               {initial}
             </div>
             <div className="min-w-0 flex-1">
@@ -161,7 +161,7 @@ export function AccountSettingsModal() {
               <button
                 type="button"
                 onClick={handleNavigateToTenant}
-                className="px-3 py-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 rounded-lg transition-colors border border-indigo-200 dark:border-indigo-800"
+                className="px-3 py-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 rounded-full transition-colors border border-indigo-200 dark:border-indigo-800"
               >
                 New Tenant
               </button>
@@ -194,7 +194,7 @@ export function AccountSettingsModal() {
           <button
             type="button"
             onClick={handleLogout}
-            className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/50 rounded-lg transition-colors"
+            className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/50 rounded-full transition-colors"
           >
             <LogOutIcon className="w-4 h-4" />
             Log Out
@@ -202,7 +202,7 @@ export function AccountSettingsModal() {
           <button
             type="button"
             onClick={closeSettingsModal}
-            className="px-4 py-2 text-sm font-medium bg-gray-900 hover:bg-gray-800 text-white dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-white rounded-lg transition-colors shadow-sm"
+            className="px-4 py-2 text-sm font-medium bg-gray-900 hover:bg-gray-800 text-white dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-white rounded-full transition-colors shadow-sm"
           >
             Done
           </button>

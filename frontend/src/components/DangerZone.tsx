@@ -38,7 +38,7 @@ export function DangerZone({ slug, token, tenantName, permissions, onOwnershipTr
           <button
             type="button"
             onClick={() => setIsLeaveOpen(true)}
-            className="mt-4 inline-flex items-center gap-2 rounded-xl border border-red-200 px-3.5 py-2 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 dark:border-red-900/60 dark:text-red-400 dark:hover:bg-red-950/40"
+            className="mt-4 inline-flex items-center gap-2 rounded-full border border-red-200 px-3.5 py-2 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 dark:border-red-900/60 dark:text-red-400 dark:hover:bg-red-950/40"
           >
             <LogOut className="h-4 w-4" />
             Leave organization
@@ -161,7 +161,7 @@ function TransferOwnership({ slug, token, tenantName, onTransferred }: TransferO
             <button
               type="submit"
               disabled={isSubmitting || !newOwnerId || !password}
-              className="rounded-xl bg-red-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-full bg-red-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isSubmitting ? "Transferring..." : "Transfer ownership"}
             </button>

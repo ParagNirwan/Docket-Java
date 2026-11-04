@@ -57,7 +57,7 @@ export function RenameModal({ itemType, currentName, onClose, onSubmit }: Rename
               Rename {itemType}
             </h2>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close dialog" className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+          <button type="button" onClick={onClose} aria-label="Close dialog" className="p-1.5 rounded-full text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -85,10 +85,10 @@ export function RenameModal({ itemType, currentName, onClose, onSubmit }: Rename
             </div>
           </div>
           <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-100 dark:border-gray-800">
-            <button type="button" onClick={onClose} disabled={isSubmitting} className="px-4 py-2 text-xs font-medium rounded-xl border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+            <button type="button" onClick={onClose} disabled={isSubmitting} className="px-4 py-2 text-xs font-medium rounded-full border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
               Cancel
             </button>
-            <button type="submit" disabled={isSubmitting || !name.trim()} className="px-4 py-2 text-xs font-medium rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+            <button type="submit" disabled={isSubmitting || !name.trim()} className="px-4 py-2 text-xs font-medium rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
               {isSubmitting ? "Saving..." : "Rename"}
             </button>
           </div>

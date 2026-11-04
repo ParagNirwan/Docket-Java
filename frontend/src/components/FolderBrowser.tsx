@@ -817,7 +817,7 @@ export function FolderBrowser({
                 <button
                   type="button"
                   onClick={() => setIsFolderModalOpen(true)}
-                  className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-indigo-700 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
+                  className="inline-flex items-center gap-2 rounded-full bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-indigo-700 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
                 >
                   <FolderPlus className="h-4 w-4" />
                   <span>New Folder</span>
@@ -829,7 +829,7 @@ export function FolderBrowser({
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors"
                 >
                   <Upload className="h-3.5 w-3.5" />
                   <span>Upload</span>
@@ -844,7 +844,7 @@ export function FolderBrowser({
                     onClick={() =>
                       setActiveMenuId(activeMenuId === "tray-options" ? null : "tray-options")
                     }
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors"
                     title="More tray options"
                     aria-label="More tray options"
                   >
@@ -883,7 +883,7 @@ export function FolderBrowser({
                         activeMenuId === "folder-header-options" ? null : "folder-header-options"
                       )
                     }
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors"
                     title="Folder options"
                     aria-label="Folder options"
                   >
@@ -969,7 +969,7 @@ export function FolderBrowser({
               <button
                 type="button"
                 onClick={() => setIsFolderModalOpen(true)}
-                className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-indigo-700 transition-colors"
+                className="inline-flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-indigo-700 transition-colors"
               >
                 <FolderPlus className="h-4 w-4" />
                 <span>Create First Sub-folder</span>
@@ -979,7 +979,7 @@ export function FolderBrowser({
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="inline-flex items-center gap-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors"
+                className="inline-flex items-center gap-2 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors"
               >
                 <Upload className="h-4 w-4" />
                 <span>Upload Files</span>
@@ -1147,7 +1147,7 @@ export function FolderBrowser({
                                 <button
                                   type="button"
                                   onClick={() => handleFolderClick(folder)}
-                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors font-medium text-xs"
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors font-medium text-xs"
                                 >
                                   <span>Open</span>
                                   <ChevronRight className="h-3.5 w-3.5" />
@@ -1242,7 +1242,7 @@ export function FolderBrowser({
                             <button
                               type="button"
                               onClick={() => handleDownloadDocument(doc)}
-                              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-1.5 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-300 dark:hover:bg-indigo-950/60 dark:hover:text-indigo-300 transition-colors"
+                              className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-1.5 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-300 dark:hover:bg-indigo-950/60 dark:hover:text-indigo-300 transition-colors"
                             >
                               <Download className="h-3.5 w-3.5" />
                               <span>Download</span>
@@ -1253,7 +1253,7 @@ export function FolderBrowser({
                                 onClick={() => onAskAi(doc.id, doc.originalFileName)}
                                 disabled={doc.indexingStatus !== "COMPLETED"}
                                 title={doc.indexingStatus === "COMPLETED" ? "Ask AI about this document" : doc.indexingStatus === "PENDING" || doc.indexingStatus === "PROCESSING" ? "Still indexing..." : "Not supported for this file type"}
-                                className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/40 px-3 py-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 hover:border-indigo-300 dark:hover:bg-indigo-950/60 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                className="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/40 px-3 py-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 hover:border-indigo-300 dark:hover:bg-indigo-950/60 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                               >
                                 <Sparkles className="h-3.5 w-3.5" />
                                 <span>Ask AI</span>
@@ -1267,7 +1267,7 @@ export function FolderBrowser({
                                 type="button"
                                 onClick={() => handleDeleteDocumentClick(doc)}
                                 disabled={isLocked(doc)}
-                                className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-400"
+                                className="p-1.5 rounded-full text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-400"
                                 title={isLocked(doc) ? lockDescription(doc) ?? undefined : "Delete document"}
                                 aria-label={`Delete ${doc.originalFileName}`}
                               >
@@ -1303,7 +1303,7 @@ export function FolderBrowser({
                             <button
                               type="button"
                               onClick={() => onAskAi(doc.id, doc.originalFileName)}
-                              className="absolute top-1.5 right-1.5 flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-600/90 text-white opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-indigo-700"
+                              className="absolute top-1.5 right-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600/90 text-white opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-indigo-700"
                               title="Ask AI"
                               aria-label={`Ask AI about ${doc.originalFileName}`}
                             >
@@ -1419,7 +1419,7 @@ export function FolderBrowser({
                                       type="button"
                                       onClick={() => onAskAi(doc.id, doc.originalFileName)}
                                       disabled={doc.indexingStatus !== "COMPLETED"}
-                                      className="p-1.5 rounded-lg text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                      className="p-1.5 rounded-full text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                                       title={doc.indexingStatus === "COMPLETED" ? "Ask AI" : "Not ready"}
                                       aria-label={`Ask AI about ${doc.originalFileName}`}
                                     >
@@ -1429,7 +1429,7 @@ export function FolderBrowser({
                                   <button
                                     type="button"
                                     onClick={() => handleDownloadDocument(doc)}
-                                    className="p-1.5 rounded-lg text-gray-500 hover:text-indigo-600 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                                    className="p-1.5 rounded-full text-gray-500 hover:text-indigo-600 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                                     title="Download file"
                                     aria-label={`Download ${doc.originalFileName}`}
                                   >
@@ -1441,7 +1441,7 @@ export function FolderBrowser({
                                       type="button"
                                       onClick={() => handleDeleteDocumentClick(doc)}
                                       disabled={isLocked(doc)}
-                                      className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-400"
+                                      className="p-1.5 rounded-full text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-400"
                                       title={isLocked(doc) ? lockDescription(doc) ?? undefined : "Delete document"}
                                       aria-label={`Delete ${doc.originalFileName}`}
                                     >
@@ -1507,7 +1507,7 @@ export function FolderBrowser({
                     type="button"
                     onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage === 0}
-                    className="inline-flex items-center gap-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-2.5 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-750 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    className="inline-flex items-center gap-1 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-2.5 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-750 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                     aria-label="Previous page"
                   >
                     <ChevronLeft className="h-3.5 w-3.5" />
@@ -1522,7 +1522,7 @@ export function FolderBrowser({
                           key={p}
                           type="button"
                           onClick={() => handlePageChange(p)}
-                          className={`min-w-8 h-8 rounded-lg text-xs font-semibold transition-colors ${
+                          className={`min-w-8 h-8 rounded-full text-xs font-semibold transition-colors ${
                             currentPage === p
                               ? "bg-indigo-600 text-white shadow-2xs"
                               : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
@@ -1544,7 +1544,7 @@ export function FolderBrowser({
                     type="button"
                     onClick={() => handlePageChange(currentPage + 1)}
                     disabled={currentPage >= totalPages - 1}
-                    className="inline-flex items-center gap-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-2.5 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-750 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    className="inline-flex items-center gap-1 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-2.5 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-750 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                     aria-label="Next page"
                   >
                     <span className="hidden sm:inline">Next</span>

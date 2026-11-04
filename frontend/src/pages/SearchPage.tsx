@@ -126,7 +126,7 @@ export function SearchPage() {
             className="w-full bg-transparent text-sm text-gray-900 placeholder-gray-400 outline-none dark:text-white"
           />
         </div>
-        <button type="submit" className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-indigo-700">
+        <button type="submit" className="rounded-full bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-indigo-700">
           Search
         </button>
       </form>
@@ -188,12 +188,12 @@ export function SearchPage() {
             </ul>
             {results.totalPages > 1 && (
               <div className="mt-5 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                <button type="button" onClick={() => goToPage(page - 1)} disabled={page === 0} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5 font-medium disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700">
+                <button type="button" onClick={() => goToPage(page - 1)} disabled={page === 0} className="inline-flex items-center gap-1 rounded-full border border-gray-200 px-2.5 py-1.5 font-medium disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700">
                   <ChevronLeft className="h-3.5 w-3.5" />
                   Previous
                 </button>
                 <span>Page {page + 1} of {results.totalPages}</span>
-                <button type="button" onClick={() => goToPage(page + 1)} disabled={page >= results.totalPages - 1} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5 font-medium disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700">
+                <button type="button" onClick={() => goToPage(page + 1)} disabled={page >= results.totalPages - 1} className="inline-flex items-center gap-1 rounded-full border border-gray-200 px-2.5 py-1.5 font-medium disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700">
                   Next
                   <ChevronRight className="h-3.5 w-3.5" />
                 </button>
@@ -234,11 +234,11 @@ function ResultRow({ result, onOpenFolder, onDownload }: { result: SearchResult;
         )}
       </div>
       <div className="flex shrink-0 items-center gap-1.5">
-        <button type="button" onClick={onOpenFolder} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">
+        <button type="button" onClick={onOpenFolder} className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">
           <FolderOpen className="h-3.5 w-3.5" />
           Open folder
         </button>
-        <button type="button" onClick={onDownload} aria-label={`Download ${result.fileName}`} title="Download" className="rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-indigo-600 dark:hover:bg-gray-800">
+        <button type="button" onClick={onDownload} aria-label={`Download ${result.fileName}`} title="Download" className="rounded-full p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-indigo-600 dark:hover:bg-gray-800">
           <Download className="h-4 w-4" />
         </button>
       </div>

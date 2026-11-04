@@ -174,7 +174,7 @@ export function Header() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 w-full bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border-b border-gray-200/80 dark:border-gray-800/80 shadow-xs transition-colors duration-200">
+      <header className="sticky top-0 z-40 w-full bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 transition-colors duration-200">
         <div className="w-full px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           {/* Left: Brand / Logo */}
           <div className="flex items-center gap-8">
@@ -187,10 +187,10 @@ export function Header() {
                 <LogoIcon className="w-8 h-8 drop-shadow-xs" />
               </div>
               <div className="flex items-baseline gap-1.5">
-                <span className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">
-                  Docket
+                <span className="text-[22px] font-extrabold tracking-tight text-indigo-500">
+                  docket
                 </span>
-                <span className="hidden sm:inline-block text-[10px] font-semibold tracking-wider uppercase px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 border border-indigo-200/50 dark:border-indigo-800/50">
+                <span className="hidden sm:inline-block text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400">
                   Cloud
                 </span>
               </div>
@@ -260,7 +260,7 @@ export function Header() {
                         <Link
                           to="/tenants"
                           onClick={() => setTenantMenuPath(null)}
-                          className="block rounded-lg px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+                          className="block rounded-full px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
                         >
                           View all tenants
                         </Link>
@@ -282,7 +282,7 @@ export function Header() {
                     <Link
                       to={`/workspace/${encodeURIComponent(routeSlug)}/search`}
                       aria-label="Search"
-                      className="p-2 rounded-xl text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-800 md:hidden"
+                      className="p-2 rounded-full text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-800 md:hidden"
                     >
                       <Search className="w-5 h-5" />
                     </Link>
@@ -295,7 +295,7 @@ export function Header() {
                 <button
                   type="button"
                   onClick={toggleMenu}
-                  className="p-2 rounded-xl text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
+                  className="p-2 rounded-full text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
                   aria-label={isMenuOpen ? "Close menu" : "Open menu"}
                   aria-expanded={isMenuOpen}
                 >
@@ -312,13 +312,13 @@ export function Header() {
                 <div className="hidden sm:flex items-center gap-2">
                   <Link
                     to="/login"
-                    className="px-3.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white rounded-lg hover:bg-gray-100/70 dark:hover:bg-gray-800/60 transition-colors"
+                    className="px-3.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white rounded-full hover:bg-gray-100/70 dark:hover:bg-gray-800/60 transition-colors"
                   >
                     Log in
                   </Link>
                   <Link
                     to="/register"
-                    className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition-colors"
+                    className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-full shadow-sm transition-colors"
                   >
                     Register
                   </Link>
@@ -328,7 +328,7 @@ export function Header() {
                 <button
                   type="button"
                   onClick={toggleMenu}
-                  className="sm:hidden p-2 rounded-xl text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
+                  className="sm:hidden p-2 rounded-full text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
                   aria-label="Open menu"
                   aria-expanded={isMenuOpen}
                 >
@@ -382,7 +382,7 @@ export function Header() {
                   <button
                     type="button"
                     onClick={closeMenu}
-                    className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                    className="p-1.5 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                     aria-label="Close menu"
                   >
                     <CloseIcon className="w-5 h-5" />
@@ -393,7 +393,7 @@ export function Header() {
                 {isAuthenticated && (
                   <div className="p-6 border-b border-gray-100 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-800/40">
                     <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-indigo-600 via-indigo-500 to-violet-500 flex items-center justify-center text-white text-lg font-bold shadow-sm">
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-indigo-600 via-indigo-500 to-amber-400 flex items-center justify-center text-white text-lg font-bold shadow-sm">
                         {initial}
                       </div>
                       <div className="min-w-0 flex-1">

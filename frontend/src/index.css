@@ -1,21 +1,69 @@
 @import "tailwindcss";
 
+/*
+ * Reddit-inspired palette. Components use Tailwind's stock `gray` and
+ * `indigo` classes, so redefining those two scales repaints the whole app:
+ * `indigo` is the orangered accent, `gray` the cool blue-gray neutrals.
+ */
+@theme {
+  --font-sans: "Reddit Sans", "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --color-indigo-50: #fff2ec;
+  --color-indigo-100: #ffe1d3;
+  --color-indigo-200: #ffc3a6;
+  --color-indigo-300: #ff9b6d;
+  --color-indigo-400: #ff6c36;
+  --color-indigo-500: #ff4500;
+  --color-indigo-600: #d93900;
+  --color-indigo-700: #ae2c00;
+  --color-indigo-800: #862300;
+  --color-indigo-900: #5c1900;
+  --color-indigo-950: #351003;
+
+  --color-gray-50: #f6f8f9;
+  --color-gray-100: #eaedef;
+  --color-gray-200: #dbe2e6;
+  --color-gray-300: #b7cad4;
+  --color-gray-400: #8ba2ad;
+  --color-gray-500: #5c6f77;
+  --color-gray-600: #46565d;
+  --color-gray-700: #333d42;
+  --color-gray-800: #1f2d32;
+  --color-gray-900: #131f23;
+  --color-gray-950: #0b1416;
+
+  /* Reddit's link/secondary blue, used for the few `blue-*` accents. */
+  --color-blue-500: #0079d3;
+  --color-blue-600: #0045ac;
+  --color-blue-400: #648efc;
+}
+
 :root {
-  --color-ink: #1C1B18;
-  --color-paper: #FAF8F4;
-  --color-vault: #2B3A4A;
-  --color-vault-hover: #233040;
-  --color-seal: #A6472E;
-  --color-line: #E4DFD5;
-  --color-muted: #6B655C;
-  --color-success: #3D6B47;
-  --color-danger: #9B3B34;
-  --color-warning: #8A6A1F;
+  --color-ink: var(--color-gray-900);
+  --color-paper: #ffffff;
+  --color-vault: var(--color-indigo-600);
+  --color-vault-hover: var(--color-indigo-700);
+  --color-seal: var(--color-indigo-500);
+  --color-line: var(--color-gray-100);
+  --color-muted: var(--color-gray-500);
+  --color-success: #008a10;
+  --color-danger: #c4250a;
+  --color-warning: #a36b00;
 
-  --sans: 'Inter', 'Public Sans', system-ui, sans-serif;
-  --heading: 'DM Sans', 'Outfit', 'Inter', system-ui, sans-serif;
+  --sans: var(--font-sans);
+  --heading: var(--font-sans);
 
-  color-scheme: light;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-ink: var(--color-gray-100);
+    --color-paper: var(--color-gray-950);
+    --color-line: var(--color-gray-800);
+    --color-muted: var(--color-gray-400);
+    --color-vault: var(--color-indigo-400);
+  }
 }
 
 body {
@@ -29,6 +77,12 @@ body {
 
 h1, h2, h3, .heading {
   font-family: var(--heading);
+  letter-spacing: -0.01em;
+}
+
+::selection {
+  background-color: var(--color-indigo-200);
+  color: var(--color-gray-950);
 }
 
 #root {

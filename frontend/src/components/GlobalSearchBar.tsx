@@ -38,8 +38,8 @@ export function GlobalSearchBar({ slug }: { slug: string }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} role="search" className="hidden items-center gap-2 rounded-xl border border-gray-200 bg-gray-50/70 px-3 py-1.5 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500 dark:border-gray-700 dark:bg-gray-800/50 md:flex">
-      <Search className="h-4 w-4 shrink-0 text-gray-400" />
+    <form onSubmit={handleSubmit} role="search" className="hidden items-center gap-2 rounded-full border border-transparent bg-gray-100 px-4 py-2 transition-colors hover:bg-gray-200/70 focus-within:border-blue-500 focus-within:bg-white dark:bg-gray-800 dark:hover:bg-gray-700/70 dark:focus-within:bg-gray-900 md:flex">
+      <Search className="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400" />
       <input
         ref={inputRef}
         type="search"
@@ -47,9 +47,9 @@ export function GlobalSearchBar({ slug }: { slug: string }) {
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Search documents"
-        className="w-40 bg-transparent text-sm text-gray-900 placeholder-gray-400 outline-none dark:text-white lg:w-64"
+        className="w-40 bg-transparent text-sm text-gray-900 placeholder-gray-500 outline-none dark:text-white dark:placeholder-gray-400 lg:w-72"
       />
-      <kbd className="hidden rounded border border-gray-200 px-1.5 py-0.5 text-[10px] font-medium text-gray-400 dark:border-gray-700 lg:inline">
+      <kbd className="hidden rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-semibold text-gray-500 dark:bg-gray-900/80 dark:text-gray-400 lg:inline">
         {IS_MAC ? "⌘K" : "Ctrl K"}
       </kbd>
     </form>

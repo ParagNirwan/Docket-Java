@@ -101,7 +101,7 @@ export function TraysOverview({
             <button
               type="button"
               onClick={onCreateTrayClick}
-              className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-indigo-700 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 self-start sm:self-auto"
+              className="inline-flex items-center gap-2 rounded-full bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-indigo-700 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 self-start sm:self-auto"
             >
               <Plus className="h-4 w-4" />
               <span>Create Tray</span>
@@ -157,7 +157,7 @@ export function TraysOverview({
             <button
               type="button"
               onClick={onCreateTrayClick}
-              className="mt-5 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-indigo-700 transition-colors"
+              className="mt-5 inline-flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-indigo-700 transition-colors"
             >
               <Plus className="h-4 w-4" />
               <span>Create First Tray</span>
@@ -222,7 +222,7 @@ export function TraysOverview({
                                       : `tray-card-${tray.id}`
                                   )
                                 }
-                                className="p-1 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                                className="p-1 rounded-full text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                                 title="Tray options"
                                 aria-label={`Options for ${tray.name}`}
                               >
@@ -383,7 +383,7 @@ export function TraysOverview({
                               <button
                                 type="button"
                                 onClick={() => onSelectTray(tray.id)}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors font-medium text-xs"
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors font-medium text-xs"
                               >
                                 <span>Open</span>
                                 <ChevronRight className="h-3.5 w-3.5" />
@@ -397,7 +397,7 @@ export function TraysOverview({
                                       name: tray.name,
                                     })
                                   }
-                                  className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
+                                  className="p-1.5 rounded-full text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
                                   title="Delete custom tray"
                                   aria-label={`Delete ${tray.name}`}
                                 >

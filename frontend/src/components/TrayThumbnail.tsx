@@ -14,7 +14,7 @@ export function TrayThumbnail({ tray, className = "" }: TrayThumbnailProps) {
       className={`relative group overflow-hidden rounded-xl border ${
         isTrash
           ? "border-red-200/80 dark:border-red-900/50 bg-gradient-to-br from-red-50 to-rose-50/50 dark:from-red-950/40 dark:to-rose-950/20"
-          : "border-indigo-200/80 dark:border-indigo-900/50 bg-gradient-to-br from-indigo-50 to-blue-50/50 dark:from-indigo-950/40 dark:to-blue-950/20"
+          : "border-indigo-200/80 dark:border-indigo-900/50 bg-gradient-to-br from-indigo-50 to-amber-50/50 dark:from-indigo-950/40 dark:to-amber-950/20"
       } p-4 flex flex-col items-center justify-center select-none transition-all duration-200 ${className}`}
     >
       {/* Tray illustration */}

@@ -21,13 +21,13 @@ export function ViewModeSwitcher({
     <div
       role="group"
       aria-label="View mode selection"
-      className={`inline-flex items-center rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-800/50 p-1 text-xs select-none shadow-2xs ${className}`}
+      className={`inline-flex items-center rounded-full border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-800/50 p-1 text-xs select-none shadow-2xs ${className}`}
     >
       {/* List View */}
       <button
         type="button"
         onClick={() => onChange("list")}
-        className={`flex items-center gap-1.5 rounded-lg transition-all ${
+        className={`flex items-center gap-1.5 rounded-full transition-all ${
           isSm ? "px-2 py-1 text-[11px]" : "px-2.5 py-1.5 text-xs"
         } font-medium ${
           viewMode === "list"
@@ -46,7 +46,7 @@ export function ViewModeSwitcher({
       <button
         type="button"
         onClick={() => onChange("thumbnail")}
-        className={`flex items-center gap-1.5 rounded-lg transition-all ${
+        className={`flex items-center gap-1.5 rounded-full transition-all ${
           isSm ? "px-2 py-1 text-[11px]" : "px-2.5 py-1.5 text-xs"
         } font-medium ${
           viewMode === "thumbnail"
@@ -65,7 +65,7 @@ export function ViewModeSwitcher({
       <button
         type="button"
         onClick={() => onChange("cards")}
-        className={`flex items-center gap-1.5 rounded-lg transition-all ${
+        className={`flex items-center gap-1.5 rounded-full transition-all ${
           isSm ? "px-2 py-1 text-[11px]" : "px-2.5 py-1.5 text-xs"
         } font-medium ${
           viewMode === "cards"

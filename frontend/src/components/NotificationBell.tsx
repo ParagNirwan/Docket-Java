@@ -114,7 +114,7 @@ export function NotificationBell({ token }: { token: string }) {
       <button
         type="button"
         onClick={toggle}
-        className="relative rounded-xl border border-gray-200 p-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:border-gray-800 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white"
+        className="relative rounded-full border border-gray-200 p-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:border-gray-800 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white"
         aria-label={unread > 0 ? `Notifications, ${unread} unread` : "Notifications"}
         aria-haspopup="true"
         aria-expanded={open}
@@ -133,11 +133,11 @@ export function NotificationBell({ token }: { token: string }) {
             <span className="text-sm font-semibold text-gray-900 dark:text-white">Notifications</span>
             <div className="flex items-center gap-1">
               {unread > 0 && (
-                <button type="button" onClick={handleMarkAll} className="rounded-md px-2 py-1 text-xs font-medium text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-950/40">
+                <button type="button" onClick={handleMarkAll} className="rounded-full px-2 py-1 text-xs font-medium text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-950/40">
                   Mark all read
                 </button>
               )}
-              <button type="button" onClick={togglePreferences} aria-label="Notification preferences" aria-expanded={showPreferences} className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200">
+              <button type="button" onClick={togglePreferences} aria-label="Notification preferences" aria-expanded={showPreferences} className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200">
                 <Settings2 className="h-4 w-4" />
               </button>
             </div>

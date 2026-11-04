@@ -410,7 +410,7 @@ export function TenantWorkspace() {
           <button
             type="button"
             onClick={() => setCollapsed((previous) => !previous)}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
             aria-label={collapsed ? "Expand workspace sidebar" : "Collapse workspace sidebar"}
             aria-expanded={!collapsed}
             title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
@@ -457,7 +457,7 @@ export function TenantWorkspace() {
                         <button
                           type="button"
                           onClick={() => setIsCreateTrayModalOpen(true)}
-                          className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-600 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600 dark:text-gray-300 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/60 dark:hover:text-indigo-400 transition-colors"
+                          className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-600 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600 dark:text-gray-300 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/60 dark:hover:text-indigo-400 transition-colors"
                           title="Create new tray"
                           aria-label="Create tray"
                         >
@@ -508,7 +508,7 @@ export function TenantWorkspace() {
           <Link
             to="/tenants"
             title={collapsed ? "All tenants" : undefined}
-            className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white ${collapsed ? "justify-center px-0" : ""}`}
+            className={`flex items-center gap-3 rounded-full px-3 py-2.5 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white ${collapsed ? "justify-center px-0" : ""}`}
           >
             <ArrowLeft className="h-[18px] w-[18px] shrink-0" />
             {!collapsed && <span>All tenants</span>}

@@ -117,10 +117,10 @@ export function ActivityLog({ slug, token }: ActivityLogProps) {
             className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
           />
         </label>
-        <button type="submit" className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-700">
+        <button type="submit" className="rounded-full bg-indigo-600 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-700">
           Apply
         </button>
-        <button type="button" onClick={handleExport} disabled={exporting} className="ml-auto inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">
+        <button type="button" onClick={handleExport} disabled={exporting} className="ml-auto inline-flex items-center gap-2 rounded-full border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">
           <Download className="h-4 w-4" />
           {exporting ? "Exporting..." : "Export CSV"}
         </button>
@@ -165,8 +165,8 @@ export function ActivityLog({ slug, token }: ActivityLogProps) {
       {data && data.totalPages > 1 && (
         <div className="flex items-center justify-end gap-3 text-sm text-gray-600 dark:text-gray-400">
           <span>Page {data.number + 1} of {data.totalPages}</span>
-          <button type="button" onClick={() => setPage(page - 1)} disabled={page === 0} className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">Previous</button>
-          <button type="button" onClick={() => setPage(page + 1)} disabled={page + 1 >= data.totalPages} className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">Next</button>
+          <button type="button" onClick={() => setPage(page - 1)} disabled={page === 0} className="rounded-full border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">Previous</button>
+          <button type="button" onClick={() => setPage(page + 1)} disabled={page + 1 >= data.totalPages} className="rounded-full border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">Next</button>
         </div>
       )}
     </div>

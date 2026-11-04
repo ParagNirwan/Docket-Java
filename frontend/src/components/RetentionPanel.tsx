@@ -105,7 +105,7 @@ export function RetentionPanel({ slug, token, trays, permissions }: RetentionPan
             <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">How long documents in a tray must be kept before they can be deleted.</p>
           </div>
           {canManage && availableTrays.length > 0 && (
-            <button type="button" onClick={() => setEditing("new")} className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-indigo-700">
+            <button type="button" onClick={() => setEditing("new")} className="inline-flex shrink-0 items-center gap-2 rounded-full bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-indigo-700">
               <Plus className="h-4 w-4" />
               Add policy
             </button>
@@ -148,11 +148,11 @@ export function RetentionPanel({ slug, token, trays, permissions }: RetentionPan
                     {canManage && (
                       <td className="px-5 py-3">
                         <div className="flex justify-end gap-1">
-                          <button type="button" onClick={() => setEditing(policy)} aria-label={`Edit the policy on ${policy.folderName}`} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200">
+                          <button type="button" onClick={() => setEditing(policy)} aria-label={`Edit the policy on ${policy.folderName}`} className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200">
                             <Pencil className="h-3.5 w-3.5" />
                           </button>
                           {policy.lockMode !== "COMPLIANCE" && (
-                            <button type="button" onClick={() => setRemoving(policy)} aria-label={`Remove the policy on ${policy.folderName}`} className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40">
+                            <button type="button" onClick={() => setRemoving(policy)} aria-label={`Remove the policy on ${policy.folderName}`} className="rounded-full p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40">
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
                           )}
@@ -250,7 +250,7 @@ function TrashPeriod({ slug, token, days, canManage }: { slug: string; token: st
           <input type="number" min={1} max={3650} required value={value} disabled={!canManage} onChange={(e) => setValue(e.target.value)} className={`${INPUT} w-28`} />
         </label>
         {canManage && (
-          <button type="submit" disabled={saving || Number(value) === days} className="rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50">
+          <button type="submit" disabled={saving || Number(value) === days} className="rounded-full bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50">
             {saving ? "Saving..." : "Save"}
           </button>
         )}
@@ -337,7 +337,7 @@ function PolicyForm({ slug, token, policy, trays, onClose, onSaved }: {
                   aria-pressed={selected}
                   disabled={days < minimumDays}
                   onClick={() => { setCustom(false); setRetentionDays(days); }}
-                  className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${selected ? "border-indigo-600 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300" : "border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"}`}
+                  className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${selected ? "border-indigo-600 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300" : "border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"}`}
                 >
                   {years}y
                 </button>
@@ -347,7 +347,7 @@ function PolicyForm({ slug, token, policy, trays, onClose, onSaved }: {
               type="button"
               aria-pressed={custom}
               onClick={() => setCustom(true)}
-              className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${custom ? "border-indigo-600 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300" : "border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"}`}
+              className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${custom ? "border-indigo-600 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300" : "border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"}`}
             >
               Custom
             </button>
@@ -420,11 +420,11 @@ function PolicyForm({ slug, token, policy, trays, onClose, onSaved }: {
         )}
 
         <div className="flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="rounded-xl border border-gray-200 px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">Cancel</button>
+          <button type="button" onClick={onClose} className="rounded-full border border-gray-200 px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">Cancel</button>
           <button
             type="submit"
             disabled={saving || !folderId || tooShort || (needsConfirmation && confirmName !== trayName)}
-            className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-full bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {saving ? "Saving..." : "Save policy"}
           </button>

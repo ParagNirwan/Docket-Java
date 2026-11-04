@@ -114,7 +114,7 @@ export function LegalHoldsPanel({ slug, token, trays, permissions }: LegalHoldsP
               type="button"
               onClick={startApplying}
               disabled={scope === "tray" ? !selectedTray : !query.trim()}
-              className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-full bg-red-600 px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Plus className="h-4 w-4" />
               Apply hold
@@ -144,11 +144,11 @@ export function LegalHoldsPanel({ slug, token, trays, permissions }: LegalHoldsP
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-1.5">
-                    <button type="button" onClick={() => toggleDocuments(hold)} aria-expanded={expanded?.id === hold.id} className="rounded-lg px-2.5 py-1 text-xs font-medium text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-950/40">
+                    <button type="button" onClick={() => toggleDocuments(hold)} aria-expanded={expanded?.id === hold.id} className="rounded-full px-2.5 py-1 text-xs font-medium text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-950/40">
                       {hold.documentCount} {hold.documentCount === 1 ? "document" : "documents"}
                     </button>
                     {canRelease && !hold.releasedAt && (
-                      <button type="button" onClick={() => setReleasing(hold)} className="rounded-lg border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">
+                      <button type="button" onClick={() => setReleasing(hold)} className="rounded-full border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">
                         Release
                       </button>
                     )}

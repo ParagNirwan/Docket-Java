@@ -44,7 +44,7 @@ export function ItemActionsMenu({ itemName, actions, openUp = false }: ItemActio
       <button
         type="button"
         onClick={() => setOpen((previous) => !previous)}
-        className="p-1 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+        className="p-1 rounded-full text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
         title="More actions"
         aria-label={`More actions for ${itemName}`}
         aria-haspopup="menu"

@@ -112,10 +112,26 @@ jobs:
         run: kubectl apply -f "$RUNNER_TEMP/manifests.yaml"
 
       - name: Wait for backend rollout
-        run: kubectl rollout status deployment/backend -n docket --timeout=300s
+        run: kubectl rollout status deployment/backend -n docket --timeout=600s
 
       - name: Wait for frontend rollout
-        run: kubectl rollout status deployment/frontend -n docket --timeout=120s
+        run: kubectl rollout status deployment/frontend -n docket --timeout=300s
+
+      - name: Debug cluster state on failure
+        if: failure() && steps.deploy.outcome != 'skipped'
+        run: |
+          echo "=== Backend Pod Status ==="
+          kubectl get pods -n docket -l app.kubernetes.io/name=backend -o wide || true
+          echo "=== Backend Pod Description ==="
+          kubectl describe pods -n docket -l app.kubernetes.io/name=backend || true
+          echo "=== Backend Container Logs (Current) ==="
+          kubectl logs deployment/backend -n docket -c backend --tail=100 || true
+          echo "=== Backend Container Logs (Previous) ==="
+          kubectl logs deployment/backend -n docket -c backend --previous --tail=100 || true
+          echo "=== Cloud SQL Proxy Logs ==="
+          kubectl logs deployment/backend -n docket -c cloud-sql-proxy --tail=50 || true
+          echo "=== Recent K8s Events ==="
+          kubectl get events -n docket --sort-by='.lastTimestamp' | tail -n 30 || true
 
       - name: Rollback on failure
         # Only if the cluster was touched: undoing after a failed check would roll back a healthy deploy.

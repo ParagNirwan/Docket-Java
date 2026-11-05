@@ -1,6 +1,6 @@
 package com.docket.app.enums;
 
-// Sharing (#71) and quota warnings (#74) add their own types when they ship.
+// Notifications for events across Docket.
 public enum NotificationType {
     INVITED,
     MEMBER_JOINED,
@@ -9,5 +9,9 @@ public enum NotificationType {
     RETENTION_EXPIRING,
     RETENTION_EXPIRED,
     LEGAL_HOLD_APPLIED,
-    LEGAL_HOLD_RELEASED
+    LEGAL_HOLD_RELEASED,
+    SHARED_DOCUMENT_ACCESSED,
+    STORAGE_QUOTA_WARNING,
+    STORAGE_QUOTA_EXCEEDED
 }
+

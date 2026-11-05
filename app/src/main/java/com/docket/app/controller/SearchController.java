@@ -27,13 +27,14 @@ public class SearchController {
             @RequestParam String q,
             @RequestParam(required = false) String type,
             @RequestParam(required = false) UUID tray,
+            @RequestParam(required = false) UUID tag,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             Authentication authentication
     ) {
-        var filter = new DocumentSearchService.Filter(q, type, tray, from, to);
+        var filter = new DocumentSearchService.Filter(q, type, tray, tag, from, to);
         return ResponseEntity.ok(documentSearchService.search(slug, filter, page, size, authentication));
     }
 }

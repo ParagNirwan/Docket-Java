@@ -18,9 +18,13 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import com.docket.app.enums.ScanStatus;
 
 @Repository
 public interface DocumentRepository extends JpaRepository<Document, UUID> {
+    @Transactional @Modifying
+    @Query("UPDATE Document d SET d.scanStatus = :status, d.fileStatus = :fileStatus WHERE d.id = :id AND d.scanStatus = com.docket.app.enums.ScanStatus.PENDING")
+    int finishScan(@Param("id") UUID id, @Param("status") ScanStatus status, @Param("fileStatus") FileStatus fileStatus);
     String SUBTREE = """
             WITH RECURSIVE subtree AS (
                 SELECT id FROM folders WHERE id = :folderId

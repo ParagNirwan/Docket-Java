@@ -63,11 +63,12 @@ public class DocumentSearchService {
                 folderAccessService.canAccessRestrictedTrays(authentication, tenant.getId()),
                 fileNamePattern,
                 filter.trayId(),
+                filter.tagId(),
                 filter.from(),
                 filter.to());
         return documentSearchRepository.search(criteria, Math.max(page, 0), Math.clamp(size, 1, MAX_PAGE_SIZE));
     }
 
-    public record Filter(String query, String type, UUID trayId, Instant from, Instant to) {
+    public record Filter(String query, String type, UUID trayId, UUID tagId, Instant from, Instant to) {
     }
 }

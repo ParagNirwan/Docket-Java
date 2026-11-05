@@ -159,7 +159,7 @@ public class LegalHoldService {
 
     private List<UUID> searchMatches(UUID tenantId, String query) {
         DocumentSearchRepository.Criteria criteria =
-                new DocumentSearchRepository.Criteria(tenantId, query, true, null, null, null, null);
+                new DocumentSearchRepository.Criteria(tenantId, query, true, null, null, null, null, null);
         Page<SearchResultDTO> first = documentSearchRepository.search(criteria, 0, SEARCH_PAGE_SIZE);
         if (first.getTotalElements() > MAX_SEARCH_DOCUMENTS) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "That search matches too many documents. Narrow it down");

@@ -54,6 +54,7 @@ public class TrashService {
     private final RetentionService retentionService;
     private final AuditService auditService;
     private final ApplicationEventPublisher eventPublisher;
+    private final StorageQuotaService storageQuotaService;
 
     public Page<TrashDocumentDTO> list(String slug, int page, int size, Authentication authentication) {
         Tenant tenant = findTenant(slug);
@@ -213,6 +214,7 @@ public class TrashService {
     private void deleteRowAndFile(Document document) {
         documentRepository.delete(document);
         documentRepository.flush();
+        storageQuotaService.recordUsage(document.getTenantId(), -document.getFileSize(), -1);
         eventPublisher.publishEvent(new StoredFileDeletedEvent(document.getStoredFileName()));
     }
 

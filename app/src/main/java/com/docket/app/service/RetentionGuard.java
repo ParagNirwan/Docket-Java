@@ -23,13 +23,13 @@ import java.util.Set;
 @Service
 @RequiredArgsConstructor
 public class RetentionGuard {
-    public enum Action { DELETE, PURGE, MOVE, RENAME }
+    public enum Action { DELETE, PURGE, MOVE, RENAME, OVERWRITE }
 
     public record Override(boolean requested, String reason) {
         public static final Override NONE = new Override(false, null);
     }
 
-    private static final Set<Action> BLOCKED_WHEN_ARCHIVED = Set.of(Action.MOVE, Action.RENAME);
+    private static final Set<Action> BLOCKED_WHEN_ARCHIVED = Set.of(Action.MOVE, Action.RENAME, Action.OVERWRITE);
     private static final int MAX_REASON_LENGTH = 500;
 
     private final TenantAuthorizationService tenantAuthorizationService;

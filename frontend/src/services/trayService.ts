@@ -794,3 +794,75 @@ export async function getBreadcrumbs(
 
   return chain;
 }
+
+// ─── PHASE 6: CUSTOM TRAY PERMISSIONS & QUOTAS ──────────────────────────
+
+export interface TrayPermissionsDTO {
+  userIds: string[];
+}
+
+export interface TenantUsageDTO {
+  storageBytesUsed: number;
+  storageQuotaBytes: number | null;
+  documentCount: number;
+}
+
+export async function getTrayPermissions(
+  slug: string,
+  trayId: string,
+  token: string,
+): Promise<TrayPermissionsDTO> {
+  const response = await apiFetch(`${API_BASE}/tenants/${encodeURIComponent(slug)}/trays/${trayId}/permissions`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to load tray permissions (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function updateTrayPermissions(
+  slug: string,
+  trayId: string,
+  userIds: string[],
+  token: string,
+): Promise<TrayPermissionsDTO> {
+  const response = await apiFetch(`${API_BASE}/tenants/${encodeURIComponent(slug)}/trays/${trayId}/permissions`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ userIds }),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to update tray permissions (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function getTenantUsage(
+  slug: string,
+  token: string,
+): Promise<TenantUsageDTO> {
+  const response = await apiFetch(`${API_BASE}/tenants/${encodeURIComponent(slug)}/usage`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to load workspace usage (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function updateTenantQuota(
+  slug: string,
+  quotaBytes: number | null,
+  token: string,
+): Promise<TenantUsageDTO> {
+  const response = await apiFetch(`${API_BASE}/tenants/${encodeURIComponent(slug)}/quota`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ quotaBytes }),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to update storage quota (${response.status})`);
+  }
+  return response.json();
+}

@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { TwoFactorSettings } from "./TwoFactorSettings";
 import {
   CloseIcon,
   LogOutIcon,
@@ -187,6 +188,9 @@ export function AccountSettingsModal() {
               </div>
             </div>
           </div>
+
+          {/* Two-Factor Authentication */}
+          <TwoFactorSettings />
         </div>
 
         {/* Footer Actions */}

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, type FormEvent } from "react";
-import { FolderPlus, X, Shield, Users } from "lucide-react";
+import { FolderPlus, X, Shield, Users, UserCheck } from "lucide-react";
 import type { FolderVisibility, CreateTrayRequestDTO } from "../services/trayService";
 
 interface CreateTrayModalProps {
@@ -157,7 +157,7 @@ export function CreateTrayModal({ isOpen, onClose, onSubmit }: CreateTrayModalPr
             <span className="block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-2">
               Visibility & Access
             </span>
-            <div className="grid gap-2.5 sm:grid-cols-2">
+            <div className="grid gap-2.5 sm:grid-cols-3">
               <label
                 className={`relative flex cursor-pointer flex-col rounded-xl border p-3.5 transition-all ${
                   visibility === "ALL_MEMBERS"
@@ -180,7 +180,33 @@ export function CreateTrayModal({ isOpen, onClose, onSubmit }: CreateTrayModalPr
                   </span>
                 </div>
                 <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400 pl-6">
-                  Everyone with workspace membership can see this tray and its contents.
+                  Everyone with workspace membership can see this tray.
+                </p>
+              </label>
+
+              <label
+                className={`relative flex cursor-pointer flex-col rounded-xl border p-3.5 transition-all ${
+                  visibility === "CUSTOM"
+                    ? "border-indigo-600 bg-indigo-50/40 dark:border-indigo-500 dark:bg-indigo-950/30"
+                    : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="visibility"
+                    value="CUSTOM"
+                    checked={visibility === "CUSTOM"}
+                    onChange={() => setVisibility("CUSTOM")}
+                    className="text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <UserCheck className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                  <span className="text-xs font-semibold text-gray-900 dark:text-white">
+                    Custom Access
+                  </span>
+                </div>
+                <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400 pl-6">
+                  Specific members or guests granted access individually.
                 </p>
               </label>
 
@@ -206,7 +232,7 @@ export function CreateTrayModal({ isOpen, onClose, onSubmit }: CreateTrayModalPr
                   </span>
                 </div>
                 <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400 pl-6">
-                  Restricted to Owners and Admins only. Hidden from Members & Managers.
+                  Restricted to Owners and Admins only.
                 </p>
               </label>
             </div>

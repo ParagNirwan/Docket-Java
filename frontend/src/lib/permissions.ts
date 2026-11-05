@@ -24,13 +24,14 @@ export type PermissionCode =
   | "retention.manage"
   | "retention.override";
 
-export type MemberRole = "OWNER" | "ADMIN" | "MANAGER" | "MEMBER";
+export type MemberRole = "OWNER" | "ADMIN" | "MANAGER" | "MEMBER" | "GUEST";
 
 export const ROLE_LABELS: Record<MemberRole, string> = {
   OWNER: "Owner",
   ADMIN: "Admin",
   MANAGER: "Manager",
   MEMBER: "Member",
+  GUEST: "Guest",
 };
 
 // The roles this person can give out or manage, for showing the right controls. Keep in
@@ -38,11 +39,11 @@ export const ROLE_LABELS: Record<MemberRole, string> = {
 export function assignableRoles(actorRole: MemberRole | undefined): MemberRole[] {
   switch (actorRole) {
     case "OWNER":
-      return ["ADMIN", "MANAGER", "MEMBER"];
+      return ["ADMIN", "MANAGER", "MEMBER", "GUEST"];
     case "ADMIN":
-      return ["MANAGER", "MEMBER"];
+      return ["MANAGER", "MEMBER", "GUEST"];
     case "MANAGER":
-      return ["MEMBER"];
+      return ["MEMBER", "GUEST"];
     default:
       return [];
   }

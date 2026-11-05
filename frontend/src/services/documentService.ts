@@ -56,6 +56,26 @@ export interface DocumentDTO {
   lockMode?: LockMode | null;
   legalHold?: boolean;
   archivedAt?: string | null;
+  version?: number;
+  scanStatus?: "PENDING" | "CLEAN" | "INFECTED" | "FAILED";
+  tags?: Array<{ id: string; name: string; color?: string | null }>;
+  metadata?: Record<string, unknown>;
+}
+
+export interface DocumentVersionDTO {
+  id: string;
+  version: number;
+  fileSize: number;
+  contentType: string;
+  uploadedBy: string;
+  createdAt: string;
+  comment?: string | null;
+}
+
+export interface BulkOperationResultDTO {
+  succeeded: number;
+  failed: number;
+  errors: string[];
 }
 
 // A 423 from the server: says what's protecting the document.
@@ -578,6 +598,170 @@ export async function copyDocument(
       404: "That document or folder is no longer available",
     };
     throw new Error(messages[response.status] ?? `Failed to copy document (${response.status})`);
+  }
+  return response.json();
+}
+
+// ─── PHASE 6: VERSIONS, PREVIEWS & BULK ACTIONS ─────────────────────────
+
+export async function getDocumentVersions(
+  slug: string,
+  docId: string,
+  token: string,
+): Promise<DocumentVersionDTO[]> {
+  const response = await apiFetch(`${API_BASE}/tenants/${encodeURIComponent(slug)}/documents/${docId}/versions`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to load versions (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function uploadDocumentVersion(
+  slug: string,
+  docId: string,
+  file: File,
+  comment: string | undefined,
+  token: string,
+): Promise<DocumentVersionDTO> {
+  const formData = new FormData();
+  formData.append("file", file);
+  if (comment) {
+    formData.append("comment", comment);
+  }
+  const response = await apiFetch(`${API_BASE}/tenants/${encodeURIComponent(slug)}/documents/${docId}/versions`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  });
+  if (!response.ok) {
+    if (response.status === 423) {
+      throw await DocumentLockedError.from(response);
+    }
+    if (response.status === 413) {
+      throw new Error("Storage quota exceeded. Please contact your organization admin.");
+    }
+    throw new Error(`Failed to upload new version (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function restoreDocumentVersion(
+  slug: string,
+  docId: string,
+  version: number,
+  token: string,
+): Promise<DocumentVersionDTO> {
+  const response = await apiFetch(`${API_BASE}/tenants/${encodeURIComponent(slug)}/documents/${docId}/versions/${version}/restore`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) {
+    if (response.status === 423) {
+      throw await DocumentLockedError.from(response);
+    }
+    throw new Error(`Failed to restore version (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function previewDocument(
+  slug: string,
+  docId: string,
+  token: string,
+): Promise<{ blob: Blob; contentType: string }> {
+  const response = await apiFetch(`${API_BASE}/tenants/${encodeURIComponent(slug)}/documents/${docId}/preview`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to preview document (${response.status})`);
+  }
+  const contentType = response.headers.get("content-type") || "application/octet-stream";
+  const blob = await response.blob();
+  return { blob, contentType };
+}
+
+export async function previewDocumentVersion(
+  slug: string,
+  docId: string,
+  version: number,
+  token: string,
+): Promise<{ blob: Blob; contentType: string }> {
+  const response = await apiFetch(`${API_BASE}/tenants/${encodeURIComponent(slug)}/documents/${docId}/versions/${version}/preview`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to preview version (${response.status})`);
+  }
+  const contentType = response.headers.get("content-type") || "application/octet-stream";
+  const blob = await response.blob();
+  return { blob, contentType };
+}
+
+export async function bulkDeleteDocuments(
+  slug: string,
+  documentIds: string[],
+  token: string,
+): Promise<BulkOperationResultDTO> {
+  const response = await apiFetch(`${API_BASE}/tenants/${encodeURIComponent(slug)}/documents/bulk-delete`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ documentIds }),
+  });
+  if (!response.ok) {
+    throw new Error(`Bulk delete failed (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function bulkMoveDocuments(
+  slug: string,
+  documentIds: string[],
+  targetFolderId: string,
+  token: string,
+): Promise<BulkOperationResultDTO> {
+  const response = await apiFetch(`${API_BASE}/tenants/${encodeURIComponent(slug)}/documents/bulk-move`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ documentIds, targetFolderId }),
+  });
+  if (!response.ok) {
+    throw new Error(`Bulk move failed (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function bulkArchiveDocuments(
+  slug: string,
+  documentIds: string[],
+  token: string,
+): Promise<BulkOperationResultDTO> {
+  const response = await apiFetch(`${API_BASE}/tenants/${encodeURIComponent(slug)}/documents/bulk-archive`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ documentIds }),
+  });
+  if (!response.ok) {
+    throw new Error(`Bulk archive failed (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function bulkTagDocuments(
+  slug: string,
+  documentIds: string[],
+  tagIdsToAdd: string[],
+  tagIdsToRemove: string[],
+  token: string,
+): Promise<BulkOperationResultDTO> {
+  const response = await apiFetch(`${API_BASE}/tenants/${encodeURIComponent(slug)}/documents/bulk-tag`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ documentIds, tagIdsToAdd, tagIdsToRemove }),
+  });
+  if (!response.ok) {
+    throw new Error(`Bulk tag failed (${response.status})`);
   }
   return response.json();
 }

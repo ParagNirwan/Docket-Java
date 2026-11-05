@@ -45,14 +45,14 @@ spec:
               cpu: "250m"
             limits:
               memory: "1536Mi"
-              cpu: "500m"
+              cpu: "1000m"
           startupProbe:
             httpGet:
               path: /actuator/health/liveness
               port: 8080
             initialDelaySeconds: 30
             periodSeconds: 10
-            failureThreshold: 24
+            failureThreshold: 36
           livenessProbe:
             httpGet:
               path: /actuator/health/liveness

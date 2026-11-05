@@ -14,6 +14,7 @@ import com.docket.app.entity.Folder;
 import com.docket.app.repository.FolderRepository;
 import com.docket.app.repository.TenantMembershipRepository;
 import com.docket.app.repository.TenantRepository;
+import com.docket.app.repository.TrayPermissionRepository;
 import com.docket.app.repository.UserRepository;
 import com.docket.app.service.email.EmailOutboxService;
 import com.docket.app.service.email.EmailTemplate;
@@ -75,6 +76,12 @@ class TenantServiceTest {
 
     @Mock
     private EmailOutboxService emailOutboxService;
+
+    @Mock
+    private FolderAccessService folderAccessService;
+
+    @Mock
+    private TrayPermissionRepository trayPermissionRepository;
 
     @InjectMocks
     private TenantService tenantService;
@@ -209,9 +216,13 @@ class TenantServiceTest {
         tenant.setId(UUID.randomUUID());
         Folder openTray = trayWithVisibility(Visibility.ALL_MEMBERS);
         when(tenantRepository.findBySlug("acme")).thenReturn(Optional.of(tenant));
-        when(tenantAuthorizationService.getMembershipRole(authentication, tenant.getId())).thenReturn(Roles.MEMBER);
+        Folder adminOnlyTray = trayWithVisibility(Visibility.ADMIN_ONLY);
+        Folder customTray = trayWithVisibility(Visibility.CUSTOM);
         when(folderRepository.findByTenantIdAndIsTrayIsTrue(tenant.getId())).thenReturn(new ArrayList<>(List.of(
-                openTray, trayWithVisibility(Visibility.ADMIN_ONLY), trayWithVisibility(Visibility.CUSTOM))));
+                openTray, adminOnlyTray, customTray)));
+        when(folderAccessService.canAccessTray(authentication, tenant.getId(), openTray)).thenReturn(true);
+        when(folderAccessService.canAccessTray(authentication, tenant.getId(), adminOnlyTray)).thenReturn(false);
+        when(folderAccessService.canAccessTray(authentication, tenant.getId(), customTray)).thenReturn(false);
 
         assertEquals(List.of(openTray), tenantService.getTenantTrays("acme", authentication));
     }

@@ -75,8 +75,14 @@ public class RolePermissions {
                     Permission.FOLDERS_UPDATE
             ),
 
-            // Member — the most basic role. Can only view the org and read documents.
+            // Member — the basic role. Can only view the org and read documents.
             Roles.MEMBER, Set.of(
+                    Permission.TENANT_READ,
+                    Permission.DOCUMENTS_READ
+            ),
+
+            // Guest — external user. Can only read documents in specifically shared custom trays.
+            Roles.GUEST, Set.of(
                     Permission.TENANT_READ,
                     Permission.DOCUMENTS_READ
             )
@@ -106,9 +112,9 @@ public class RolePermissions {
     // "Can this person assign someone else to a given role?"
     // Rules: Nobody can make someone an Owner (that's a special transfer).
     //        Owners can assign any other role.
-    //        Admins can only set people to Manager or Member.
-    //        Managers can only invite Members (they can't change an existing member's role).
-    //        Members can't assign anything.
+    //        Admins can only set people to Manager, Member or Guest.
+    //        Managers can only invite Members and Guests (they can't change an existing member's role).
+    //        Members and Guests can't assign anything.
     public static boolean canAssignRole(Roles actorRole, Roles targetRole) {
         if (actorRole == null || targetRole == null || targetRole == Roles.OWNER) {
             return false;
@@ -116,9 +122,9 @@ public class RolePermissions {
 
         return switch (actorRole) {
             case OWNER -> true;
-            case ADMIN -> targetRole == Roles.MANAGER || targetRole == Roles.MEMBER;
-            case MANAGER -> targetRole == Roles.MEMBER;
-            case MEMBER -> false;
+            case ADMIN -> targetRole == Roles.MANAGER || targetRole == Roles.MEMBER || targetRole == Roles.GUEST;
+            case MANAGER -> targetRole == Roles.MEMBER || targetRole == Roles.GUEST;
+            case MEMBER, GUEST -> false;
         };
     }
 }

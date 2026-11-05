@@ -4,6 +4,8 @@ import com.docket.app.entity.Folder;
 import com.docket.app.enums.Roles;
 import com.docket.app.enums.Visibility;
 import com.docket.app.repository.FolderRepository;
+import com.docket.app.repository.TrayPermissionRepository;
+import com.docket.app.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -20,23 +22,45 @@ import java.util.UUID;
 public class FolderAccessService {
     private final TenantAuthorizationService tenantAuthorizationService;
     private final FolderRepository folderRepository;
+    private final UserRepository userRepository;
+    private final TrayPermissionRepository trayPermissionRepository;
 
-    // Owners and Admins see everything. Everyone else only sees ALL_MEMBERS trays.
-    // CUSTOM trays have no sharing rules yet (#62), so they stay restricted for now.
+    // Owners and Admins see everything. Guests only see trays explicitly shared with them.
+    // Everyone else sees ALL_MEMBERS trays.
     public static boolean isVisibleTo(Roles role, Visibility trayVisibility) {
-        return role == Roles.OWNER || role == Roles.ADMIN || trayVisibility == Visibility.ALL_MEMBERS;
+        if (role == Roles.OWNER || role == Roles.ADMIN) {
+            return true;
+        }
+        if (role == Roles.GUEST) {
+            return false;
+        }
+        return trayVisibility == Visibility.ALL_MEMBERS;
+    }
+
+    public boolean canAccessTray(Authentication authentication, UUID tenantId, Folder tray) {
+        Roles role = tenantAuthorizationService.getMembershipRole(authentication, tenantId);
+        if (role == Roles.OWNER || role == Roles.ADMIN) {
+            return true;
+        }
+        if (tray.getVisibility() == Visibility.ALL_MEMBERS) {
+            return role != Roles.GUEST;
+        }
+        if (tray.getVisibility() == Visibility.CUSTOM) {
+            return userRepository.findByEmailIgnoreCase(authentication.getName())
+                    .map(user -> trayPermissionRepository.existsByTrayIdAndUserId(tray.getId(), user.getId()))
+                    .orElse(false);
+        }
+        return false;
     }
 
     // "Can this person see inside this folder or tray?"
     // A folder that doesn't exist or belongs to another organization is a "no".
     public boolean canAccessFolder(Authentication authentication, UUID tenantId, UUID folderId) {
-        Roles role = tenantAuthorizationService.getMembershipRole(authentication, tenantId);
-
         return findFolder(tenantId, folderId)
                 .flatMap(folder -> folder.getRootTrayId() == null
                         ? Optional.of(folder)
                         : findFolder(tenantId, folder.getRootTrayId()))
-                .map(tray -> isVisibleTo(role, tray.getVisibility()))
+                .map(tray -> canAccessTray(authentication, tenantId, tray))
                 .orElse(false);
     }
 

@@ -8,6 +8,7 @@ import com.docket.app.entity.User;
 import com.docket.app.enums.AuditAction;
 import com.docket.app.enums.FileStatus;
 import com.docket.app.enums.Permission;
+import com.docket.app.enums.ScanStatus;
 import com.docket.app.repository.DocumentRepository;
 import com.docket.app.repository.TenantRepository;
 import com.docket.app.repository.UserRepository;
@@ -85,6 +86,12 @@ class DocumentServiceTest {
     @Mock
     private TrashService trashService;
 
+    @Mock
+    private com.docket.app.repository.DocumentVersionRepository documentVersionRepository;
+
+    @Mock
+    private StorageQuotaService storageQuotaService;
+
     @InjectMocks
     private DocumentService documentService;
 
@@ -107,6 +114,7 @@ class DocumentServiceTest {
         document.setFolderId(folderId);
         document.setFileStatus(FileStatus.ACTIVE);
         document.setStoredFileName("stored.pdf");
+        document.setFileSize(1024L);
     }
 
     private void folderIsHidden() {
@@ -172,6 +180,16 @@ class DocumentServiceTest {
         when(storageService.retrieve("stored.pdf")).thenReturn(new ByteArrayInputStream(new byte[]{1}));
 
         assertSame(document, documentService.downloadDocument(SLUG, document.getId(), authentication).document());
+    }
+
+    @Test
+    void downloadDocument_pendingScan_isUnavailableAndReadsNoFile() {
+        documentExists();
+        document.setScanStatus(ScanStatus.PENDING);
+        when(folderAccessService.canAccessFolder(authentication, tenantId, folderId)).thenReturn(true);
+
+        assertStatus(HttpStatus.LOCKED, () -> documentService.downloadDocument(SLUG, document.getId(), authentication));
+        verifyNoInteractions(storageService);
     }
 
     private void renamableDocument() {

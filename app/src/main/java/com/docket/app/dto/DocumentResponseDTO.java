@@ -28,5 +28,9 @@ public class DocumentResponseDTO {
     private LockMode lockMode;
     private boolean legalHold;
     private Instant archivedAt;
+    private Integer version;
+    private com.docket.app.enums.ScanStatus scanStatus;
+    private java.util.List<TagDTO> tags;
+    private java.util.Map<String, Object> metadata;
 
 }

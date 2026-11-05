@@ -8,6 +8,7 @@ import com.docket.app.entity.Tenant;
 import com.docket.app.entity.User;
 import com.docket.app.enums.AuditAction;
 import com.docket.app.enums.FileStatus;
+import com.docket.app.enums.ScanStatus;
 import com.docket.app.enums.Permission;
 import com.docket.app.repository.DocumentRepository;
 import com.docket.app.repository.TenantRepository;
@@ -54,6 +55,11 @@ public class DocumentService {
     private final RetentionGuard retentionGuard;
     private final RetentionService retentionService;
     private final TrashService trashService;
+    private final com.docket.app.repository.DocumentVersionRepository documentVersionRepository;
+    private final StorageQuotaService storageQuotaService;
+
+    @org.springframework.beans.factory.annotation.Value("${docket.scanner.callback-token:}")
+    private String scannerCallbackToken;
 
     // These are the file types users are allowed to upload.
     // Anything not on this list will be rejected.
@@ -102,6 +108,7 @@ public class DocumentService {
 
         // Step 2: Validate the file (not empty, within size limit, allowed type)
         validateFile(file);
+        storageQuotaService.assertQuota(tenant.getId(), file.getSize());
 
         // Step 3: Figure out who is uploading (we need their user ID)
         User uploader = userRepository.findByEmailIgnoreCase(authentication.getName())
@@ -124,6 +131,8 @@ public class DocumentService {
         }
 
         // Step 6: Create a database record for this document
+        boolean autoClean = (scannerCallbackToken == null || scannerCallbackToken.isBlank());
+
         Document document = new Document();
         document.setTenantId(tenant.getId());
         document.setFolderId(folderId);
@@ -133,15 +142,26 @@ public class DocumentService {
         document.setContentType(file.getContentType());
         document.setFileSize(file.getSize());
         document.setChecksumSha256(checksum);
-        document.setFileStatus(FileStatus.ACTIVE);
+        if (autoClean) {
+            document.setScanStatus(ScanStatus.CLEAN);
+            document.setScannedAt(Instant.now());
+            document.setFileStatus(FileStatus.ACTIVE);
+        } else {
+            document.setScanStatus(ScanStatus.PENDING);
+            document.setFileStatus(FileStatus.UPLOADING);
+        }
         document.setVersion(1);
         document.setCreatedAt(Instant.now());
         document.setUpdatedAt(Instant.now());
         retentionService.applyOnEntry(document, folderId);
 
         Document saved = documentRepository.save(document);
+        storageQuotaService.recordUsage(tenant.getId(), file.getSize(), 1);
 
-        eventPublisher.publishEvent(new DocumentUploadedEvent(saved.getId(), saved.getTenantId()));
+        if (autoClean) {
+            eventPublisher.publishEvent(new DocumentUploadedEvent(saved.getId(), saved.getTenantId()));
+        }
+
         auditService.record(tenant.getId(), uploader.getId(), AuditAction.DOCUMENT_UPLOADED, "DOCUMENT", saved.getId(),
                 Map.of("fileName", originalFilename));
 
@@ -198,6 +218,9 @@ public class DocumentService {
         if (document.getFileStatus() != FileStatus.ACTIVE) {
             throw new ResponseStatusException(HttpStatus.GONE, "This document has been deleted");
         }
+        if (document.getScanStatus() != null && document.getScanStatus() != ScanStatus.CLEAN) {
+            throw new ResponseStatusException(HttpStatus.LOCKED, "This document is awaiting a security scan");
+        }
 
         InputStream stream = storageService.retrieve(document.getStoredFileName());
         Resource resource = new InputStreamResource(stream);
@@ -206,6 +229,124 @@ public class DocumentService {
                 Map.of("fileName", String.valueOf(document.getOriginalFileName())));
 
         return new DocumentDownload(resource, document);
+    }
+    public java.util.List<com.docket.app.dto.DocumentVersionDTO> getVersions(String slug, UUID id, Authentication auth) {
+        Tenant tenant=findTenantOrThrow(slug); tenantAuthorizationService.requirePermission(auth, tenant.getId(), Permission.DOCUMENTS_READ); findAccessibleDocumentOrThrow(id,tenant.getId(),auth);
+        return documentVersionRepository.findByDocumentIdOrderByVersionDesc(id).stream().map(v->new com.docket.app.dto.DocumentVersionDTO(v.getId(),v.getVersion(),v.getFileSize(),v.getContentType(),v.getUploadedBy(),v.getCreatedAt(),v.getComment())).toList();
+    }
+    public DocumentDownload downloadVersion(String slug, UUID id, int version, Authentication auth) {
+        Tenant tenant=findTenantOrThrow(slug); tenantAuthorizationService.requirePermission(auth,tenant.getId(),Permission.DOCUMENTS_READ);
+        Document head=findAccessibleDocumentOrThrow(id,tenant.getId(),auth);
+        var v=documentVersionRepository.findByDocumentIdAndVersion(id,version).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Version not found"));
+        if (v.getScanStatus()!=ScanStatus.CLEAN) throw new ResponseStatusException(HttpStatus.LOCKED,"This version is awaiting a security scan");
+        Document historical=new Document(); historical.setOriginalFileName(head.getOriginalFileName()); historical.setStoredFileName(v.getStoredFileName()); historical.setContentType(v.getContentType()); historical.setFileSize(v.getFileSize());
+        return new DocumentDownload(new InputStreamResource(storageService.retrieve(v.getStoredFileName())),historical);
+    }
+    @Transactional
+    public com.docket.app.dto.DocumentVersionDTO uploadVersion(String slug, UUID id, MultipartFile file, String comment, Authentication auth) {
+        Tenant tenant = findTenantOrThrow(slug);
+        tenantAuthorizationService.requirePermission(auth, tenant.getId(), Permission.DOCUMENTS_UPDATE);
+        Document head = findActiveDocumentOrThrow(id, tenant.getId(), auth);
+        retentionGuard.assertMutable(head, RetentionGuard.Action.OVERWRITE, RetentionGuard.Override.NONE, auth);
+        validateFile(file);
+        storageQuotaService.assertQuota(tenant.getId(), file.getSize());
+
+        User actor = userRepository.findByEmailIgnoreCase(auth.getName())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        int number = (head.getVersion() != null ? head.getVersion() : 1) + 1;
+        String stored = buildStoragePath(tenant.getId(), UUID.randomUUID() + getExtension(head.getOriginalFileName()));
+        String checksum;
+        try {
+            checksum = storeWithChecksum(file.getInputStream(), stored, file.getContentType());
+        } catch (IOException e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to read uploaded file");
+        }
+
+        boolean autoClean = (scannerCallbackToken == null || scannerCallbackToken.isBlank());
+
+        com.docket.app.entity.DocumentVersion v = new com.docket.app.entity.DocumentVersion();
+        v.setDocumentId(id);
+        v.setVersion(number);
+        v.setStoredFileName(stored);
+        v.setFileSize(file.getSize());
+        v.setChecksumSha256(checksum);
+        v.setContentType(file.getContentType());
+        v.setUploadedBy(actor.getId());
+        v.setCreatedAt(Instant.now());
+        v.setComment(comment == null ? null : comment.trim());
+        v.setScanStatus(autoClean ? ScanStatus.CLEAN : ScanStatus.PENDING);
+        if (autoClean) {
+            v.setScannedAt(Instant.now());
+        }
+        documentVersionRepository.save(v);
+        storageQuotaService.recordUsage(tenant.getId(), file.getSize(), 0);
+
+        if (autoClean) {
+            if (documentVersionRepository.findByDocumentIdAndVersion(head.getId(), head.getVersion()).isEmpty()) {
+                com.docket.app.entity.DocumentVersion previous = new com.docket.app.entity.DocumentVersion();
+                previous.setDocumentId(head.getId());
+                previous.setVersion(head.getVersion());
+                previous.setStoredFileName(head.getStoredFileName());
+                previous.setFileSize(head.getFileSize());
+                previous.setChecksumSha256(head.getChecksumSha256());
+                previous.setContentType(head.getContentType());
+                previous.setUploadedBy(head.getUploadedBy());
+                previous.setCreatedAt(head.getUpdatedAt() != null ? head.getUpdatedAt() : head.getCreatedAt());
+                previous.setScanStatus(ScanStatus.CLEAN);
+                previous.setScannedAt(Instant.now());
+                documentVersionRepository.save(previous);
+            }
+            head.setStoredFileName(v.getStoredFileName());
+            head.setFileSize(v.getFileSize());
+            head.setChecksumSha256(v.getChecksumSha256());
+            head.setContentType(v.getContentType());
+            head.setVersion(v.getVersion());
+            head.setUpdatedAt(Instant.now());
+            documentRepository.save(head);
+            eventPublisher.publishEvent(new DocumentUploadedEvent(head.getId(), head.getTenantId()));
+        }
+
+        auditService.record(tenant.getId(), actor.getId(), AuditAction.DOCUMENT_VERSION_UPLOADED, "DOCUMENT", id,
+                Map.of("version", number));
+
+        return new com.docket.app.dto.DocumentVersionDTO(v.getId(), number, v.getFileSize(), v.getContentType(),
+                v.getUploadedBy(), v.getCreatedAt(), v.getComment());
+    }
+    @Transactional
+    public void completeVersionScan(UUID versionId, ScanStatus status) {
+        if (status != ScanStatus.CLEAN && status != ScanStatus.INFECTED && status != ScanStatus.FAILED) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"A scan must have a result");
+        var version=documentVersionRepository.findById(versionId).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Version not found"));
+        if (version.getScanStatus()!=ScanStatus.PENDING) return;
+        version.setScanStatus(status);
+        if (status!=ScanStatus.CLEAN) return;
+        Document head=documentRepository.findById(version.getDocumentId()).orElseThrow();
+        if (head.getVersion() >= version.getVersion()) return;
+        if (documentVersionRepository.findByDocumentIdAndVersion(head.getId(), head.getVersion()).isEmpty()) { com.docket.app.entity.DocumentVersion previous=new com.docket.app.entity.DocumentVersion(); previous.setDocumentId(head.getId()); previous.setVersion(head.getVersion()); previous.setStoredFileName(head.getStoredFileName()); previous.setFileSize(head.getFileSize()); previous.setChecksumSha256(head.getChecksumSha256()); previous.setContentType(head.getContentType()); previous.setUploadedBy(head.getUploadedBy()); previous.setCreatedAt(head.getUpdatedAt()); previous.setScanStatus(ScanStatus.CLEAN); documentVersionRepository.save(previous); }
+        head.setStoredFileName(version.getStoredFileName()); head.setFileSize(version.getFileSize()); head.setChecksumSha256(version.getChecksumSha256()); head.setContentType(version.getContentType()); head.setVersion(version.getVersion()); head.setUpdatedAt(Instant.now()); eventPublisher.publishEvent(new DocumentUploadedEvent(head.getId(),head.getTenantId()));
+    }
+    @Transactional
+    public com.docket.app.dto.DocumentVersionDTO restoreVersion(String slug, UUID id, int version, Authentication auth) {
+        Tenant tenant=findTenantOrThrow(slug); tenantAuthorizationService.requirePermission(auth,tenant.getId(),Permission.DOCUMENTS_UPDATE);
+        Document head=findActiveDocumentOrThrow(id,tenant.getId(),auth); retentionGuard.assertMutable(head, RetentionGuard.Action.OVERWRITE, RetentionGuard.Override.NONE, auth);
+        var source=documentVersionRepository.findByDocumentIdAndVersion(id,version).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Version not found"));
+        if(source.getScanStatus()!=ScanStatus.CLEAN) throw new ResponseStatusException(HttpStatus.LOCKED,"This version is awaiting a security scan");
+        User actor=userRepository.findByEmailIgnoreCase(auth.getName()).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"User not found"));
+        int next=head.getVersion()+1; var restored=new com.docket.app.entity.DocumentVersion(); restored.setDocumentId(id); restored.setVersion(next); restored.setStoredFileName(source.getStoredFileName()); restored.setFileSize(source.getFileSize()); restored.setChecksumSha256(source.getChecksumSha256()); restored.setContentType(source.getContentType()); restored.setUploadedBy(actor.getId()); restored.setCreatedAt(Instant.now()); restored.setComment("Restored from version " + version); restored.setScanStatus(ScanStatus.CLEAN); documentVersionRepository.save(restored);
+        head.setStoredFileName(source.getStoredFileName()); head.setFileSize(source.getFileSize()); head.setChecksumSha256(source.getChecksumSha256()); head.setContentType(source.getContentType()); head.setVersion(next); head.setUpdatedAt(Instant.now()); eventPublisher.publishEvent(new DocumentUploadedEvent(id,head.getTenantId()));
+        auditService.record(tenant.getId(), actor.getId(), AuditAction.DOCUMENT_VERSION_RESTORED, "DOCUMENT", id, Map.of("fromVersion", version, "version", next));
+        return new com.docket.app.dto.DocumentVersionDTO(restored.getId(),next,restored.getFileSize(),restored.getContentType(),actor.getId(),restored.getCreatedAt(),restored.getComment());
+    }
+
+    @Transactional
+    public void completeScan(UUID documentId, ScanStatus status) {
+        if (status == ScanStatus.PENDING) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A scan must have a result");
+        FileStatus fileStatus = status == ScanStatus.CLEAN ? FileStatus.ACTIVE : FileStatus.UPLOADING;
+        if (documentRepository.finishScan(documentId, status, fileStatus) == 0) return;
+        if (status == ScanStatus.CLEAN) {
+            Document document = documentRepository.findById(documentId).orElseThrow();
+            eventPublisher.publishEvent(new DocumentUploadedEvent(documentId, document.getTenantId()));
+        }
     }
 
     // ─── SOFT-DELETE A DOCUMENT ─────────────────────────────────────────
@@ -310,6 +451,8 @@ public class DocumentService {
         User copier = userRepository.findByEmailIgnoreCase(authentication.getName())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
+        storageQuotaService.assertQuota(tenant.getId(), source.getFileSize());
+
         String name = DocumentNames.available(documentRepository, tenant.getId(), folderId, source.getOriginalFileName());
         String storedFilename = buildStoragePath(tenant.getId(), UUID.randomUUID() + getExtension(name));
         String checksum;
@@ -330,11 +473,14 @@ public class DocumentService {
         copy.setFileSize(source.getFileSize());
         copy.setChecksumSha256(checksum);
         copy.setFileStatus(FileStatus.ACTIVE);
+        copy.setScanStatus(ScanStatus.CLEAN);
+        copy.setScannedAt(now);
         copy.setVersion(1);
         copy.setCreatedAt(now);
         copy.setUpdatedAt(now);
         retentionService.applyOnEntry(copy, folderId);
         Document saved = documentRepository.save(copy);
+        storageQuotaService.recordUsage(tenant.getId(), copy.getFileSize(), 1);
 
         eventPublisher.publishEvent(new DocumentUploadedEvent(saved.getId(), saved.getTenantId()));
         auditService.record(tenant.getId(), copier.getId(), AuditAction.DOCUMENT_COPIED, "DOCUMENT", saved.getId(),
@@ -490,6 +636,14 @@ public class DocumentService {
         dto.setLockMode(doc.getLockMode());
         dto.setLegalHold(doc.isLegalHold());
         dto.setArchivedAt(doc.getArchivedAt());
+        dto.setVersion(doc.getVersion());
+        dto.setScanStatus(doc.getScanStatus());
+        dto.setMetadata(doc.getMetadata());
+        if (doc.getTags() != null) {
+            dto.setTags(doc.getTags().stream().map(t -> new com.docket.app.dto.TagDTO(t.getId(), t.getName(), t.getColor())).toList());
+        } else {
+            dto.setTags(java.util.List.of());
+        }
         return dto;
     }
 

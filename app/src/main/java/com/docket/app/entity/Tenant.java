@@ -24,6 +24,7 @@ public class Tenant {
     @Enumerated(EnumType.STRING)
     private TenantStatus status;
     private Integer trashRetentionDays = 30;
+    private Long storageQuotaBytes;
 
     @PrePersist
     void prePersist() {

@@ -66,12 +66,38 @@ public class JwtService {
     // from before versions existed have no claim, and are rejected like stale ones.
     public boolean isTokenValid(String token, UserDetails userDetails) {
         Claims claims = extractAllClaims(token);
+        if (claims.get("purpose") != null) {
+            return false;
+        }
         Integer tokenVersion = claims.get(CLAIM_TOKEN_VERSION, Integer.class);
         return claims.getSubject().equals(userDetails.getUsername())
                 && claims.getExpiration().after(new Date())
                 && userDetails instanceof AuthenticatedUser user
                 && tokenVersion != null
                 && tokenVersion == user.getTokenVersion();
+    }
+
+    public String generateTwoFactorTempToken(User user) {
+        return Jwts.builder()
+                .setSubject(user.getEmail())
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + 5 * 60 * 1000)) // 5 minutes
+                .claim("purpose", "2fa_pending")
+                .claim(CLAIM_TOKEN_VERSION, user.getTokenVersion())
+                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+                .compact();
+    }
+
+    public String validateTwoFactorTempToken(String token) {
+        try {
+            Claims claims = extractAllClaims(token);
+            if (!"2fa_pending".equals(claims.get("purpose", String.class))) {
+                return null;
+            }
+            return claims.getSubject();
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private Claims extractAllClaims(String token) {

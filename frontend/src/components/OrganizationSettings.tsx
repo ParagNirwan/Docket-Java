@@ -3,6 +3,7 @@ import { DangerZone } from "./DangerZone";
 import { LegalHoldsPanel } from "./LegalHoldsPanel";
 import { MembersPanel } from "./MembersPanel";
 import { RetentionPanel } from "./RetentionPanel";
+import { StorageQuotaPanel } from "./StorageQuotaPanel";
 import { hasPermission } from "../lib/permissions";
 import type { Tray } from "../services/trayService";
 
@@ -17,14 +18,18 @@ type OrganizationSettingsProps = {
   onOwnershipTransferred: () => void;
 };
 
-type Tab = "members" | "retention" | "legal-holds" | "danger";
+type Tab = "members" | "storage" | "retention" | "legal-holds" | "danger";
 
 export function OrganizationSettings({ slug, token, tenantName, permissions, trays = [], initialTab, onOwnershipTransferred }: OrganizationSettingsProps) {
   const canSeeMembers = hasPermission(permissions, "members.read");
   const canSeeRetention = hasPermission(permissions, "retention.read");
+  const canManageQuota = hasPermission(permissions, "tenant.update") || hasPermission(permissions, "retention.manage");
+
+  const resolvedInitialTab = initialTab === "general" ? "storage" : initialTab;
 
   const tabs: { id: Tab; label: string }[] = [
     ...(canSeeMembers ? [{ id: "members" as const, label: "Members" }] : []),
+    { id: "storage" as const, label: "Storage & Quotas" },
     ...(canSeeRetention ? [
       { id: "retention" as const, label: "Retention" },
       { id: "legal-holds" as const, label: "Legal holds" },
@@ -33,7 +38,7 @@ export function OrganizationSettings({ slug, token, tenantName, permissions, tra
   ];
 
   const [tab, setTab] = useState<Tab>(
-    tabs.find(({ id }) => id === initialTab)?.id ?? (canSeeMembers ? "members" : "danger"),
+    tabs.find(({ id }) => id === resolvedInitialTab)?.id ?? (canSeeMembers ? "members" : "storage"),
   );
 
   return (
@@ -58,6 +63,7 @@ export function OrganizationSettings({ slug, token, tenantName, permissions, tra
       </div>
 
       {tab === "members" && canSeeMembers && <MembersPanel slug={slug} token={token} permissions={permissions} />}
+      {tab === "storage" && <StorageQuotaPanel slug={slug} token={token} canManageQuota={canManageQuota} />}
       {tab === "retention" && canSeeRetention && <RetentionPanel slug={slug} token={token} trays={trays} permissions={permissions} />}
       {tab === "legal-holds" && canSeeRetention && <LegalHoldsPanel slug={slug} token={token} trays={trays} permissions={permissions} />}
       {tab === "danger" && (

@@ -67,7 +67,7 @@ class DocumentSearchServiceTest {
     }
 
     private DocumentSearchService.Filter filter(String query, String type) {
-        return new DocumentSearchService.Filter(query, type, null, null, null);
+        return new DocumentSearchService.Filter(query, type, null, null, null, null);
     }
 
     private DocumentSearchRepository.Criteria searchedWith() {

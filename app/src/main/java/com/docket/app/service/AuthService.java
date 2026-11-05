@@ -17,6 +17,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -90,7 +93,12 @@ public class AuthService {
         }
     }
 
-    public SessionService.IssuedSession login(LoginRequestDTO loginRequestDTO) {
+    public sealed interface LoginResult permits LoginSuccess, LoginTwoFactorRequired {
+    }
+    public record LoginSuccess(SessionService.IssuedSession session) implements LoginResult {}
+    public record LoginTwoFactorRequired(String tempToken) implements LoginResult {}
+
+    public LoginResult login(LoginRequestDTO loginRequestDTO) {
         String email = normalizeEmail(loginRequestDTO.getEmail());
         String lockoutKey = lockoutKey(email);
 
@@ -112,8 +120,53 @@ public class AuthService {
 
         User user = found.get();
         authRateLimiter.reset(lockoutKey);
+
+        if (user.isTwoFactorEnabled()) {
+            String tempToken = jwtService.generateTwoFactorTempToken(user);
+            return new LoginTwoFactorRequired(tempToken);
+        }
+
         SessionService.IssuedSession session = sessionService.start(user);
         auditService.recordAccountEvent(user.getId(), AuditAction.LOGIN, "USER", user.getId(), null);
+        return new LoginSuccess(session);
+    }
+
+    public SessionService.IssuedSession verify2fa(com.docket.app.dto.TwoFactorVerifyRequestDTO request) {
+        String email = jwtService.validateTwoFactorTempToken(request.tempToken());
+        if (email == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "The verification session has expired. Please sign in again.");
+        }
+
+        User user = userRepository.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+
+        authRateLimiter.check("2fa:" + user.getId(), 5, ONE_MINUTE);
+
+        String code = request.code().trim();
+        boolean valid = false;
+
+        // 1. Check TOTP code
+        if (user.getTwoFactorSecret() != null && com.docket.app.security.TotpUtil.verifyCode(user.getTwoFactorSecret(), code)) {
+            valid = true;
+        }
+
+        // 2. Check backup codes
+        if (!valid && user.getTwoFactorBackupCodes() != null && !user.getTwoFactorBackupCodes().isBlank()) {
+            String hashedInput = com.docket.app.security.TokenHasher.hash(code.toUpperCase());
+            List<String> storedCodes = new java.util.ArrayList<>(java.util.Arrays.asList(user.getTwoFactorBackupCodes().split(",")));
+            if (storedCodes.remove(hashedInput)) {
+                valid = true;
+                user.setTwoFactorBackupCodes(String.join(",", storedCodes));
+                userRepository.save(user);
+            }
+        }
+
+        if (!valid) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid verification code");
+        }
+
+        SessionService.IssuedSession session = sessionService.start(user);
+        auditService.recordAccountEvent(user.getId(), AuditAction.LOGIN, "USER", user.getId(), Map.of("method", "2fa"));
         return session;
     }
 

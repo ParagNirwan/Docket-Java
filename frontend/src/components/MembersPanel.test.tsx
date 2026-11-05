@@ -88,7 +88,7 @@ describe("MembersPanel", () => {
     expect(screen.queryByLabelText("Role for Bob")).toBeNull();
     expect(screen.queryByRole("button", { name: "Remove Bob" })).toBeNull();
     const options = within(screen.getByLabelText("Role for Cleo")).getAllByRole("option").map((o) => o.textContent);
-    expect(options).toEqual(["Manager", "Member"]);
+    expect(options).toEqual(["Manager", "Member", "Guest"]);
   });
 
   it("gives a Manager the invite button but no role or remove controls", async () => {

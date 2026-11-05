@@ -33,6 +33,23 @@ public class Document {
     private Long fileSize;
     private String checksumSha256;
     @Enumerated(EnumType.STRING)
+    private com.docket.app.enums.ScanStatus scanStatus;
+    private Instant scannedAt;
+    private String scanDetail;
+
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb")
+    private java.util.Map<String, Object> metadata = new java.util.HashMap<>();
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+        name = "document_tags",
+        joinColumns = @JoinColumn(name = "document_id"),
+        inverseJoinColumns = @JoinColumn(name = "tag_id")
+    )
+    private java.util.Set<Tag> tags = new java.util.HashSet<>();
+
+    @Enumerated(EnumType.STRING)
     @Column(name = "status")
     private FileStatus fileStatus;
     private Integer version;

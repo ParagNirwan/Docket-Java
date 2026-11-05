@@ -59,7 +59,18 @@ public class AuthController {
 
     @PostMapping(value = "/login")
     public ResponseEntity<AuthResponseDTO> login(@Valid @RequestBody LoginRequestDTO loginRequest){
-        return sessionResponse(authService.login(loginRequest));
+        AuthService.LoginResult result = authService.login(loginRequest);
+        if (result instanceof AuthService.LoginTwoFactorRequired challenge) {
+            return ResponseEntity.ok(AuthResponseDTO.twoFactorRequired(challenge.tempToken()));
+        }
+        return sessionResponse(((AuthService.LoginSuccess) result).session());
+    }
+
+    @PostMapping("/2fa/verify")
+    public ResponseEntity<AuthResponseDTO> verify2fa(@Valid @RequestBody com.docket.app.dto.TwoFactorVerifyRequestDTO request) {
+        limitByIp("2fa-verify", 10);
+        SessionService.IssuedSession session = authService.verify2fa(request);
+        return sessionResponse(session);
     }
 
     // POST /api/auth/refresh

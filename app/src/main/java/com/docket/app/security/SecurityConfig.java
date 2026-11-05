@@ -36,7 +36,7 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/api/auth/**", "/actuator/health/**", "/error").permitAll()
+                        .requestMatchers("/api/auth/**", "/actuator/health/**", "/error", "/api/internal/scans/**", "/api/public/**").permitAll()
                         // Someone opening an invite link may not have an account yet.
                         .requestMatchers(HttpMethod.GET, "/api/invitations/*").permitAll()
                         .anyRequest().authenticated())

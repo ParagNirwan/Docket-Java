@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import com.docket.app.service.ai.DocumentProcessingService;
 
+import java.util.List;
 import java.util.Map;
 
 import java.util.UUID;
@@ -31,6 +32,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class DocumentController {
     private final DocumentService documentService;
+    private final com.docket.app.service.BulkDocumentService bulkDocumentService;
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private DocumentProcessingService documentProcessingService;
@@ -103,6 +105,121 @@ public class DocumentController {
                 // (a security measure against content-sniffing attacks)
                 .header("X-Content-Type-Options", "nosniff")
                 .body(download.resource());
+    }
+    // ─── IN-APP PREVIEW ────────────────────────────────────────────────
+    @GetMapping("/documents/{docId}/preview")
+    public ResponseEntity<Resource> previewDocument(
+            @PathVariable String slug,
+            @PathVariable UUID docId,
+            Authentication authentication
+    ) {
+        DocumentService.DocumentDownload download = documentService.downloadDocument(slug, docId, authentication);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + download.document().getOriginalFileName().replace("\"", "_") + "\"")
+                .contentType(MediaType.parseMediaType(download.document().getContentType()))
+                .contentLength(download.document().getFileSize())
+                .header("X-Content-Type-Options", "nosniff")
+                .body(download.resource());
+    }
+
+    // ─── VERSIONING ─────────────────────────────────────────────────────
+    @GetMapping("/documents/{docId}/versions")
+    public List<com.docket.app.dto.DocumentVersionDTO> versions(
+            @PathVariable String slug,
+            @PathVariable UUID docId,
+            Authentication authentication
+    ) {
+        return documentService.getVersions(slug, docId, authentication);
+    }
+
+    @PostMapping("/documents/{docId}/versions")
+    public ResponseEntity<com.docket.app.dto.DocumentVersionDTO> uploadVersion(
+            @PathVariable String slug,
+            @PathVariable UUID docId,
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(required = false) String comment,
+            Authentication authentication
+    ) {
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(documentService.uploadVersion(slug, docId, file, comment, authentication));
+    }
+
+    @GetMapping("/documents/{docId}/versions/{version}/download")
+    public ResponseEntity<Resource> downloadVersion(
+            @PathVariable String slug,
+            @PathVariable UUID docId,
+            @PathVariable int version,
+            Authentication authentication
+    ) {
+        DocumentService.DocumentDownload d = documentService.downloadVersion(slug, docId, version, authentication);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + d.document().getOriginalFileName().replace("\"", "_") + "\"")
+                .contentType(MediaType.parseMediaType(d.document().getContentType()))
+                .contentLength(d.document().getFileSize())
+                .header("X-Content-Type-Options", "nosniff")
+                .body(d.resource());
+    }
+
+    @GetMapping("/documents/{docId}/versions/{version}/preview")
+    public ResponseEntity<Resource> previewVersion(
+            @PathVariable String slug,
+            @PathVariable UUID docId,
+            @PathVariable int version,
+            Authentication authentication
+    ) {
+        DocumentService.DocumentDownload d = documentService.downloadVersion(slug, docId, version, authentication);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + d.document().getOriginalFileName().replace("\"", "_") + "\"")
+                .contentType(MediaType.parseMediaType(d.document().getContentType()))
+                .contentLength(d.document().getFileSize())
+                .header("X-Content-Type-Options", "nosniff")
+                .body(d.resource());
+    }
+
+    @PostMapping("/documents/{docId}/versions/{version}/restore")
+    public ResponseEntity<com.docket.app.dto.DocumentVersionDTO> restoreVersion(
+            @PathVariable String slug,
+            @PathVariable UUID docId,
+            @PathVariable int version,
+            Authentication authentication
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(documentService.restoreVersion(slug, docId, version, authentication));
+    }
+
+    // ─── BULK ACTIONS ───────────────────────────────────────────────────
+    @PostMapping("/documents/bulk-delete")
+    public ResponseEntity<com.docket.app.dto.BulkOperationResultDTO> bulkDelete(
+            @PathVariable String slug,
+            @Valid @RequestBody com.docket.app.dto.BulkDocumentRequestDTO request,
+            Authentication authentication
+    ) {
+        return ResponseEntity.ok(bulkDocumentService.bulkDelete(slug, request, authentication));
+    }
+
+    @PostMapping("/documents/bulk-move")
+    public ResponseEntity<com.docket.app.dto.BulkOperationResultDTO> bulkMove(
+            @PathVariable String slug,
+            @Valid @RequestBody com.docket.app.dto.BulkMoveRequestDTO request,
+            Authentication authentication
+    ) {
+        return ResponseEntity.ok(bulkDocumentService.bulkMove(slug, request, authentication));
+    }
+
+    @PostMapping("/documents/bulk-archive")
+    public ResponseEntity<com.docket.app.dto.BulkOperationResultDTO> bulkArchive(
+            @PathVariable String slug,
+            @Valid @RequestBody com.docket.app.dto.BulkDocumentRequestDTO request,
+            Authentication authentication
+    ) {
+        return ResponseEntity.ok(bulkDocumentService.bulkArchive(slug, request, authentication));
+    }
+
+    @PostMapping("/documents/bulk-tag")
+    public ResponseEntity<com.docket.app.dto.BulkOperationResultDTO> bulkTag(
+            @PathVariable String slug,
+            @Valid @RequestBody com.docket.app.dto.BulkTagRequestDTO request,
+            Authentication authentication
+    ) {
+        return ResponseEntity.ok(bulkDocumentService.bulkTag(slug, request, authentication));
     }
 
     // ─── SOFT-DELETE A DOCUMENT ─────────────────────────────────────────

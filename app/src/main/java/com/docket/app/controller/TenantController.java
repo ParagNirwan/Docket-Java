@@ -32,6 +32,7 @@ public class TenantController {
     private final TenantService tenantService;
     private final AuthRateLimiter authRateLimiter;
     private final FolderService folderService;
+    private final com.docket.app.service.StorageQuotaService storageQuotaService;
 
     // POST /api/tenants/create
     // "I want to create a new organization."
@@ -134,4 +135,39 @@ public class TenantController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/{slug}/trays/{trayId}/permissions")
+    public ResponseEntity<com.docket.app.dto.TrayPermissionsDTO> getTrayPermissions(
+            @PathVariable String slug,
+            @PathVariable UUID trayId,
+            Authentication authentication
+    ) {
+        return ResponseEntity.ok(tenantService.getTrayPermissions(slug, trayId, authentication));
+    }
+
+    @PutMapping("/{slug}/trays/{trayId}/permissions")
+    public ResponseEntity<com.docket.app.dto.TrayPermissionsDTO> updateTrayPermissions(
+            @PathVariable String slug,
+            @PathVariable UUID trayId,
+            @RequestBody com.docket.app.dto.TrayPermissionsDTO request,
+            Authentication authentication
+    ) {
+        return ResponseEntity.ok(tenantService.updateTrayPermissions(slug, trayId, request.userIds(), authentication));
+    }
+
+    @GetMapping("/{slug}/usage")
+    public ResponseEntity<com.docket.app.dto.TenantUsageDTO> getUsage(
+            @PathVariable String slug,
+            Authentication authentication
+    ) {
+        return ResponseEntity.ok(storageQuotaService.getUsage(slug, authentication));
+    }
+
+    @PutMapping("/{slug}/quota")
+    public ResponseEntity<com.docket.app.dto.TenantUsageDTO> updateQuota(
+            @PathVariable String slug,
+            @RequestBody com.docket.app.dto.UpdateQuotaRequestDTO request,
+            Authentication authentication
+    ) {
+        return ResponseEntity.ok(storageQuotaService.updateQuota(slug, request.storageQuotaBytes(), authentication));
+    }
 }

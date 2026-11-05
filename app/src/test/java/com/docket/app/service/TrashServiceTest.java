@@ -62,6 +62,7 @@ class TrashServiceTest {
     @Mock private RetentionService retentionService;
     @Mock private AuditService auditService;
     @Mock private ApplicationEventPublisher eventPublisher;
+    @Mock private StorageQuotaService storageQuotaService;
 
     @InjectMocks
     private TrashService trashService;
@@ -88,6 +89,7 @@ class TrashServiceTest {
         document.setFileStatus(FileStatus.SOFT_DELETED);
         document.setOriginalFileName("a.pdf");
         document.setStoredFileName("stored.pdf");
+        document.setFileSize(2048L);
         document.setDeletedAt(Instant.now());
         when(documentRepository.findByIdAndTenantId(document.getId(), tenantId)).thenReturn(Optional.of(document));
         when(documentRepository.findById(document.getId())).thenReturn(Optional.of(document));

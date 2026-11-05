@@ -4,6 +4,8 @@ import com.docket.app.entity.Folder;
 import com.docket.app.enums.Roles;
 import com.docket.app.enums.Visibility;
 import com.docket.app.repository.FolderRepository;
+import com.docket.app.repository.TrayPermissionRepository;
+import com.docket.app.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,6 +36,12 @@ class FolderAccessServiceTest {
 
     @Mock
     private FolderRepository folderRepository;
+
+    @Mock
+    private UserRepository userRepository;
+
+    @Mock
+    private TrayPermissionRepository trayPermissionRepository;
 
     @InjectMocks
     private FolderAccessService folderAccessService;
@@ -98,7 +106,6 @@ class FolderAccessServiceTest {
 
     @Test
     void folderOfAnotherTenantIsNotAccessibleEvenToOwner() {
-        when(tenantAuthorizationService.getMembershipRole(authentication, tenantId)).thenReturn(Roles.OWNER);
         Folder otherTenantTray = saveFolder(UUID.randomUUID(), null, Visibility.ALL_MEMBERS);
 
         assertFalse(folderAccessService.canAccessFolder(authentication, tenantId, otherTenantTray.getId()));
@@ -107,7 +114,6 @@ class FolderAccessServiceTest {
     @Test
     void missingFolderIsNotAccessible() {
         UUID missingId = UUID.randomUUID();
-        when(tenantAuthorizationService.getMembershipRole(authentication, tenantId)).thenReturn(Roles.OWNER);
         when(folderRepository.findById(missingId)).thenReturn(Optional.empty());
 
         assertFalse(folderAccessService.canAccessFolder(authentication, tenantId, missingId));

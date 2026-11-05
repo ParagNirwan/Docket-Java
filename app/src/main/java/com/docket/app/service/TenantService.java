@@ -10,6 +10,7 @@ import com.docket.app.enums.*;
 import com.docket.app.repository.FolderRepository;
 import com.docket.app.repository.TenantMembershipRepository;
 import com.docket.app.repository.TenantRepository;
+import com.docket.app.repository.TrayPermissionRepository;
 import com.docket.app.repository.UserRepository;
 import com.docket.app.service.email.EmailOutboxService;
 import com.docket.app.service.email.EmailTemplate;
@@ -45,6 +46,8 @@ public class TenantService {
     private final AuditService auditService;
     private final SessionService sessionService;
     private final EmailOutboxService emailOutboxService;
+    private final FolderAccessService folderAccessService;
+    private final TrayPermissionRepository trayPermissionRepository;
 
     @Value("${docket.app.base-url}")
     private String baseUrl;
@@ -209,9 +212,8 @@ public class TenantService {
         Tenant tenant = tenantRepository.findBySlug(slug)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Tenant not found"));
 
-        Roles userRole = tenantAuthorizationService.getMembershipRole(authentication, tenant.getId());
         List<Folder> trays = folderRepository.findByTenantIdAndIsTrayIsTrue(tenant.getId());
-        trays.removeIf(t -> !FolderAccessService.isVisibleTo(userRole, t.getVisibility()));
+        trays.removeIf(t -> !folderAccessService.canAccessTray(authentication, tenant.getId(), t));
         return trays;
 
     }
@@ -323,5 +325,35 @@ public class TenantService {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    public com.docket.app.dto.TrayPermissionsDTO getTrayPermissions(String slug, UUID trayId, Authentication authentication) {
+        Tenant tenant = tenantRepository.findBySlug(slug)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Tenant not found"));
+        tenantAuthorizationService.requirePermission(authentication, tenant.getId(), Permission.TRAYS_UPDATE);
+        Folder tray = folderRepository.findById(trayId)
+                .filter(f -> f.getTenantId().equals(tenant.getId()) && Boolean.TRUE.equals(f.getIsTray()))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Tray not found"));
+        List<UUID> userIds = trayPermissionRepository.findUserIdsByTrayId(tray.getId());
+        return new com.docket.app.dto.TrayPermissionsDTO(userIds);
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public com.docket.app.dto.TrayPermissionsDTO updateTrayPermissions(String slug, UUID trayId, List<UUID> userIds, Authentication authentication) {
+        Tenant tenant = tenantRepository.findBySlug(slug)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Tenant not found"));
+        tenantAuthorizationService.requirePermission(authentication, tenant.getId(), Permission.TRAYS_UPDATE);
+        Folder tray = folderRepository.findById(trayId)
+                .filter(f -> f.getTenantId().equals(tenant.getId()) && Boolean.TRUE.equals(f.getIsTray()))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Tray not found"));
+        trayPermissionRepository.deleteByTrayId(tray.getId());
+        if (userIds != null) {
+            for (UUID userId : userIds) {
+                trayPermissionRepository.save(new com.docket.app.entity.TrayPermission(tray.getId(), userId));
+            }
+        }
+        auditService.record(authentication, tenant.getId(), AuditAction.TRAY_PERMISSIONS_UPDATED, "TRAY", tray.getId(),
+                Map.of("trayName", tray.getName(), "assignedCount", userIds != null ? userIds.size() : 0));
+        return new com.docket.app.dto.TrayPermissionsDTO(userIds != null ? userIds : List.of());
     }
 }

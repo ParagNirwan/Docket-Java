@@ -108,6 +108,10 @@ public class DocumentSearchRepository {
             filters.append(" AND tray.id = :trayId");
             params.addValue("trayId", criteria.trayId());
         }
+        if (criteria.tagId() != null) {
+            filters.append(" AND EXISTS (SELECT 1 FROM document_tags dt WHERE dt.document_id = d.id AND dt.tag_id = :tagId)");
+            params.addValue("tagId", criteria.tagId());
+        }
         if (criteria.from() != null) {
             filters.append(" AND d.created_at >= :from");
             params.addValue("from", Timestamp.from(criteria.from()));
@@ -135,6 +139,7 @@ public class DocumentSearchRepository {
             boolean includeRestricted,
             String fileNamePattern,
             UUID trayId,
+            UUID tagId,
             Instant from,
             Instant to
     ) {

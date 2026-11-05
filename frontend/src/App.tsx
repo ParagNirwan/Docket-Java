@@ -10,6 +10,7 @@ import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import { VerifyEmailPage } from "./pages/VerifyEmailPage";
 import { AcceptInvitePage } from "./pages/AcceptInvitePage";
+import { PublicSharePage } from "./pages/PublicSharePage";
 import { SearchPage } from "./pages/SearchPage";
 import { EmailVerificationBanner } from "./components/EmailVerificationBanner";
 import { CreateFirstTenantPage } from "./pages/CreateFirstTenantPage";
@@ -67,6 +68,7 @@ function App() {
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/verify-email" element={<VerifyEmailPage />} />
               <Route path="/invite" element={<AcceptInvitePage />} />
+              <Route path="/share/:token" element={<PublicSharePage />} />
 
               {/* Protected Routes */}
               <Route

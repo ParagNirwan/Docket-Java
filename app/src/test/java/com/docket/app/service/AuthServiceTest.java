@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -161,7 +162,9 @@ class AuthServiceTest {
         when(passwordEncoder.matches("plain-password", "encoded-password")).thenReturn(true);
         when(sessionService.start(user)).thenReturn(session);
 
-        assertEquals(session, authService.login(loginRequest("ADA@Example.com")));
+        var result = authService.login(loginRequest("ADA@Example.com"));
+        assertInstanceOf(AuthService.LoginSuccess.class, result);
+        assertEquals(session, ((AuthService.LoginSuccess) result).session());
 
         verify(authRateLimiter).reset(AuthService.lockoutKey("ada@example.com"));
         verify(auditService).recordAccountEvent(any(), eq(AuditAction.LOGIN), eq("USER"), any(), any());

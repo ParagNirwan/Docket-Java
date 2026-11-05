@@ -37,6 +37,14 @@ public class User {
 
     private Instant emailVerifiedAt;
 
+    @Column(nullable = false)
+    private boolean twoFactorEnabled = false;
+
+    private String twoFactorSecret;
+
+    @Column(columnDefinition = "jsonb")
+    private String twoFactorBackupCodes;
+
     public User(String name, String email, String passwordHash) {
         this.name = name;
         this.email = email;

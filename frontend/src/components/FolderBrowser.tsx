@@ -40,12 +40,24 @@ import {
   ArchiveRestore,
   Gavel,
   ShieldAlert,
+  Eye,
+  History,
+  Share2,
+  Tag as TagIcon,
+  CheckSquare,
+  Square,
 } from "lucide-react";
 import { BreadcrumbNav } from "./BreadcrumbNav";
 import { CreateFolderModal } from "./CreateFolderModal";
 import { DeleteConfirmationModal } from "./DeleteConfirmationModal";
 import { FolderPickerModal } from "./FolderPickerModal";
 import { ArchiveModal, LegalHoldModal, OverrideLockModal } from "./DocumentLockModals";
+import { DocumentPreviewModal } from "./DocumentPreviewModal";
+import { VersionHistoryModal } from "./VersionHistoryModal";
+import { ShareLinkModal } from "./ShareLinkModal";
+import { ManageTagsModal } from "./ManageTagsModal";
+import { BulkActionBar } from "./BulkActionBar";
+import { CustomTrayPermissionsModal } from "./CustomTrayPermissionsModal";
 import { ItemActionsMenu, type ItemAction } from "./ItemActionsMenu";
 import { LockBadge } from "./LockBadge";
 import { RenameModal } from "./RenameModal";
@@ -228,6 +240,14 @@ export function FolderBrowser({
   const [overriding, setOverriding] = useState<DocumentDTO | null>(null);
   const [holding, setHolding] = useState<ItemRef | null>(null);
 
+  // Phase 6 modals & selection state
+  const [previewDoc, setPreviewDoc] = useState<DocumentDTO | null>(null);
+  const [versioningDoc, setVersioningDoc] = useState<DocumentDTO | null>(null);
+  const [sharingDoc, setSharingDoc] = useState<DocumentDTO | null>(null);
+  const [taggingDoc, setTaggingDoc] = useState<DocumentDTO | null>(null);
+  const [customTrayPerms, setCustomTrayPerms] = useState<Tray | null>(null);
+  const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
+
   // The folder an item is currently being dragged over
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
 
@@ -363,6 +383,34 @@ export function FolderBrowser({
 
   // ── Reload documents after uploads finish ─────────────────────────
 
+  const refreshDocuments = useCallback(() => {
+    if (!token) return;
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(currentFolderId);
+    if (isUuid) {
+      getDocuments(slug, currentFolderId, token, currentPage, pageSize)
+        .then((pageData) => {
+          setDocuments(pageData.content);
+          setTotalElements(pageData.totalElements);
+          setTotalPages(pageData.totalPages);
+        })
+        .catch(() => {});
+    }
+  }, [slug, currentFolderId, token, currentPage, pageSize]);
+
+  function toggleDocSelection(docId: string) {
+    setSelectedDocIds((prev) =>
+      prev.includes(docId) ? prev.filter((id) => id !== docId) : [...prev, docId]
+    );
+  }
+
+  function toggleSelectAll() {
+    if (selectedDocIds.length > 0 && selectedDocIds.length === filteredDocuments.length) {
+      setSelectedDocIds([]);
+    } else {
+      setSelectedDocIds(filteredDocuments.map((d) => d.id));
+    }
+  }
+
   const prevActiveRef = useRef(false);
   useEffect(() => {
     const hasActive = uploadTasks.some(
@@ -371,19 +419,10 @@ export function FolderBrowser({
     const hadActive = prevActiveRef.current;
     prevActiveRef.current = hasActive;
 
-    if (hadActive && !hasActive && token) {
-      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(currentFolderId);
-      if (isUuid) {
-        getDocuments(slug, currentFolderId, token, currentPage, pageSize)
-          .then((pageData) => {
-            setDocuments(pageData.content);
-            setTotalElements(pageData.totalElements);
-            setTotalPages(pageData.totalPages);
-          })
-          .catch(() => {});
-      }
+    if (hadActive && !hasActive) {
+      refreshDocuments();
     }
-  }, [uploadTasks, slug, currentFolderId, token, currentPage, pageSize]);
+  }, [uploadTasks, refreshDocuments]);
 
   // ── Event Handlers ────────────────────────────────────────────────
 
@@ -596,6 +635,11 @@ export function FolderBrowser({
   function documentActions(doc: DocumentDTO): ItemAction[] {
     const item: ItemRef = { type: "document", id: doc.id, name: doc.originalFileName };
     return [
+      ...(canUpdateDocuments ? [
+        { label: "Version history", icon: History, onSelect: () => setVersioningDoc(doc) },
+        { label: "Share link...", icon: Share2, onSelect: () => setSharingDoc(doc) },
+        { label: "Tags...", icon: TagIcon, onSelect: () => setTaggingDoc(doc) },
+      ] : []),
       ...(canUpdateDocuments && !isReadOnly(doc) ? [
         { label: "Rename", icon: Pencil, onSelect: () => setRenaming(item) },
         { label: "Move to...", icon: FolderInput, onSelect: () => setPicking({ mode: "move", item }) },
@@ -1191,12 +1235,50 @@ export function FolderBrowser({
                         <div>
                           {/* Header */}
                           <div className="flex items-start justify-between gap-3 mb-2.5">
-                            <div
-                              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${typeInfo.bgClass} ${typeInfo.colorClass} group-hover:scale-105 transition-transform`}
-                            >
-                              <DocIcon className="h-5 w-5" />
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleDocSelection(doc.id);
+                                }}
+                                className="p-0.5 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400"
+                                aria-label="Select document"
+                              >
+                                {selectedDocIds.includes(doc.id) ? (
+                                  <CheckSquare className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                                ) : (
+                                  <Square className="w-4 h-4" />
+                                )}
+                              </button>
+                              <div
+                                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${typeInfo.bgClass} ${typeInfo.colorClass} group-hover:scale-105 transition-transform`}
+                              >
+                                <DocIcon className="h-5 w-5" />
+                              </div>
                             </div>
-                            <div className="flex items-center gap-1.5">
+                            <div className="flex flex-wrap items-center justify-end gap-1.5">
+                              {doc.scanStatus === "PENDING" && (
+                                <span className="rounded-md px-1.5 py-0.5 text-[9px] font-bold bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400">
+                                  Scanning
+                                </span>
+                              )}
+                              {doc.scanStatus === "INFECTED" && (
+                                <span className="rounded-md px-1.5 py-0.5 text-[9px] font-bold bg-red-50 text-red-600 dark:bg-red-950/60 dark:text-red-400">
+                                  Infected
+                                </span>
+                              )}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setVersioningDoc(doc);
+                                }}
+                                title="Version history"
+                                className="rounded-md px-1.5 py-0.5 text-[10px] font-bold bg-gray-100 hover:bg-indigo-100 dark:bg-gray-800 dark:hover:bg-indigo-950/60 text-gray-700 dark:text-gray-300 hover:text-indigo-600 transition-colors"
+                              >
+                                v{doc.version || 1}
+                              </button>
                               <LockBadge doc={doc} />
                               <AiStatusBadge
                                 slug={slug}
@@ -1213,7 +1295,8 @@ export function FolderBrowser({
                           </div>
 
                           <p
-                            className="font-semibold text-sm text-gray-900 dark:text-white truncate"
+                            onClick={() => setPreviewDoc(doc)}
+                            className="font-semibold text-sm text-gray-900 dark:text-white truncate cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                             title={doc.originalFileName}
                           >
                             {doc.originalFileName}
@@ -1221,6 +1304,21 @@ export function FolderBrowser({
                           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                             {typeInfo.label} · {formatFileSize(doc.fileSize)}
                           </p>
+
+                          {doc.tags && doc.tags.length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-1">
+                              {doc.tags.map((t) => (
+                                <span
+                                  key={t.id}
+                                  className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold border"
+                                  style={{ borderColor: t.color || "#6b7280", color: t.color || "#6b7280" }}
+                                >
+                                  <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: t.color || "#6b7280" }} />
+                                  {t.name}
+                                </span>
+                              ))}
+                            </div>
+                          )}
 
                           <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] text-gray-400 dark:text-gray-500 border-t border-gray-100 dark:border-gray-800/80 pt-2.5">
                             <div className="flex items-center gap-1.5 truncate">
@@ -1239,6 +1337,15 @@ export function FolderBrowser({
                         {/* Action buttons */}
                         <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800/80 flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setPreviewDoc(doc)}
+                              className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-1.5 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-300 dark:hover:bg-indigo-950/60 dark:hover:text-indigo-300 transition-colors"
+                              title="Preview document"
+                            >
+                              <Eye className="h-3.5 w-3.5" />
+                              <span>Preview</span>
+                            </button>
                             <button
                               type="button"
                               onClick={() => handleDownloadDocument(doc)}
@@ -1294,11 +1401,28 @@ export function FolderBrowser({
                         {...dragProps({ type: "document", id: doc.id, name: doc.originalFileName }, canUpdateDocuments && !isReadOnly(doc))}
                       >
                         <div className="relative">
-                          <DocumentThumbnail
-                            filename={doc.originalFileName}
-                            contentType={doc.contentType}
-                            className="h-28 w-full"
-                          />
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleDocSelection(doc.id);
+                            }}
+                            className="absolute top-1.5 left-1.5 z-10 p-0.5 rounded-md bg-white/80 dark:bg-gray-900/80 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 shadow-2xs"
+                            aria-label="Select document"
+                          >
+                            {selectedDocIds.includes(doc.id) ? (
+                              <CheckSquare className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                            ) : (
+                              <Square className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                          <div className="cursor-pointer" onClick={() => setPreviewDoc(doc)}>
+                            <DocumentThumbnail
+                              filename={doc.originalFileName}
+                              contentType={doc.contentType}
+                              className="h-28 w-full"
+                            />
+                          </div>
                           {onAskAi && doc.indexingStatus === "COMPLETED" && (
                             <button
                               type="button"
@@ -1313,7 +1437,8 @@ export function FolderBrowser({
                         </div>
                         <div className="mt-2.5 px-1 min-w-0">
                           <p
-                            className="truncate text-xs font-semibold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors"
+                            onClick={() => setPreviewDoc(doc)}
+                            className="truncate text-xs font-semibold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors cursor-pointer"
                             title={doc.originalFileName}
                           >
                             {doc.originalFileName}
@@ -1326,6 +1451,17 @@ export function FolderBrowser({
                               token={token || null}
                               initialStatus={doc.indexingStatus}
                             />
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setVersioningDoc(doc);
+                              }}
+                              className="px-1 rounded text-[9px] font-bold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                              title="Version history"
+                            >
+                              v{doc.version || 1}
+                            </button>
                             <span
                               className={`px-1 rounded text-[9px] font-bold ${typeInfo.badgeClass}`}
                             >
@@ -1347,6 +1483,20 @@ export function FolderBrowser({
                     <table className="w-full text-left text-xs">
                       <thead className="border-b border-gray-100 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-800/40 text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                         <tr>
+                          <th className="py-3 px-3 w-10 text-center">
+                            <button
+                              type="button"
+                              onClick={toggleSelectAll}
+                              className="p-1 rounded-md text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400"
+                              aria-label={selectedDocIds.length > 0 && selectedDocIds.length === filteredDocuments.length ? "Deselect all" : "Select all"}
+                            >
+                              {selectedDocIds.length > 0 && selectedDocIds.length === filteredDocuments.length ? (
+                                <CheckSquare className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                              ) : (
+                                <Square className="w-4 h-4" />
+                              )}
+                            </button>
+                          </th>
                           <th className="py-3 px-4">Name</th>
                           <th className="py-3 px-4 hidden md:table-cell">Type</th>
                           <th className="py-3 px-4">Size</th>
@@ -1366,6 +1516,20 @@ export function FolderBrowser({
                               className="hover:bg-gray-50/80 dark:hover:bg-gray-800/40 transition-colors group"
                               {...dragProps({ type: "document", id: doc.id, name: doc.originalFileName }, canUpdateDocuments && !isReadOnly(doc))}
                             >
+                              <td className="py-3 px-3 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => toggleDocSelection(doc.id)}
+                                  className="p-1 rounded-md text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400"
+                                  aria-label="Select document"
+                                >
+                                  {selectedDocIds.includes(doc.id) ? (
+                                    <CheckSquare className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                                  ) : (
+                                    <Square className="w-4 h-4" />
+                                  )}
+                                </button>
+                              </td>
                               <td className="py-3 px-4">
                                 <div className="flex items-center gap-3">
                                   <div
@@ -1375,12 +1539,50 @@ export function FolderBrowser({
                                   </div>
                                   <LockBadge doc={doc} />
                                   <div className="min-w-0">
-                                    <p
-                                      className="font-semibold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate max-w-xs"
-                                      title={doc.originalFileName}
-                                    >
-                                      {doc.originalFileName}
-                                    </p>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <p
+                                        onClick={() => setPreviewDoc(doc)}
+                                        className="font-semibold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate max-w-xs cursor-pointer"
+                                        title={doc.originalFileName}
+                                      >
+                                        {doc.originalFileName}
+                                      </p>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setVersioningDoc(doc);
+                                        }}
+                                        className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-gray-100 hover:bg-indigo-100 dark:bg-gray-800 dark:hover:bg-indigo-950/60 text-gray-700 dark:text-gray-300 hover:text-indigo-600 transition-colors"
+                                        title="Version history"
+                                      >
+                                        v{doc.version || 1}
+                                      </button>
+                                      {doc.scanStatus === "PENDING" && (
+                                        <span className="rounded px-1.5 py-0.2 text-[9px] font-bold bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400">
+                                          Scanning
+                                        </span>
+                                      )}
+                                      {doc.scanStatus === "INFECTED" && (
+                                        <span className="rounded px-1.5 py-0.2 text-[9px] font-bold bg-red-50 text-red-600 dark:bg-red-950/60 dark:text-red-400">
+                                          Infected
+                                        </span>
+                                      )}
+                                    </div>
+                                    {doc.tags && doc.tags.length > 0 && (
+                                      <div className="mt-1 flex flex-wrap gap-1">
+                                        {doc.tags.map((t) => (
+                                          <span
+                                            key={t.id}
+                                            className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.2 text-[9px] font-semibold border"
+                                            style={{ borderColor: t.color || "#6b7280", color: t.color || "#6b7280" }}
+                                          >
+                                            <span className="w-1 h-1 rounded-full" style={{ backgroundColor: t.color || "#6b7280" }} />
+                                            {t.name}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
                                     <p className="text-[10px] text-gray-400 dark:text-gray-500 sm:hidden">
                                       {formatFileSize(doc.fileSize)} ·{" "}
                                       {new Date(doc.createdAt).toLocaleDateString()}
@@ -1414,6 +1616,24 @@ export function FolderBrowser({
                               </td>
                               <td className="py-3 px-4 text-right">
                                 <div className="flex items-center justify-end gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => setPreviewDoc(doc)}
+                                    className="p-1.5 rounded-full text-gray-500 hover:text-indigo-600 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                                    title="Preview document"
+                                    aria-label={`Preview ${doc.originalFileName}`}
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setVersioningDoc(doc)}
+                                    className="p-1.5 rounded-full text-gray-500 hover:text-indigo-600 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                                    title="Version history"
+                                    aria-label={`Version history for ${doc.originalFileName}`}
+                                  >
+                                    <History className="h-4 w-4" />
+                                  </button>
                                   {onAskAi && (
                                     <button
                                       type="button"
@@ -1639,6 +1859,77 @@ export function FolderBrowser({
             }
             await (picking.mode === "move" ? moveItem(picking.item, folderId) : copyItem(picking.item, folderId));
           }}
+        />
+      )}
+
+      {/* Bulk Action Bar */}
+      {token && (
+        <BulkActionBar
+          slug={slug}
+          selectedDocIds={selectedDocIds}
+          token={token}
+          trays={trays.length > 0 ? trays : [activeTray]}
+          onClearSelection={() => setSelectedDocIds([])}
+          onOperationComplete={(msg) => {
+            notify.success("Bulk action", msg);
+            refreshDocuments();
+          }}
+        />
+      )}
+
+      {/* In-App Preview Modal */}
+      {previewDoc && token && (
+        <DocumentPreviewModal
+          slug={slug}
+          docId={previewDoc.id}
+          fileName={previewDoc.originalFileName}
+          fileSize={previewDoc.fileSize}
+          contentType={previewDoc.contentType}
+          token={token}
+          onClose={() => setPreviewDoc(null)}
+        />
+      )}
+
+      {/* Version History Modal */}
+      {versioningDoc && token && (
+        <VersionHistoryModal
+          slug={slug}
+          document={versioningDoc}
+          token={token}
+          canUpdate={canUpdateDocuments}
+          onClose={() => setVersioningDoc(null)}
+          onVersionUpdated={refreshDocuments}
+        />
+      )}
+
+      {/* Share Link Modal */}
+      {sharingDoc && token && (
+        <ShareLinkModal
+          slug={slug}
+          document={sharingDoc}
+          token={token}
+          onClose={() => setSharingDoc(null)}
+        />
+      )}
+
+      {/* Manage Tags Modal */}
+      {taggingDoc && token && (
+        <ManageTagsModal
+          slug={slug}
+          document={taggingDoc}
+          token={token}
+          onClose={() => setTaggingDoc(null)}
+          onTagsUpdated={refreshDocuments}
+        />
+      )}
+
+      {/* Custom Tray Permissions Modal */}
+      {customTrayPerms && token && (
+        <CustomTrayPermissionsModal
+          slug={slug}
+          tray={customTrayPerms}
+          token={token}
+          onClose={() => setCustomTrayPerms(null)}
         />
       )}
     </div>

@@ -6,7 +6,7 @@ import { TenantWorkspace } from "./TenantWorkspace";
 // Matches the dynamic greeting heading regardless of time of day
 const greetingPattern = /^Good (morning|afternoon|evening)$/;
 
-vi.mock("../context/AuthContext", () => ({
+vi.mock("../context/useAuth", () => ({
   useAuth: () => ({ token: "test-token" }),
 }));
 

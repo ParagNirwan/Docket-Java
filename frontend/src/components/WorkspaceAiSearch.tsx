@@ -33,8 +33,11 @@ export function WorkspaceAiSearch({ slug, token }: WorkspaceAiSearchProps) {
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [input, setInput] = useState("");
   const [isQuerying, setIsQuerying] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loadedConversationKey, setLoadedConversationKey] = useState<string | null>(null);
   const [searchFilter, setSearchFilter] = useState("");
+  const [now] = useState(() => Date.now());
+  const conversationKey = `${slug}:${token ?? ""}`;
+  const isLoading = !!token && loadedConversationKey !== conversationKey;
 
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -42,14 +45,21 @@ export function WorkspaceAiSearch({ slug, token }: WorkspaceAiSearchProps) {
   // Load conversation list
   useEffect(() => {
     if (!token) return;
-    setIsLoading(true);
+    let active = true;
     listConversations(slug, token)
-      .then(setConversations)
+      .then((data) => {
+        if (active) setConversations(data);
+      })
       .catch(() => {
         // AI features may not be available (no gcp profile)
       })
-      .finally(() => setIsLoading(false));
-  }, [slug, token]);
+      .finally(() => {
+        if (active) setLoadedConversationKey(conversationKey);
+      });
+    return () => {
+      active = false;
+    };
+  }, [slug, token, conversationKey]);
 
   // Auto-scroll on new messages
   useEffect(() => {
@@ -175,8 +185,7 @@ export function WorkspaceAiSearch({ slug, token }: WorkspaceAiSearchProps) {
 
   function formatTime(dateStr: string) {
     const date = new Date(dateStr);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
+    const diffMs = now - date.getTime();
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
     if (diffDays === 0) return "Today";

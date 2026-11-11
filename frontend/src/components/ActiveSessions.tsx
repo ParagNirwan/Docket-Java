@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
 import { notify } from "../lib/notifications";
 import { type ActiveSession, listSessions, revokeAllSessions, revokeSession } from "../services/sessionService";
 

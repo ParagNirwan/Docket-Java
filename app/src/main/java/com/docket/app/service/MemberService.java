@@ -133,7 +133,9 @@ public class MemberService {
         User actor = currentUser(authentication);
         TenantMembership membership = membershipRepository
                 .findByUserIdAndTenantIdAndMemberStatus(actor.getId(), tenant.getId(), MemberStatus.ACTIVE)
-                .getFirst();
+                .stream()
+                .findFirst()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Active membership not found"));
         if (membership.getRole() == Roles.OWNER) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Transfer ownership before leaving");
         }

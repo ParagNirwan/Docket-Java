@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
 import { TwoFactorSettings } from "./TwoFactorSettings";
 import {
   CloseIcon,
@@ -215,4 +215,3 @@ export function AccountSettingsModal() {
     </div>
   );
 }
-

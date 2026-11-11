@@ -4,7 +4,7 @@ import { FolderBrowser } from "./FolderBrowser";
 import type { Tray } from "../services/trayService";
 import type { DocumentDTO } from "../services/documentService";
 
-vi.mock("../context/AuthContext", () => ({
+vi.mock("../context/useAuth", () => ({
   useAuth: () => ({ user: { email: "ada@example.com" }, token: "test-token" }),
 }));
 

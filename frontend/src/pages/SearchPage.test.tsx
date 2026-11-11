@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SearchPage } from "./SearchPage";
 import { parseSnippet } from "../services/searchService";
 
-vi.mock("../context/AuthContext", () => ({
+vi.mock("../context/useAuth", () => ({
   useAuth: () => ({ token: "test-token" }),
 }));
 

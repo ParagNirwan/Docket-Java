@@ -1,7 +1,7 @@
 import { apiFetch } from "../lib/session";
 import { useState, useEffect, useRef } from "react";
 import { Link, matchPath, useNavigate, useLocation } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
 import { GlobalSearchBar } from "./GlobalSearchBar";
 import { NotificationBell } from "./NotificationBell";
 import {

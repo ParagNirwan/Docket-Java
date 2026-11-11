@@ -119,6 +119,7 @@ public class DocumentController {
                 .contentType(MediaType.parseMediaType(download.document().getContentType()))
                 .contentLength(download.document().getFileSize())
                 .header("X-Content-Type-Options", "nosniff")
+                .header("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox")
                 .body(download.resource());
     }
 
@@ -172,6 +173,8 @@ public class DocumentController {
                 .contentType(MediaType.parseMediaType(d.document().getContentType()))
                 .contentLength(d.document().getFileSize())
                 .header("X-Content-Type-Options", "nosniff")
+                .header("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox")
+                .header("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox")
                 .body(d.resource());
     }
 

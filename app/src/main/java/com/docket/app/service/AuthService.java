@@ -151,12 +151,12 @@ public class AuthService {
         }
 
         // 2. Check backup codes
-        if (!valid && user.getTwoFactorBackupCodes() != null && !user.getTwoFactorBackupCodes().isBlank()) {
+        if (!valid && user.getTwoFactorBackupCodes() != null && !user.getTwoFactorBackupCodes().isEmpty()) {
             String hashedInput = com.docket.app.security.TokenHasher.hash(code.toUpperCase());
-            List<String> storedCodes = new java.util.ArrayList<>(java.util.Arrays.asList(user.getTwoFactorBackupCodes().split(",")));
+            List<String> storedCodes = new java.util.ArrayList<>(user.getTwoFactorBackupCodes());
             if (storedCodes.remove(hashedInput)) {
                 valid = true;
-                user.setTwoFactorBackupCodes(String.join(",", storedCodes));
+                user.setTwoFactorBackupCodes(storedCodes);
                 userRepository.save(user);
             }
         }

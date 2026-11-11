@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft, ChevronLeft, ChevronRight, Download, FolderOpen, Search } from "lucide-react";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
 import { getFileTypeInfo } from "../lib/fileTypeUtils";
 import { downloadDocument, formatFileSize } from "../services/documentService";
 import {

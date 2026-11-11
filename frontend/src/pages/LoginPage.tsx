@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
 import { apiFetch, retryAfterMessage } from "../lib/session";
 import { Lock, Mail, ArrowRight, CheckCircle2, ShieldCheck, ArrowLeft } from "lucide-react";
 import { verify2faLogin } from "../services/twoFactorService";

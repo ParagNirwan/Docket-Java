@@ -79,10 +79,14 @@ public interface DocumentChunkRepository extends JpaRepository<DocumentChunk, UU
         // a chunk repeating one common word would beat a chunk with the whole question.
 
         @Query(value = """
-                        WITH q AS (
-                            SELECT websearch_to_tsquery('english', :keywordQuery) AS all_words,
-                                   CAST(replace(CAST(websearch_to_tsquery('english', :keywordQuery) AS text),
-                                                ' & ', ' | ') AS tsquery) AS any_word
+                        WITH parsed AS (
+                            SELECT websearch_to_tsquery('english', :keywordQuery) AS all_words
+                        ), q AS (
+                            SELECT all_words,
+                                   CASE WHEN numnode(all_words) = 0 THEN NULL::tsquery
+                                        ELSE CAST(replace(CAST(all_words AS text), ' & ', ' | ') AS tsquery)
+                                   END AS any_word
+                            FROM parsed
                         )
                         SELECT dc.document_id, d.original_file_name AS document_name, dc.chunk_index,
                                dc.chunk_text, dc.page_start, dc.page_end, dc.heading,
@@ -109,10 +113,14 @@ public interface DocumentChunkRepository extends JpaRepository<DocumentChunk, UU
                         @Param("limit") int limit);
 
         @Query(value = """
-                        WITH q AS (
-                            SELECT websearch_to_tsquery('english', :keywordQuery) AS all_words,
-                                   CAST(replace(CAST(websearch_to_tsquery('english', :keywordQuery) AS text),
-                                                ' & ', ' | ') AS tsquery) AS any_word
+                        WITH parsed AS (
+                            SELECT websearch_to_tsquery('english', :keywordQuery) AS all_words
+                        ), q AS (
+                            SELECT all_words,
+                                   CASE WHEN numnode(all_words) = 0 THEN NULL::tsquery
+                                        ELSE CAST(replace(CAST(all_words AS text), ' & ', ' | ') AS tsquery)
+                                   END AS any_word
+                            FROM parsed
                         )
                         SELECT dc.document_id, d.original_file_name AS document_name, dc.chunk_index,
                                dc.chunk_text, dc.page_start, dc.page_end, dc.heading,

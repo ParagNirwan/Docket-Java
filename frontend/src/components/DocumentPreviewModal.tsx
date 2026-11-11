@@ -180,6 +180,7 @@ export function DocumentPreviewModal({
                 <iframe
                   src={previewUrl}
                   title={fileName}
+                  sandbox=""
                   className="w-full h-full rounded-xl border border-gray-200 dark:border-gray-800 bg-white"
                 />
               )}
@@ -230,4 +231,3 @@ export function DocumentPreviewModal({
     </div>
   );
 }
-

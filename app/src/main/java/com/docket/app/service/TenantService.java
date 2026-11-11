@@ -165,7 +165,9 @@ public class TenantService {
 
         var currentOwner = tenantMembershipRepository
                 .findByUserIdAndTenantIdAndMemberStatus(user.getId(), tenant.getId(), MemberStatus.ACTIVE)
-                .getFirst();
+                .stream()
+                .findFirst()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "Active owner membership not found"));
 
         // The old Owner must be demoted first: the database allows only one active
         // Owner per org, so promoting first would be rejected. A rejection here means

@@ -67,7 +67,7 @@ public final class TotpUtil {
         return "otpauth://totp/Docket:" + email + "?secret=" + secret + "&issuer=Docket";
     }
 
-    private static int generateCodeForInterval(byte[] key, long interval) {
+    static int generateCodeForInterval(byte[] key, long interval) {
         try {
             byte[] data = ByteBuffer.allocate(8).putLong(interval).array();
             Mac mac = Mac.getInstance(HMAC_ALGO);
@@ -76,7 +76,7 @@ public final class TotpUtil {
 
             int offset = hash[hash.length - 1] & 0xF;
             int binary = ((hash[offset] & 0x7F) << 24)
-                    | ((hash[offset] + 1 & 0xFF) << 16)
+                    | ((hash[offset + 1] & 0xFF) << 16)
                     | ((hash[offset + 2] & 0xFF) << 8)
                     | (hash[offset + 3] & 0xFF);
 
@@ -125,4 +125,3 @@ public final class TotpUtil {
         return res;
     }
 }
-

@@ -52,7 +52,7 @@ public class TwoFactorService {
         user.setTwoFactorEnabled(true);
         List<String> rawBackupCodes = TotpUtil.generateBackupCodes(8);
         List<String> hashedBackupCodes = rawBackupCodes.stream().map(TokenHasher::hash).toList();
-        user.setTwoFactorBackupCodes(String.join(",", hashedBackupCodes));
+        user.setTwoFactorBackupCodes(new ArrayList<>(hashedBackupCodes));
         userRepository.save(user);
 
         auditService.record((UUID) null, user.getId(), AuditAction.TWO_FACTOR_ENABLED, "USER", user.getId(), java.util.Map.of());
@@ -69,7 +69,7 @@ public class TwoFactorService {
 
         user.setTwoFactorEnabled(false);
         user.setTwoFactorSecret(null);
-        user.setTwoFactorBackupCodes(null);
+        user.setTwoFactorBackupCodes(new ArrayList<>());
         userRepository.save(user);
 
         auditService.record((UUID) null, user.getId(), AuditAction.TWO_FACTOR_DISABLED, "USER", user.getId(), java.util.Map.of());
@@ -85,4 +85,3 @@ public class TwoFactorService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
     }
 }
-

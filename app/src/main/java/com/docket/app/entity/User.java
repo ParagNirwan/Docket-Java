@@ -5,8 +5,12 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -42,8 +46,9 @@ public class User {
 
     private String twoFactorSecret;
 
-    @Column(columnDefinition = "jsonb")
-    private String twoFactorBackupCodes;
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb", nullable = false)
+    private List<String> twoFactorBackupCodes = new ArrayList<>();
 
     public User(String name, String email, String passwordHash) {
         this.name = name;

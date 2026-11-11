@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { MailPlus } from "lucide-react";
 import { AuthCard, AuthError } from "../components/AuthCard";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
 import { ROLE_LABELS } from "../lib/permissions";
 import { refreshAccessToken } from "../lib/session";
 import { acceptInvitation, previewInvitation, type InvitationPreview } from "../services/memberService";

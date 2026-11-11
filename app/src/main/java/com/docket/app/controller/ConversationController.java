@@ -97,6 +97,23 @@ public class ConversationController {
         return ResponseEntity.ok(aiMessage);
     }
 
+    @PostMapping("/{conversationId}/messages/{messageId}/feedback")
+    public ResponseEntity<Void> addFeedback(
+            @PathVariable String slug,
+            @PathVariable java.util.UUID conversationId,
+            @PathVariable java.util.UUID messageId,
+            @Valid @RequestBody AiFeedbackRequestDTO request,
+            Authentication authentication
+    ) {
+        Tenant tenant = resolveTenant(slug);
+        tenantAuthorizationService.requirePermission(
+                authentication, tenant.getId(), Permission.DOCUMENTS_READ);
+        User user = resolveUser(authentication);
+        conversationService.addFeedback(conversationId, messageId, tenant.getId(), user.getId(),
+                request.getRating(), request.getReason(), request.getComment());
+        return ResponseEntity.noContent().build();
+    }
+
     @DeleteMapping("/{conversationId}")
     public ResponseEntity<Void> delete(
             @PathVariable String slug,

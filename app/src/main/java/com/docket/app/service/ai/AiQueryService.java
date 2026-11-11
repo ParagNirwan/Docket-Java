@@ -11,6 +11,7 @@ import com.google.cloud.vertexai.api.Schema;
 import com.google.cloud.vertexai.api.Type;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.Metrics;
+import io.micrometer.core.instrument.Timer;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,6 +83,7 @@ public class AiQueryService {
     // searchQuery finds the chunks, while question and history go into the prompt for the answer.
     public AiQueryResponseDTO query(Authentication authentication, UUID tenantId, String question, UUID documentId,
                                     String searchQuery, List<ConversationTurn> history) {
+        Timer.Sample queryTimer = Timer.start(Metrics.globalRegistry);
         if (documentId != null) {
             documentRepository.findByIdAndTenantId(documentId, tenantId)
                     .filter(doc -> doc.getFileStatus() == FileStatus.ACTIVE)
@@ -95,21 +97,31 @@ public class AiQueryService {
         List<RetrievedChunk> chunks;
 
         if (documentId != null && isBroadQuery) {
+            Timer.Sample retrievalTimer = Timer.start(Metrics.globalRegistry);
             chunks = hybridRetriever.firstChunks(tenantId, documentId, includeRestricted, TOP_K_BROAD);
+            retrievalTimer.stop(Metrics.timer("docket.ai.retrieval.latency"));
         } else {
+            Timer.Sample embeddingTimer = Timer.start(Metrics.globalRegistry);
             float[] queryEmbedding = embeddingService
                     .embed(List.of(searchQuery), EmbeddingTaskType.RETRIEVAL_QUERY).get(0);
+            embeddingTimer.stop(Metrics.timer("docket.ai.embedding.latency"));
+            Timer.Sample retrievalTimer = Timer.start(Metrics.globalRegistry);
             List<RetrievedChunk> candidates = hybridRetriever.search(
                     tenantId, documentId, searchQuery, queryEmbedding, includeRestricted);
+            retrievalTimer.stop(Metrics.timer("docket.ai.retrieval.latency"));
+            Metrics.summary("docket.ai.retrieval.candidates").record(candidates.size());
 
             if (candidates.isEmpty()) {
+                queryTimer.stop(Metrics.timer("docket.ai.query.latency"));
                 return new AiQueryResponseDTO(
                         "No indexed documents found. Please upload and wait for documents to finish processing.",
                         List.of());
             }
 
             recordDistances(candidates);
-            chunks = dropIrrelevant(candidates).stream()
+            List<RetrievedChunk> relevant = dropIrrelevant(candidates);
+            Metrics.summary("docket.ai.retrieval.after_threshold").record(relevant.size());
+            chunks = relevant.stream()
                     .limit(isBroadQuery ? TOP_K_BROAD : TOP_K_SPECIFIC)
                     .toList();
         }
@@ -118,6 +130,7 @@ public class AiQueryService {
 
         // Nothing worth sending to the model, which also saves the cost of asking it
         if (queryChunks.isEmpty()) {
+            queryTimer.stop(Metrics.timer("docket.ai.query.latency"));
             return new AiQueryResponseDTO(documentId != null && isBroadQuery
                     ? "No indexed documents found. Please upload and wait for documents to finish processing."
                     : NOTHING_RELEVANT, List.of());
@@ -125,6 +138,7 @@ public class AiQueryService {
 
         CitationResolver.ResolvedAnswer resolved = callGemini(
                 question, buildContext(queryChunks), history, queryChunks.size());
+        queryTimer.stop(Metrics.timer("docket.ai.query.latency"));
 
         List<AiSourceChunkDTO> sources = resolved.cited().stream()
                 .map(position -> toSource(queryChunks.get(position)))
@@ -306,7 +320,13 @@ public class AiQueryService {
                     .setResponseSchema(ANSWER_SCHEMA)
                     .build();
 
+            Timer.Sample generationTimer = Timer.start(Metrics.globalRegistry);
             String output = geminiClient.generate(geminiModel, fullPrompt.toString(), generationConfig);
+            generationTimer.stop(Metrics.timer("docket.ai.generation.latency"));
+            Metrics.summary("docket.ai.generation.input.tokens.estimated")
+                    .record(fullPrompt.length() / 4.0);
+            Metrics.summary("docket.ai.generation.output.tokens.estimated")
+                    .record(output.length() / 4.0);
 
             return CitationResolver.resolve(output, sourceCount, objectMapper);
 

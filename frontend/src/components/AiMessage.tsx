@@ -1,7 +1,7 @@
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Bot, ChevronDown, ChevronUp, FileText } from "lucide-react";
+import { Bot, ChevronDown, ChevronUp, FileText, ThumbsDown, ThumbsUp } from "lucide-react";
 import type { AiSourceChunk } from "../services/aiService";
 
 interface AiMessageProps {
@@ -9,6 +9,7 @@ interface AiMessageProps {
   content: string;
   sources?: AiSourceChunk[];
   isLoading?: boolean;
+  onFeedback?: (rating: -1 | 1, reason?: string) => Promise<void>;
 }
 
 function sourceLocation({ pageStart, pageEnd, heading }: AiSourceChunk): string {
@@ -73,7 +74,12 @@ function SourceChips({ sources }: { sources: AiSourceChunk[] }) {
   );
 }
 
-export function AiMessage({ role, content, sources, isLoading }: AiMessageProps) {
+export function AiMessage({ role, content, sources, isLoading, onFeedback }: AiMessageProps) {
+  const [feedback, setFeedback] = useState<-1 | 1 | null>(null);
+  const [reason, setReason] = useState("");
+  const [feedbackError, setFeedbackError] = useState("");
+  const [feedbackSaved, setFeedbackSaved] = useState(false);
+
   if (role === "user") {
     return (
       <div className="flex justify-end">
@@ -107,6 +113,65 @@ export function AiMessage({ role, content, sources, isLoading }: AiMessageProps)
         </div>
         {sources && sources.length > 0 && !isLoading && (
           <SourceChips sources={sources} />
+        )}
+        {onFeedback && !isLoading && (
+          <div className="mt-2 flex items-center gap-2">
+            <button
+              type="button"
+              aria-label="Helpful answer"
+              aria-pressed={feedback === 1}
+              disabled={feedback !== null}
+              onClick={() => void onFeedback(1)
+                .then(() => {
+                  setFeedback(1);
+                  setFeedbackSaved(true);
+                })
+                .catch(() => setFeedbackError("Feedback could not be saved."))}
+              className="rounded p-1 text-gray-400 hover:text-indigo-600 disabled:opacity-70"
+            >
+              <ThumbsUp className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              aria-label="Unhelpful answer"
+              aria-pressed={feedback === -1}
+              disabled={feedback !== null}
+              onClick={() => setFeedback(-1)}
+              className="rounded p-1 text-gray-400 hover:text-indigo-600 disabled:opacity-70"
+            >
+              <ThumbsDown className="h-3.5 w-3.5" />
+            </button>
+            {feedback === -1 && (
+              <>
+                <select
+                  aria-label="Feedback reason"
+                  value={reason}
+                  onChange={(event) => setReason(event.target.value)}
+                  className="rounded border border-gray-200 bg-white px-1.5 py-1 text-[10px] text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                >
+                  <option value="">Optional reason</option>
+                  <option value="wrong source">Wrong source</option>
+                  <option value="incomplete">Incomplete</option>
+                  <option value="hallucinated">Hallucinated</option>
+                </select>
+                <button
+                  type="button"
+                  disabled={feedbackSaved}
+                  onClick={() => void onFeedback(-1, reason || undefined)
+                    .then(() => {
+                      setFeedbackError("");
+                      setFeedbackSaved(true);
+                    })
+                    .catch(() => setFeedbackError("Feedback could not be saved."))}
+                  className="text-[10px] font-medium text-indigo-600 hover:text-indigo-700"
+                >
+                  {feedbackSaved ? "Thanks" : "Send"}
+                </button>
+              </>
+            )}
+            {feedback === 1 && <span className="text-[10px] text-gray-400">Thanks for the feedback</span>}
+            {feedbackError && <span role="alert" className="text-[10px] text-red-500">{feedbackError}</span>}
+          </div>
         )}
       </div>
     </div>

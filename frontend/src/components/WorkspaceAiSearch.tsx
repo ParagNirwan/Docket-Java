@@ -18,6 +18,7 @@ import {
   createConversation,
   sendMessage,
   deleteConversation,
+  submitAiFeedback,
   type Conversation,
   type ConversationMessage,
 } from "../services/conversationService";
@@ -242,6 +243,13 @@ export function WorkspaceAiSearch({ slug, token }: WorkspaceAiSearchProps) {
               role={msg.role}
               content={msg.content}
               sources={msg.sources}
+              onFeedback={
+                activeConversation && token && msg.role === "ai"
+                  ? (rating, reason) => submitAiFeedback(
+                      slug, activeConversation.id, msg.id, token, rating, reason,
+                    )
+                  : undefined
+              }
             />
           ))}
 

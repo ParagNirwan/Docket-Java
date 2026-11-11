@@ -19,6 +19,25 @@ export interface Conversation {
   messages: ConversationMessage[] | null;
 }
 
+export async function submitAiFeedback(
+  slug: string,
+  conversationId: string,
+  messageId: string,
+  token: string,
+  rating: -1 | 1,
+  reason?: string,
+): Promise<void> {
+  const url = `${API_BASE}/tenants/${encodeURIComponent(slug)}/ai/conversations/${conversationId}/messages/${messageId}/feedback`;
+  const response = await apiFetch(url, {
+    method: "POST",
+    headers: headers(token),
+    body: JSON.stringify({ rating, reason }),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to submit AI feedback (${response.status})`);
+  }
+}
+
 async function handleResponse<T>(response: Response): Promise<T> {
   if (response.status === 429) {
     throw new Error("Rate limit exceeded. Please wait a moment and try again.");

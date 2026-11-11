@@ -1,8 +1,10 @@
 package com.docket.app.service;
 
 import com.docket.app.dto.*;
+import com.docket.app.entity.AiFeedback;
 import com.docket.app.entity.Conversation;
 import com.docket.app.entity.ConversationMessage;
+import com.docket.app.repository.AiFeedbackRepository;
 import com.docket.app.repository.ConversationRepository;
 import com.docket.app.service.ai.AiQueryService;
 import com.docket.app.service.ai.ConversationTurn;
@@ -35,6 +37,7 @@ public class ConversationService {
     private static final Pattern CITATION_MARKER = Pattern.compile("\\s*\\[\\d+]");
 
     private final ConversationRepository conversationRepository;
+    private final AiFeedbackRepository aiFeedbackRepository;
     private final AiQueryService aiQueryService;
     private final QueryRewriteService queryRewriteService;
     private final ObjectMapper objectMapper;
@@ -111,6 +114,31 @@ public class ConversationService {
         conversationRepository.save(conversation);
 
         return toMessageDTO(aiMsg);
+    }
+
+    @Transactional
+    public void addFeedback(UUID conversationId, UUID messageId, UUID tenantId, UUID userId,
+                            short rating, String reason, String comment) {
+        if (rating != -1 && rating != 1) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Rating must be -1 or 1");
+        }
+        Conversation conversation = conversationRepository
+                .findByIdAndTenantIdAndUserId(conversationId, tenantId, userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Conversation not found"));
+        boolean isAiMessage = conversation.getMessages().stream()
+                .anyMatch(message -> message.getId().equals(messageId) && "ai".equals(message.getRole()));
+        if (!isAiMessage) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "AI message not found");
+        }
+
+        AiFeedback feedback = new AiFeedback();
+        feedback.setTenantId(tenantId);
+        feedback.setUserId(userId);
+        feedback.setMessageId(messageId);
+        feedback.setRating(rating);
+        feedback.setReason(reason);
+        feedback.setComment(comment);
+        aiFeedbackRepository.save(feedback);
     }
 
     @Transactional

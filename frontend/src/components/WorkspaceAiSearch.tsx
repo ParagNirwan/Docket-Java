@@ -11,13 +11,16 @@ import {
   Search,
 } from "lucide-react";
 import { AiMessage } from "./AiMessage";
+import { DocumentPreviewModal } from "./DocumentPreviewModal";
 import { notify } from "../lib/notifications";
+import type { AiQueryMode, AiSourceChunk } from "../services/aiService";
 import {
   listConversations,
   getConversation,
   createConversation,
   sendMessage,
   deleteConversation,
+  submitAiFeedback,
   type Conversation,
   type ConversationMessage,
 } from "../services/conversationService";
@@ -35,6 +38,8 @@ export function WorkspaceAiSearch({ slug, token }: WorkspaceAiSearchProps) {
   const [isQuerying, setIsQuerying] = useState(false);
   const [loadedConversationKey, setLoadedConversationKey] = useState<string | null>(null);
   const [searchFilter, setSearchFilter] = useState("");
+  const [previewSource, setPreviewSource] = useState<AiSourceChunk | null>(null);
+  const [queryMode, setQueryMode] = useState<AiQueryMode>("ASK");
   const [now] = useState(() => Date.now());
   const conversationKey = `${slug}:${token ?? ""}`;
   const isLoading = !!token && loadedConversationKey !== conversationKey;
@@ -132,13 +137,13 @@ export function WorkspaceAiSearch({ slug, token }: WorkspaceAiSearchProps) {
     try {
       if (!activeConversation) {
         // Create new conversation
-        const conv = await createConversation(slug, question, token);
+        const conv = await createConversation(slug, question, token, queryMode);
         setActiveConversation(conv);
         setMessages(conv.messages || []);
         setConversations((prev) => [conv, ...prev]);
       } else {
         // Send message to existing conversation
-        const aiMsg = await sendMessage(slug, activeConversation.id, question, token);
+        const aiMsg = await sendMessage(slug, activeConversation.id, question, token, queryMode);
 
         // Replace temp user msg with real messages: keep the user msg, add AI response
         setMessages((prev) => [...prev, aiMsg]);
@@ -167,7 +172,7 @@ export function WorkspaceAiSearch({ slug, token }: WorkspaceAiSearchProps) {
     } finally {
       setIsQuerying(false);
     }
-  }, [input, token, isQuerying, slug, activeConversation]);
+  }, [input, token, isQuerying, slug, activeConversation, queryMode]);
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -217,9 +222,18 @@ export function WorkspaceAiSearch({ slug, token }: WorkspaceAiSearchProps) {
               {activeConversation?.title || "New conversation"}
             </p>
             <p className="text-[11px] text-gray-500 dark:text-gray-400">
-              Searching across all workspace documents
+              {queryMode === "SUMMARIZE" ? "Summarizing workspace documents" : "Searching across all workspace documents"}
             </p>
           </div>
+          <select
+            aria-label="AI query mode"
+            value={queryMode}
+            onChange={(event) => setQueryMode(event.target.value === "SUMMARIZE" ? "SUMMARIZE" : "ASK")}
+            className="rounded-full border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+          >
+            <option value="ASK">Ask</option>
+            <option value="SUMMARIZE">Summarize</option>
+          </select>
           <button
             type="button"
             onClick={handleNewConversation}
@@ -242,6 +256,14 @@ export function WorkspaceAiSearch({ slug, token }: WorkspaceAiSearchProps) {
               role={msg.role}
               content={msg.content}
               sources={msg.sources}
+              onCitationClick={token && msg.role === "ai" ? setPreviewSource : undefined}
+              onFeedback={
+                activeConversation && token && msg.role === "ai"
+                  ? (rating, reason) => submitAiFeedback(
+                      slug, activeConversation.id, msg.id, token, rating, reason,
+                    )
+                  : undefined
+              }
             />
           ))}
 
@@ -258,7 +280,7 @@ export function WorkspaceAiSearch({ slug, token }: WorkspaceAiSearchProps) {
                 value={input}
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
-                placeholder="Search across all documents..."
+                placeholder={queryMode === "SUMMARIZE" ? "Summarize the documents..." : "Search across all documents..."}
                 disabled={isQuerying}
                 rows={1}
                 maxLength={1000}
@@ -284,6 +306,16 @@ export function WorkspaceAiSearch({ slug, token }: WorkspaceAiSearchProps) {
             Enter to send · Shift+Enter for new line
           </p>
         </div>
+        {previewSource && token && (
+          <DocumentPreviewModal
+            slug={slug}
+            docId={previewSource.documentId}
+            fileName={previewSource.documentName}
+            initialPage={previewSource.pageStart ?? undefined}
+            token={token}
+            onClose={() => setPreviewSource(null)}
+          />
+        )}
       </div>
     );
   }
@@ -351,6 +383,18 @@ export function WorkspaceAiSearch({ slug, token }: WorkspaceAiSearchProps) {
             ),
           )}
         </div>
+        <label className="mt-3 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+          AI mode
+          <select
+            aria-label="AI query mode"
+            value={queryMode}
+            onChange={(event) => setQueryMode(event.target.value === "SUMMARIZE" ? "SUMMARIZE" : "ASK")}
+            className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+          >
+            <option value="ASK">Ask</option>
+            <option value="SUMMARIZE">Summarize</option>
+          </select>
+        </label>
       </section>
 
       {/* Conversation history */}

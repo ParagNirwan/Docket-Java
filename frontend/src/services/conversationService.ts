@@ -1,6 +1,6 @@
 import { apiFetch } from "../lib/session";
 import { API_BASE } from "./documentService";
-import type { AiSourceChunk } from "./aiService";
+import type { AiQueryMode, AiSourceChunk } from "./aiService";
 
 export interface ConversationMessage {
   id: string;
@@ -17,6 +17,25 @@ export interface Conversation {
   updatedAt: string;
   messageCount: number;
   messages: ConversationMessage[] | null;
+}
+
+export async function submitAiFeedback(
+  slug: string,
+  conversationId: string,
+  messageId: string,
+  token: string,
+  rating: -1 | 1,
+  reason?: string,
+): Promise<void> {
+  const url = `${API_BASE}/tenants/${encodeURIComponent(slug)}/ai/conversations/${conversationId}/messages/${messageId}/feedback`;
+  const response = await apiFetch(url, {
+    method: "POST",
+    headers: headers(token),
+    body: JSON.stringify({ rating, reason }),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to submit AI feedback (${response.status})`);
+  }
 }
 
 async function handleResponse<T>(response: Response): Promise<T> {
@@ -67,12 +86,13 @@ export async function createConversation(
   slug: string,
   question: string,
   token: string,
+  mode: AiQueryMode = "ASK",
 ): Promise<Conversation> {
   const url = `${API_BASE}/tenants/${encodeURIComponent(slug)}/ai/conversations`;
   const response = await apiFetch(url, {
     method: "POST",
     headers: headers(token),
-    body: JSON.stringify({ question }),
+    body: JSON.stringify({ question, mode }),
   });
   return handleResponse<Conversation>(response);
 }
@@ -82,12 +102,13 @@ export async function sendMessage(
   conversationId: string,
   question: string,
   token: string,
+  mode: AiQueryMode = "ASK",
 ): Promise<ConversationMessage> {
   const url = `${API_BASE}/tenants/${encodeURIComponent(slug)}/ai/conversations/${conversationId}/messages`;
   const response = await apiFetch(url, {
     method: "POST",
     headers: headers(token),
-    body: JSON.stringify({ question }),
+    body: JSON.stringify({ question, mode }),
   });
   return handleResponse<ConversationMessage>(response);
 }

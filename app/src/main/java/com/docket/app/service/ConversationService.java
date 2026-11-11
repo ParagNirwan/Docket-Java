@@ -1,8 +1,11 @@
 package com.docket.app.service;
 
 import com.docket.app.dto.*;
+import com.docket.app.entity.AiFeedback;
 import com.docket.app.entity.Conversation;
 import com.docket.app.entity.ConversationMessage;
+import com.docket.app.enums.AiQueryMode;
+import com.docket.app.repository.AiFeedbackRepository;
 import com.docket.app.repository.ConversationRepository;
 import com.docket.app.service.ai.AiQueryService;
 import com.docket.app.service.ai.ConversationTurn;
@@ -35,6 +38,7 @@ public class ConversationService {
     private static final Pattern CITATION_MARKER = Pattern.compile("\\s*\\[\\d+]");
 
     private final ConversationRepository conversationRepository;
+    private final AiFeedbackRepository aiFeedbackRepository;
     private final AiQueryService aiQueryService;
     private final QueryRewriteService queryRewriteService;
     private final ObjectMapper objectMapper;
@@ -55,6 +59,12 @@ public class ConversationService {
 
     @Transactional
     public ConversationDTO createConversation(Authentication authentication, UUID tenantId, UUID userId, String question) {
+        return createConversation(authentication, tenantId, userId, question, AiQueryMode.ASK);
+    }
+
+    @Transactional
+    public ConversationDTO createConversation(Authentication authentication, UUID tenantId, UUID userId,
+                                             String question, AiQueryMode mode) {
         String title = question.length() > 80 ? question.substring(0, 80) + "..." : question;
 
         Conversation conversation = new Conversation();
@@ -68,7 +78,7 @@ public class ConversationService {
         userMsg.setContent(question);
         conversation.getMessages().add(userMsg);
 
-        AiQueryResponseDTO aiResponse = aiQueryService.query(authentication, tenantId, question, null);
+        AiQueryResponseDTO aiResponse = aiQueryService.query(authentication, tenantId, question, null, mode);
 
         ConversationMessage aiMsg = new ConversationMessage();
         aiMsg.setConversation(conversation);
@@ -84,6 +94,12 @@ public class ConversationService {
 
     @Transactional
     public ConversationMessageDTO sendMessage(Authentication authentication, UUID conversationId, UUID tenantId, UUID userId, String question) {
+        return sendMessage(authentication, conversationId, tenantId, userId, question, AiQueryMode.ASK);
+    }
+
+    @Transactional
+    public ConversationMessageDTO sendMessage(Authentication authentication, UUID conversationId, UUID tenantId,
+                                              UUID userId, String question, AiQueryMode mode) {
         Conversation conversation = conversationRepository
                 .findByIdAndTenantIdAndUserId(conversationId, tenantId, userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Conversation not found"));
@@ -99,7 +115,7 @@ public class ConversationService {
         conversation.getMessages().add(userMsg);
 
         AiQueryResponseDTO aiResponse = aiQueryService.query(
-                authentication, tenantId, question, null, searchQuery, history);
+                authentication, tenantId, question, null, searchQuery, history, mode);
 
         ConversationMessage aiMsg = new ConversationMessage();
         aiMsg.setConversation(conversation);
@@ -111,6 +127,31 @@ public class ConversationService {
         conversationRepository.save(conversation);
 
         return toMessageDTO(aiMsg);
+    }
+
+    @Transactional
+    public void addFeedback(UUID conversationId, UUID messageId, UUID tenantId, UUID userId,
+                            short rating, String reason, String comment) {
+        if (rating != -1 && rating != 1) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Rating must be -1 or 1");
+        }
+        Conversation conversation = conversationRepository
+                .findByIdAndTenantIdAndUserId(conversationId, tenantId, userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Conversation not found"));
+        boolean isAiMessage = conversation.getMessages().stream()
+                .anyMatch(message -> message.getId().equals(messageId) && "ai".equals(message.getRole()));
+        if (!isAiMessage) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "AI message not found");
+        }
+
+        AiFeedback feedback = new AiFeedback();
+        feedback.setTenantId(tenantId);
+        feedback.setUserId(userId);
+        feedback.setMessageId(messageId);
+        feedback.setRating(rating);
+        feedback.setReason(reason);
+        feedback.setComment(comment);
+        aiFeedbackRepository.save(feedback);
     }
 
     @Transactional

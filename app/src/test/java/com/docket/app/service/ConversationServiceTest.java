@@ -5,6 +5,8 @@ import com.docket.app.dto.AiSourceChunkDTO;
 import com.docket.app.dto.ConversationMessageDTO;
 import com.docket.app.entity.Conversation;
 import com.docket.app.entity.ConversationMessage;
+import com.docket.app.enums.AiQueryMode;
+import com.docket.app.repository.AiFeedbackRepository;
 import com.docket.app.repository.ConversationRepository;
 import com.docket.app.service.ai.AiQueryService;
 import com.docket.app.service.ai.ConversationTurn;
@@ -43,6 +45,7 @@ class ConversationServiceTest {
     private final UUID userId = UUID.randomUUID();
 
     @Mock private ConversationRepository conversationRepository;
+    @Mock private AiFeedbackRepository aiFeedbackRepository;
     @Mock private AiQueryService aiQueryService;
     @Mock private QueryRewriteService queryRewriteService;
 
@@ -51,12 +54,14 @@ class ConversationServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ConversationService(conversationRepository, aiQueryService, queryRewriteService, new ObjectMapper());
+        service = new ConversationService(
+                conversationRepository, aiFeedbackRepository, aiQueryService, queryRewriteService, new ObjectMapper());
         conversation = new Conversation();
     }
 
     private void addMessage(String role, String content) {
         ConversationMessage message = new ConversationMessage();
+        message.setId(UUID.randomUUID());
         message.setConversation(conversation);
         message.setRole(role);
         message.setContent(content);
@@ -81,7 +86,7 @@ class ConversationServiceTest {
                 new ConversationTurn("user", "Who is the landlord in the lease?"),
                 new ConversationTurn("ai", "Acme Ltd."));
         when(queryRewriteService.rewrite(history, FOLLOW_UP)).thenReturn(REWRITTEN);
-        when(aiQueryService.query(authentication, tenantId, FOLLOW_UP, null, REWRITTEN, history))
+        when(aiQueryService.query(authentication, tenantId, FOLLOW_UP, null, REWRITTEN, history, AiQueryMode.ASK))
                 .thenReturn(new AiQueryResponseDTO("In May [1].", List.of(source())));
 
         service.sendMessage(authentication, conversationId, tenantId, userId, FOLLOW_UP);
@@ -101,7 +106,7 @@ class ConversationServiceTest {
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<ConversationTurn>> history = ArgumentCaptor.forClass(List.class);
         when(queryRewriteService.rewrite(history.capture(), eq(FOLLOW_UP))).thenReturn(FOLLOW_UP);
-        when(aiQueryService.query(any(), any(), any(), any(), any(), any()))
+        when(aiQueryService.query(any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(new AiQueryResponseDTO("Answer", List.of()));
 
         service.sendMessage(authentication, conversationId, tenantId, userId, FOLLOW_UP);
@@ -115,7 +120,7 @@ class ConversationServiceTest {
         conversationExists();
         AiSourceChunkDTO source = source();
         when(queryRewriteService.rewrite(List.of(), FOLLOW_UP)).thenReturn(FOLLOW_UP);
-        when(aiQueryService.query(any(), any(), any(), any(), any(), any()))
+        when(aiQueryService.query(any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(new AiQueryResponseDTO("Answer [1].", List.of(source)));
 
         ConversationMessageDTO result = service.sendMessage(
@@ -123,6 +128,23 @@ class ConversationServiceTest {
 
         assertEquals(List.of(source), result.getSources());
         verify(conversationRepository).save(conversation);
+    }
+
+    @Test
+    void addFeedback_savesFeedbackForAnAiMessage() {
+        conversationExists();
+        addMessage("ai", "Answer");
+        UUID messageId = conversation.getMessages().get(0).getId();
+
+        service.addFeedback(conversationId, messageId, tenantId, userId, (short) -1, "wrong source", null);
+
+        org.mockito.ArgumentCaptor<com.docket.app.entity.AiFeedback> feedback =
+                org.mockito.ArgumentCaptor.forClass(com.docket.app.entity.AiFeedback.class);
+        verify(aiFeedbackRepository).save(feedback.capture());
+        assertEquals(tenantId, feedback.getValue().getTenantId());
+        assertEquals(userId, feedback.getValue().getUserId());
+        assertEquals(messageId, feedback.getValue().getMessageId());
+        assertEquals(-1, feedback.getValue().getRating());
     }
 
     @Test

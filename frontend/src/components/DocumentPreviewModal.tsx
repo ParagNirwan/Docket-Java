@@ -9,6 +9,7 @@ interface DocumentPreviewModalProps {
   fileName: string;
   fileSize?: number;
   contentType?: string;
+  initialPage?: number;
   token: string;
   onClose: () => void;
 }
@@ -20,6 +21,7 @@ export function DocumentPreviewModal({
   fileName,
   fileSize,
   contentType,
+  initialPage,
   token,
   onClose,
 }: DocumentPreviewModalProps) {
@@ -178,7 +180,7 @@ export function DocumentPreviewModal({
             <>
               {isPdf && previewUrl && (
                 <iframe
-                  src={previewUrl}
+                  src={initialPage ? `${previewUrl}#page=${initialPage}` : previewUrl}
                   title={fileName}
                   sandbox=""
                   className="w-full h-full rounded-xl border border-gray-200 dark:border-gray-800 bg-white"

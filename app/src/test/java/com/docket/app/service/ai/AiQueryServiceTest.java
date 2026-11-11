@@ -3,6 +3,7 @@ package com.docket.app.service.ai;
 import com.docket.app.dto.AiQueryResponseDTO;
 import com.docket.app.dto.AiSourceChunkDTO;
 import com.docket.app.entity.Document;
+import com.docket.app.enums.AiQueryMode;
 import com.docket.app.enums.FileStatus;
 import com.docket.app.repository.DocumentRepository;
 import com.docket.app.service.FolderAccessService;
@@ -33,12 +34,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class AiQueryServiceTest {
     private static final String QUESTION = "What is the termination clause?";
-    private static final String SUMMARY_QUESTION = "Summarize this document";
+    private static final String SUMMARY_QUESTION = "Give me the gist of this";
     private static final float[] EMBEDDING = {0.1f};
 
     private final Authentication authentication =
@@ -170,10 +172,30 @@ class AiQueryServiceTest {
                 .thenReturn(List.of(EMBEDDING));
 
         aiQueryService.query(authentication, tenantId, QUESTION, documentId);
-        aiQueryService.query(authentication, tenantId, SUMMARY_QUESTION, documentId);
+        aiQueryService.query(authentication, tenantId, SUMMARY_QUESTION, documentId, AiQueryMode.SUMMARIZE);
 
         verify(hybridRetriever).search(tenantId, documentId, QUESTION, EMBEDDING, false);
-        verify(hybridRetriever).firstChunks(tenantId, documentId, false, 20);
+        verify(hybridRetriever).firstChunks(tenantId, documentId, false, 200);
+    }
+
+    @Test
+    void query_summaryModeUsesMapReduceForLongDocuments() throws IOException {
+        when(documentRepository.findByIdAndTenantId(documentId, tenantId))
+                .thenReturn(Optional.of(documentWithStatus(FileStatus.ACTIVE)));
+        when(folderAccessService.canAccessFolder(authentication, tenantId, folderId)).thenReturn(true);
+        when(folderAccessService.canAccessRestrictedTrays(authentication, tenantId)).thenReturn(false);
+        List<RetrievedChunk> chunks = java.util.stream.IntStream.range(0, 15)
+                .mapToObj(index -> new RetrievedChunk(documentId, "lease.pdf", index, "section " + index,
+                        index + 1, index + 1, "Terms", null, false))
+                .toList();
+        when(hybridRetriever.firstChunks(tenantId, documentId, false, 200)).thenReturn(chunks);
+        modelReplies("{\"answer\": \"Summary [1].\", \"citations\": [{\"sourceId\": 1}]}");
+
+        AiQueryResponseDTO response = aiQueryService.query(
+                authentication, tenantId, "Give me the gist", documentId, AiQueryMode.SUMMARIZE);
+
+        assertEquals("Summary [1].", response.getAnswer());
+        verify(geminiClient, times(3)).generate(any(), any(), any(GenerationConfig.class));
     }
 
     @Test
@@ -215,7 +237,7 @@ class AiQueryServiceTest {
 
     @Test
     void query_returnsOnlyCitedSourcesWithMatchingNumbers() throws IOException {
-        searchReturns(chunk(1, 0.1, false), chunk(2, 0.2, false), chunk(3, 0.3, false));
+        searchReturns(chunk(1, 0.1, false), chunk(3, 0.2, false), chunk(5, 0.3, false));
         modelReplies("{\"answer\": \"Pay in 30 days [3].\", \"citations\": [{\"sourceId\": 3}, {\"sourceId\": 8}]}");
 
         AiQueryResponseDTO response = aiQueryService.query(authentication, tenantId, QUESTION, null);
@@ -223,7 +245,7 @@ class AiQueryServiceTest {
         assertEquals("Pay in 30 days [1].", response.getAnswer());
         assertEquals(1, response.getSources().size());
         AiSourceChunkDTO source = response.getSources().get(0);
-        assertEquals(3, source.getChunkIndex());
+        assertEquals(5, source.getChunkIndex());
         assertEquals(0.7, source.getRelevanceScore(), 0.0001);
         assertEquals(4, source.getPageStart());
         assertEquals(5, source.getPageEnd());
@@ -269,5 +291,27 @@ class AiQueryServiceTest {
                 () -> aiQueryService.query(authentication, tenantId, QUESTION, null));
 
         assertEquals(HttpStatus.SERVICE_UNAVAILABLE, ex.getStatusCode());
+    }
+
+    @Test
+    void diversifyAndMerge_capsDocumentsAndMergesAdjacentChunks() {
+        UUID otherDocument = UUID.randomUUID();
+        List<RetrievedChunk> candidates = List.of(
+                new RetrievedChunk(documentId, "lease.pdf", 0, "alpha beta gamma delta", 1, 1, null, 0.1, false),
+                new RetrievedChunk(documentId, "lease.pdf", 1, "gamma delta epsilon zeta", 1, 2, null, 0.2, false),
+                new RetrievedChunk(otherDocument, "policy.pdf", 0, "different relevant content", 2, 2, null, 0.15,
+                        false),
+                new RetrievedChunk(documentId, "lease.pdf", 4, "another distinct chunk", 4, 4, null, 0.3, false),
+                new RetrievedChunk(documentId, "lease.pdf", 5, "last distinct chunk", 5, 5, null, 0.35, false),
+                new RetrievedChunk(documentId, "lease.pdf", 6, "third distinct chunk", 6, 6, null, 0.4, false),
+                new RetrievedChunk(documentId, "lease.pdf", 7, "fourth distinct chunk", 7, 7, null, 0.45, false));
+
+        List<RetrievedChunk> result = AiQueryService.diversifyAndMerge(candidates);
+
+        assertEquals(4, result.size());
+        assertTrue(result.get(0).chunkText().contains("epsilon zeta"));
+        assertEquals(2, result.get(0).pageEnd());
+        assertEquals(otherDocument, result.get(1).documentId());
+        assertEquals(3, result.stream().filter(c -> c.documentId().equals(documentId)).count());
     }
 }

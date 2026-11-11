@@ -4,20 +4,32 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 public class ChunkingService {
 
-    private static final int CHUNK_SIZE = 2000; // ~500 tokens
-    private static final int OVERLAP_SIZE = 200; // ~50 tokens
+    private static final int TOKENS_PER_CHUNK = 500;
+    private static final int OVERLAP_TOKENS = 50;
+    private static final int MAX_ATOMIC_TABLE_TOKENS = TOKENS_PER_CHUNK * 2;
+    private static final Pattern TOKEN = Pattern.compile("[\\p{L}\\p{N}]+(?:[-_/.][\\p{L}\\p{N}]+)*");
     private static final String SEGMENT_SEPARATOR = "\n\n";
 
     private record Span(TextSegment segment, int start, int end) {
     }
 
+    private record Section(int start, int end) {
+    }
+
     public List<TextChunk> chunk(List<TextSegment> segments) {
         StringBuilder joined = new StringBuilder();
         List<Span> spans = new ArrayList<>();
+        List<Section> sections = new ArrayList<>();
+        int sectionStart = 0;
+        String previousHeading = null;
+        boolean hasPreviousSegment = false;
 
         for (TextSegment segment : segments) {
             String text = segment.text() == null ? "" : segment.text().strip();
@@ -25,33 +37,42 @@ public class ChunkingService {
                 continue;
             }
             if (!joined.isEmpty()) {
+                boolean headingChanged = hasPreviousSegment
+                        && !Objects.equals(previousHeading, segment.heading());
+                if (headingChanged) {
+                    sections.add(new Section(sectionStart, joined.length()));
+                }
                 joined.append(SEGMENT_SEPARATOR);
+                if (headingChanged) {
+                    sectionStart = joined.length();
+                }
             }
             spans.add(new Span(segment, joined.length(), joined.length() + text.length()));
             joined.append(text);
+            previousHeading = segment.heading();
+            hasPreviousSegment = true;
         }
 
         String text = joined.toString();
         List<TextChunk> chunks = new ArrayList<>();
-        int start = 0;
+        if (sectionStart < text.length()) {
+            sections.add(new Section(sectionStart, text.length()));
+        }
+        for (Section section : sections) {
+            int start = section.start();
+            while (start < section.end()) {
+                int end = findTokenEnd(text, start, section.end());
+                if (end < section.end()) {
+                    end = findBreakPoint(text, start, end);
+                }
+                end = keepTableRowsTogether(text, start, end, section.end());
+                addChunk(chunks, text, start, end, spans);
 
-        while (start < text.length()) {
-            int end = Math.min(start + CHUNK_SIZE, text.length());
-
-            // If not at the end, try to find a natural break point
-            if (end < text.length()) {
-                end = findBreakPoint(text, start, end);
+                if (end == section.end()) {
+                    break;
+                }
+                start = findOverlapStart(text, start, end);
             }
-
-            addChunk(chunks, text, start, end, spans);
-
-            // The last chunk already reaches the end of the text
-            if (end == text.length()) {
-                break;
-            }
-
-            // Move forward by (chunk length - overlap)
-            start = Math.max(end - OVERLAP_SIZE, start + 1);
         }
 
         return chunks;
@@ -87,13 +108,12 @@ public class ChunkingService {
             }
         }
 
-        chunks.add(new TextChunk(stripped, pageStart, pageEnd, heading, charStart, charEnd));
+        String header = repeatedTableHeader(text, start);
+        chunks.add(new TextChunk(header + stripped, pageStart, pageEnd, heading, charStart, charEnd));
     }
 
-    // A break must leave at least half a chunk, otherwise a short paragraph near the
-    // start would produce a tiny chunk and barely move the window forward.
     private int findBreakPoint(String text, int start, int end) {
-        int earliest = start + CHUNK_SIZE / 2;
+        int earliest = start + (end - start) / 2;
 
         // First try: paragraph break
         int paraBreak = text.lastIndexOf("\n\n", end);
@@ -109,6 +129,113 @@ public class ChunkingService {
 
         // Fallback: hard cut at chunk size
         return end;
+    }
+
+    private int findTokenEnd(String text, int start, int sectionEnd) {
+        Matcher matcher = TOKEN.matcher(text);
+        matcher.region(start, sectionEnd);
+        int count = 0;
+        while (matcher.find()) {
+            if (++count == TOKENS_PER_CHUNK) {
+                return matcher.end();
+            }
+        }
+        return sectionEnd;
+    }
+
+    private int findOverlapStart(String text, int start, int end) {
+        Matcher matcher = TOKEN.matcher(text);
+        matcher.region(start, end);
+        List<Integer> tokenStarts = new ArrayList<>();
+        while (matcher.find()) {
+            tokenStarts.add(matcher.start());
+        }
+        if (tokenStarts.size() <= OVERLAP_TOKENS) {
+            return end;
+        }
+        int nextStart = tokenStarts.get(tokenStarts.size() - OVERLAP_TOKENS);
+        int lineStart = text.lastIndexOf('\n', nextStart);
+        int lineEnd = text.indexOf('\n', nextStart);
+        if (lineStart >= 0 && lineEnd > nextStart
+                && text.substring(lineStart + 1, lineEnd).contains("\t")) {
+            return lineEnd + 1;
+        }
+        return Math.max(nextStart, start + 1);
+    }
+
+    private int keepTableRowsTogether(String text, int start, int end, int sectionEnd) {
+        int lineStart = text.lastIndexOf('\n', Math.max(start, end - 1)) + 1;
+        int lineEnd = text.indexOf('\n', end);
+        if (lineEnd < 0 || lineEnd >= sectionEnd) {
+            lineEnd = sectionEnd;
+        }
+        if (!text.substring(lineStart, lineEnd).contains("\t")) {
+            return end;
+        }
+
+        int rowStart = lineStart;
+        int tableStart = rowStart;
+        while (tableStart > start) {
+            int priorEnd = tableStart - 1;
+            int priorStart = text.lastIndexOf('\n', Math.max(start, priorEnd - 1)) + 1;
+            if (!text.substring(priorStart, priorEnd).contains("\t")) {
+                break;
+            }
+            tableStart = priorStart;
+        }
+        int tableEnd = lineEnd;
+        while (tableEnd < sectionEnd) {
+            int nextStart = tableEnd + 1;
+            int nextEnd = text.indexOf('\n', nextStart);
+            if (nextEnd < 0 || nextEnd > sectionEnd) {
+                nextEnd = sectionEnd;
+            }
+            if (!text.substring(nextStart, nextEnd).contains("\t")) {
+                break;
+            }
+            tableEnd = nextEnd;
+        }
+
+        if (start <= tableStart && countTokens(text, tableStart, tableEnd) <= MAX_ATOMIC_TABLE_TOKENS) {
+            return tableEnd;
+        }
+        if (lineStart > start) {
+            return lineStart;
+        }
+        return lineEnd;
+    }
+
+    private int countTokens(String text, int start, int end) {
+        Matcher matcher = TOKEN.matcher(text);
+        matcher.region(start, end);
+        int count = 0;
+        while (matcher.find()) {
+            count++;
+        }
+        return count;
+    }
+
+    private String repeatedTableHeader(String text, int start) {
+        int currentLineStart = text.lastIndexOf('\n', Math.max(0, start - 1)) + 1;
+        int currentLineEnd = text.indexOf('\n', currentLineStart);
+        if (currentLineEnd < 0 || !text.substring(currentLineStart, currentLineEnd).contains("\t")) {
+            return "";
+        }
+
+        int tableStart = currentLineStart;
+        while (tableStart > 0) {
+            int previousEnd = tableStart - 1;
+            int previousStart = text.lastIndexOf('\n', Math.max(0, previousEnd - 1)) + 1;
+            if (!text.substring(previousStart, previousEnd).contains("\t")) {
+                break;
+            }
+            tableStart = previousStart;
+        }
+        if (tableStart == currentLineStart) {
+            return "";
+        }
+        int headerEnd = text.indexOf('\n', tableStart);
+        return text.substring(tableStart, headerEnd < 0 ? text.length() : headerEnd) + "\n";
     }
 
 }

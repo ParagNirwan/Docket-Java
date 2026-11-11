@@ -97,14 +97,15 @@ class ChunkingServiceTest {
     }
 
     @Test
-    void chunk_headingComesFromTheSectionInTheMiddleOfTheChunk() {
-        // The second chunk starts with 200 characters of overlap from the section before.
+    void chunk_doesNotMergeDifferentHeadingSections() {
         List<TextChunk> result = chunkingService.chunk(List.of(
                 new TextSegment("a ".repeat(950).strip(), null, "Scope"),
                 new TextSegment("b ".repeat(800).strip(), null, "Payment Terms")));
 
         assertEquals("Scope", result.get(0).heading());
-        assertEquals("Payment Terms", result.get(1).heading());
+        assertTrue(result.stream().anyMatch(chunk -> "Payment Terms".equals(chunk.heading())));
+        assertTrue(result.stream().allMatch(chunk ->
+                !(chunk.text().contains("a ") && chunk.text().contains("b "))));
         assertNull(result.get(0).pageStart());
     }
 
@@ -119,6 +120,37 @@ class ChunkingServiceTest {
 
         for (TextChunk chunk : result) {
             assertEquals(chunk.text(), joined.substring(chunk.charStart(), chunk.charEnd()));
+        }
+    }
+
+    @Test
+    void chunk_keepsSmallTablesAtomicWhenTheyCrossTheTokenLimit() {
+        String table = "A\tB\n" + "row value\tcell value\n".repeat(25);
+        String text = "context ".repeat(450) + table;
+
+        List<TextChunk> chunks = chunkingService.chunk(List.of(new TextSegment(text, null, null)));
+
+        assertEquals(1, chunks.size());
+        assertTrue(chunks.get(0).text().contains("row value\tcell value"));
+        assertEquals(25, chunks.get(0).text().lines().filter(line -> line.contains("\t")).count() - 1);
+    }
+
+    @Test
+    void chunk_splitsLargeTablesBetweenRowsAndRepeatsTheHeader() {
+        String header = "Name\tValue";
+        String table = header + "\n" + java.util.stream.IntStream.range(0, 600)
+                .mapToObj(index -> "row" + index + "\tvalue" + index)
+                .collect(java.util.stream.Collectors.joining("\n"));
+
+        List<TextChunk> chunks = chunkingService.chunk(List.of(new TextSegment(table, null, null)));
+
+        assertTrue(chunks.size() > 1);
+        for (int i = 1; i < chunks.size(); i++) {
+            assertTrue(chunks.get(i).text().startsWith(header + "\n"));
+        }
+        for (TextChunk chunk : chunks) {
+            assertTrue(chunk.text().lines().allMatch(line ->
+                    line.equals(header) || line.matches("row\\d+\\tvalue\\d+")));
         }
     }
 }

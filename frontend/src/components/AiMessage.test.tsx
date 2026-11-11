@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { AiMessage } from "./AiMessage";
 import type { AiSourceChunk } from "../services/aiService";
@@ -51,5 +51,22 @@ describe("AiMessage sources", () => {
     renderSources([source({})]);
 
     expect(screen.getByText("lease.pdf")).toBeTruthy();
+  });
+
+  it("opens the cited source from an inline citation", () => {
+    const citedSource = source({ pageStart: 4, pageEnd: 4 });
+    const onCitationClick = vi.fn();
+    render(
+      <AiMessage
+        role="ai"
+        content="Pay within 30 days [1]."
+        sources={[citedSource]}
+        onCitationClick={onCitationClick}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Open lease.pdf, p. 4" }));
+
+    expect(onCitationClick).toHaveBeenCalledWith(citedSource);
   });
 });

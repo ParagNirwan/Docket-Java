@@ -1,5 +1,6 @@
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
+import type { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Bot, ChevronDown, ChevronUp, FileText, ThumbsDown, ThumbsUp } from "lucide-react";
 import type { AiSourceChunk } from "../services/aiService";
@@ -10,6 +11,7 @@ interface AiMessageProps {
   sources?: AiSourceChunk[];
   isLoading?: boolean;
   onFeedback?: (rating: -1 | 1, reason?: string) => Promise<void>;
+  onCitationClick?: (source: AiSourceChunk) => void;
 }
 
 function sourceLocation({ pageStart, pageEnd, heading }: AiSourceChunk): string {
@@ -74,11 +76,48 @@ function SourceChips({ sources }: { sources: AiSourceChunk[] }) {
   );
 }
 
-export function AiMessage({ role, content, sources, isLoading, onFeedback }: AiMessageProps) {
+export function AiMessage({
+  role,
+  content,
+  sources,
+  isLoading,
+  onFeedback,
+  onCitationClick,
+}: AiMessageProps) {
   const [feedback, setFeedback] = useState<-1 | 1 | null>(null);
   const [reason, setReason] = useState("");
   const [feedbackError, setFeedbackError] = useState("");
   const [feedbackSaved, setFeedbackSaved] = useState(false);
+  const markdownComponents: Components = {
+    a: ({ href, children }) => {
+      const match = href?.match(/^#citation-(\d+)$/);
+      const source = match && sources ? sources[Number(match[1]) - 1] : undefined;
+      if (!source || !onCitationClick) {
+        return <a href={href}>{children}</a>;
+      }
+      const descriptionId = `citation-${source.documentId}-${source.chunkIndex}`;
+      const location = sourceLocation(source);
+      return (
+        <button
+          type="button"
+          onClick={() => onCitationClick(source)}
+          title={[source.documentName, location, source.chunkText].filter(Boolean).join(" · ")}
+          aria-label={`Open ${source.documentName}${location ? `, ${location}` : ""}`}
+          aria-describedby={descriptionId}
+          className="inline-flex items-center rounded bg-indigo-100 px-1 text-[0.85em] font-semibold text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-950/70 dark:text-indigo-300"
+        >
+          {children}
+          <span id={descriptionId} className="sr-only">
+            {source.chunkText}
+          </span>
+        </button>
+      );
+    },
+  };
+  const citationMarkdown = sources?.length && onCitationClick
+    ? content.replace(/\[(\d+)\]/g, (marker, number: string) =>
+        sources[Number(number) - 1] ? `[${number}](#citation-${number})` : marker)
+    : content;
 
   if (role === "user") {
     return (
@@ -105,8 +144,8 @@ export function AiMessage({ role, content, sources, isLoading, onFeedback }: AiM
             </div>
           ) : (
             <div className="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed [&_p]:my-1 [&_ul]:my-1.5 [&_ol]:my-1.5 [&_li]:my-0.5 [&_pre]:my-2 [&_pre]:rounded-lg [&_pre]:bg-gray-900 [&_pre]:p-3 [&_code]:rounded [&_code]:bg-gray-200 [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-xs dark:[&_code]:bg-gray-700 [&_pre_code]:bg-transparent [&_pre_code]:p-0">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {content}
+              <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                {citationMarkdown}
               </ReactMarkdown>
             </div>
           )}

@@ -11,7 +11,9 @@ import {
   Search,
 } from "lucide-react";
 import { AiMessage } from "./AiMessage";
+import { DocumentPreviewModal } from "./DocumentPreviewModal";
 import { notify } from "../lib/notifications";
+import type { AiSourceChunk } from "../services/aiService";
 import {
   listConversations,
   getConversation,
@@ -36,6 +38,7 @@ export function WorkspaceAiSearch({ slug, token }: WorkspaceAiSearchProps) {
   const [isQuerying, setIsQuerying] = useState(false);
   const [loadedConversationKey, setLoadedConversationKey] = useState<string | null>(null);
   const [searchFilter, setSearchFilter] = useState("");
+  const [previewSource, setPreviewSource] = useState<AiSourceChunk | null>(null);
   const [now] = useState(() => Date.now());
   const conversationKey = `${slug}:${token ?? ""}`;
   const isLoading = !!token && loadedConversationKey !== conversationKey;
@@ -243,6 +246,7 @@ export function WorkspaceAiSearch({ slug, token }: WorkspaceAiSearchProps) {
               role={msg.role}
               content={msg.content}
               sources={msg.sources}
+              onCitationClick={token && msg.role === "ai" ? setPreviewSource : undefined}
               onFeedback={
                 activeConversation && token && msg.role === "ai"
                   ? (rating, reason) => submitAiFeedback(
@@ -292,6 +296,16 @@ export function WorkspaceAiSearch({ slug, token }: WorkspaceAiSearchProps) {
             Enter to send · Shift+Enter for new line
           </p>
         </div>
+        {previewSource && token && (
+          <DocumentPreviewModal
+            slug={slug}
+            docId={previewSource.documentId}
+            fileName={previewSource.documentName}
+            initialPage={previewSource.pageStart ?? undefined}
+            token={token}
+            onClose={() => setPreviewSource(null)}
+          />
+        )}
       </div>
     );
   }

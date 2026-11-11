@@ -21,8 +21,12 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
@@ -32,6 +36,8 @@ public class AiQueryService {
     private static final Logger log = LoggerFactory.getLogger(AiQueryService.class);
     private static final int TOP_K_SPECIFIC = 5;
     private static final int TOP_K_BROAD = 20;
+    private static final int MAX_CHUNKS_PER_DOCUMENT = 3;
+    private static final Pattern WORD = Pattern.compile("[\\p{L}\\p{N}]+");
     static final String NOTHING_RELEVANT =
             "I couldn't find anything relevant in your documents.";
 
@@ -108,17 +114,20 @@ public class AiQueryService {
                     .toList();
         }
 
+        List<RetrievedChunk> queryChunks = documentId == null ? diversifyAndMerge(chunks) : chunks;
+
         // Nothing worth sending to the model, which also saves the cost of asking it
-        if (chunks.isEmpty()) {
+        if (queryChunks.isEmpty()) {
             return new AiQueryResponseDTO(documentId != null && isBroadQuery
                     ? "No indexed documents found. Please upload and wait for documents to finish processing."
                     : NOTHING_RELEVANT, List.of());
         }
 
-        CitationResolver.ResolvedAnswer resolved = callGemini(question, buildContext(chunks), history, chunks.size());
+        CitationResolver.ResolvedAnswer resolved = callGemini(
+                question, buildContext(queryChunks), history, queryChunks.size());
 
         List<AiSourceChunkDTO> sources = resolved.cited().stream()
-                .map(position -> toSource(chunks.get(position)))
+                .map(position -> toSource(queryChunks.get(position)))
                 .toList();
 
         return new AiQueryResponseDTO(resolved.answer(), sources);
@@ -144,6 +153,78 @@ public class AiQueryService {
 
     private boolean withinDistance(RetrievedChunk chunk, double limit) {
         return chunk.distance() != null && chunk.distance() <= limit;
+    }
+
+    static List<RetrievedChunk> diversifyAndMerge(List<RetrievedChunk> candidates) {
+        List<RetrievedChunk> diverse = new ArrayList<>();
+        java.util.Map<UUID, Integer> documentCounts = new java.util.HashMap<>();
+
+        for (RetrievedChunk candidate : candidates) {
+            List<String> words = words(candidate.chunkText());
+            boolean duplicate = diverse.stream().anyMatch(existing ->
+                    overlapRatio(words, words(existing.chunkText())) > 0.8);
+            if (duplicate) {
+                continue;
+            }
+
+            if (!diverse.isEmpty()) {
+                RetrievedChunk previous = diverse.get(diverse.size() - 1);
+                if (previous.documentId().equals(candidate.documentId())
+                        && candidate.chunkIndex() == previous.chunkIndex() + 1) {
+                    diverse.set(diverse.size() - 1, mergeAdjacent(previous, candidate));
+                    continue;
+                }
+            }
+
+            int count = documentCounts.getOrDefault(candidate.documentId(), 0);
+            if (count >= MAX_CHUNKS_PER_DOCUMENT) {
+                continue;
+            }
+            diverse.add(candidate);
+            documentCounts.put(candidate.documentId(), count + 1);
+        }
+        return List.copyOf(diverse);
+    }
+
+    private static RetrievedChunk mergeAdjacent(RetrievedChunk first, RetrievedChunk next) {
+        String text = first.chunkText();
+        if (!text.endsWith(next.chunkText())) {
+            int overlap = 0;
+            int maxOverlap = Math.min(text.length(), next.chunkText().length());
+            for (int length = 1; length <= maxOverlap; length++) {
+                if (text.regionMatches(text.length() - length, next.chunkText(), 0, length)) {
+                    overlap = length;
+                }
+            }
+            text += "\n" + next.chunkText().substring(overlap).stripLeading();
+        }
+        Integer pageStart = first.pageStart() != null ? first.pageStart() : next.pageStart();
+        Integer pageEnd = next.pageEnd() != null ? next.pageEnd() : first.pageEnd();
+        Double distance = first.distance() == null ? next.distance()
+                : next.distance() == null ? first.distance() : Math.min(first.distance(), next.distance());
+        return new RetrievedChunk(first.documentId(), first.documentName(), first.chunkIndex(), text,
+                pageStart, pageEnd, first.heading() == null ? next.heading() : first.heading(),
+                distance, first.exactMatch() || next.exactMatch());
+    }
+
+    private static List<String> words(String text) {
+        var matcher = WORD.matcher(text.toLowerCase(Locale.ROOT));
+        List<String> result = new ArrayList<>();
+        while (matcher.find()) {
+            result.add(matcher.group());
+        }
+        return result;
+    }
+
+    private static double overlapRatio(List<String> first, List<String> second) {
+        if (first.isEmpty() || second.isEmpty()) {
+            return 0;
+        }
+        Set<String> smaller = new HashSet<>(first.size() <= second.size() ? first : second);
+        Set<String> larger = new HashSet<>(first.size() <= second.size() ? second : first);
+        smaller.retainAll(larger);
+        int denominator = Math.min(first.size(), second.size());
+        return (double) smaller.size() / denominator;
     }
 
     // Lets the threshold be calibrated against real questions (#46)

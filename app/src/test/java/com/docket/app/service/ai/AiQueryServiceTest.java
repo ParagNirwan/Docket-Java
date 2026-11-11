@@ -215,7 +215,7 @@ class AiQueryServiceTest {
 
     @Test
     void query_returnsOnlyCitedSourcesWithMatchingNumbers() throws IOException {
-        searchReturns(chunk(1, 0.1, false), chunk(2, 0.2, false), chunk(3, 0.3, false));
+        searchReturns(chunk(1, 0.1, false), chunk(3, 0.2, false), chunk(5, 0.3, false));
         modelReplies("{\"answer\": \"Pay in 30 days [3].\", \"citations\": [{\"sourceId\": 3}, {\"sourceId\": 8}]}");
 
         AiQueryResponseDTO response = aiQueryService.query(authentication, tenantId, QUESTION, null);
@@ -223,7 +223,7 @@ class AiQueryServiceTest {
         assertEquals("Pay in 30 days [1].", response.getAnswer());
         assertEquals(1, response.getSources().size());
         AiSourceChunkDTO source = response.getSources().get(0);
-        assertEquals(3, source.getChunkIndex());
+        assertEquals(5, source.getChunkIndex());
         assertEquals(0.7, source.getRelevanceScore(), 0.0001);
         assertEquals(4, source.getPageStart());
         assertEquals(5, source.getPageEnd());
@@ -269,5 +269,27 @@ class AiQueryServiceTest {
                 () -> aiQueryService.query(authentication, tenantId, QUESTION, null));
 
         assertEquals(HttpStatus.SERVICE_UNAVAILABLE, ex.getStatusCode());
+    }
+
+    @Test
+    void diversifyAndMerge_capsDocumentsAndMergesAdjacentChunks() {
+        UUID otherDocument = UUID.randomUUID();
+        List<RetrievedChunk> candidates = List.of(
+                new RetrievedChunk(documentId, "lease.pdf", 0, "alpha beta gamma delta", 1, 1, null, 0.1, false),
+                new RetrievedChunk(documentId, "lease.pdf", 1, "gamma delta epsilon zeta", 1, 2, null, 0.2, false),
+                new RetrievedChunk(otherDocument, "policy.pdf", 0, "different relevant content", 2, 2, null, 0.15,
+                        false),
+                new RetrievedChunk(documentId, "lease.pdf", 4, "another distinct chunk", 4, 4, null, 0.3, false),
+                new RetrievedChunk(documentId, "lease.pdf", 5, "last distinct chunk", 5, 5, null, 0.35, false),
+                new RetrievedChunk(documentId, "lease.pdf", 6, "third distinct chunk", 6, 6, null, 0.4, false),
+                new RetrievedChunk(documentId, "lease.pdf", 7, "fourth distinct chunk", 7, 7, null, 0.45, false));
+
+        List<RetrievedChunk> result = AiQueryService.diversifyAndMerge(candidates);
+
+        assertEquals(4, result.size());
+        assertTrue(result.get(0).chunkText().contains("epsilon zeta"));
+        assertEquals(2, result.get(0).pageEnd());
+        assertEquals(otherDocument, result.get(1).documentId());
+        assertEquals(3, result.stream().filter(c -> c.documentId().equals(documentId)).count());
     }
 }

@@ -184,6 +184,19 @@ public class DocumentService {
         return toDTO(document, uploaderName);
     }
 
+    // ─── GET A DOCUMENT'S AI SUMMARY ────────────────────────────────────
+    // Anyone who can read the document can read its summary.
+    public com.docket.app.dto.DocumentSummaryDTO getAiSummary(String slug, UUID docId, Authentication authentication) {
+        Tenant tenant = findTenantOrThrow(slug);
+        tenantAuthorizationService.requirePermission(authentication, tenant.getId(), Permission.DOCUMENTS_READ);
+
+        Document document = findAccessibleDocumentOrThrow(docId, tenant.getId(), authentication);
+        return new com.docket.app.dto.DocumentSummaryDTO(
+                document.getAiSummary(),
+                document.getAiKeyPoints() == null ? java.util.List.of() : document.getAiKeyPoints(),
+                document.getAiSummaryGeneratedAt());
+    }
+
     // ─── CHECK A DOCUMENT CAN BE RE-INDEXED ──────────────────────────────
     // Re-indexing costs money (OCR and embeddings), so being able to read
     // a document isn't enough to trigger it.

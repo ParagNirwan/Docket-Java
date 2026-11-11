@@ -1,6 +1,6 @@
 package com.docket.app.service.ai;
 
-import com.docket.app.repository.DocumentChunkRepository;
+import com.docket.app.repository.ChunkSearchRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -8,7 +8,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -26,7 +25,7 @@ class HybridRetrieverTest {
     private static final float[] EMBEDDING = {0.1f, 0.2f};
 
     @Mock
-    private DocumentChunkRepository documentChunkRepository;
+    private ChunkSearchRepository chunkSearchRepository;
 
     @InjectMocks
     private HybridRetriever hybridRetriever;
@@ -34,68 +33,53 @@ class HybridRetrieverTest {
     private final UUID tenantId = UUID.randomUUID();
     private final UUID documentId = UUID.randomUUID();
 
-    private Object[] row(int chunkIndex, Double distance, boolean exactMatch) {
-        return new Object[]{documentId, "lease.pdf", chunkIndex, "text " + chunkIndex, 4, 5, "Terms", distance, exactMatch};
-    }
-
     private RetrievedChunk chunk(int chunkIndex) {
         return new RetrievedChunk(documentId, "lease.pdf", chunkIndex, "text", null, null, null, 0.3, false);
     }
 
-    private List<Object[]> rows(Object[]... rows) {
-        return new ArrayList<>(List.of(rows));
+    @Test
+    void search_passesVisibilityFilterAndScopeToBothWorkspaceSearches() {
+        AiSearchScope scope = new AiSearchScope(UUID.randomUUID(), null, null, null, null, null, null);
+
+        hybridRetriever.search(tenantId, null, "question", EMBEDDING, false, scope);
+
+        verify(chunkSearchRepository).findNearest(eq(tenantId), anyString(), eq(false), eq(scope), eq(30));
+        verify(chunkSearchRepository).findByKeywords(
+                eq(tenantId), eq("question"), anyString(), eq(false), eq(scope), eq(30));
     }
 
     @Test
-    void search_passesVisibilityFilterToBothWorkspaceSearches() {
-        when(documentChunkRepository.findNearestByTenant(eq(tenantId), anyString(), eq(false), eq(30)))
-                .thenReturn(List.of());
-        when(documentChunkRepository.findByKeywordsInTenant(eq(tenantId), eq("question"), anyString(), eq(false), eq(30)))
-                .thenReturn(List.of());
+    void search_singleDocument_replacesTheScopeWithThatDocument() {
+        AiSearchScope ignored = new AiSearchScope(UUID.randomUUID(), null, null, null, null, null, null);
+        AiSearchScope onlyTheDocument = AiSearchScope.ofDocument(documentId);
 
-        hybridRetriever.search(tenantId, null, "question", EMBEDDING, false);
+        hybridRetriever.search(tenantId, documentId, "question", EMBEDDING, true, ignored);
 
-        verify(documentChunkRepository).findNearestByTenant(eq(tenantId), anyString(), eq(false), eq(30));
-        verify(documentChunkRepository).findByKeywordsInTenant(eq(tenantId), eq("question"), anyString(), eq(false), eq(30));
-    }
-
-    @Test
-    void search_passesDocumentAndVisibilityFilterToBothDocumentSearches() {
-        when(documentChunkRepository.findNearestByTenantAndDocument(
-                eq(tenantId), eq(documentId), anyString(), eq(true), eq(30))).thenReturn(List.of());
-        when(documentChunkRepository.findByKeywordsInDocument(
-                eq(tenantId), eq(documentId), eq("question"), anyString(), eq(true), eq(30))).thenReturn(List.of());
-
-        hybridRetriever.search(tenantId, documentId, "question", EMBEDDING, true);
-
-        verify(documentChunkRepository).findNearestByTenantAndDocument(
-                eq(tenantId), eq(documentId), anyString(), eq(true), eq(30));
-        verify(documentChunkRepository).findByKeywordsInDocument(
-                eq(tenantId), eq(documentId), eq("question"), anyString(), eq(true), eq(30));
+        verify(chunkSearchRepository).findNearest(eq(tenantId), anyString(), eq(true), eq(onlyTheDocument), eq(30));
+        verify(chunkSearchRepository).findByKeywords(
+                eq(tenantId), eq("question"), anyString(), eq(true), eq(onlyTheDocument), eq(30));
     }
 
     @Test
     void search_hybridSwitchedOff_onlyUsesVectorSearch() {
         ReflectionTestUtils.setField(hybridRetriever, "hybrid", false);
-        when(documentChunkRepository.findNearestByTenant(eq(tenantId), anyString(), eq(false), eq(30)))
-                .thenReturn(rows(row(1, 0.2, false)));
+        when(chunkSearchRepository.findNearest(eq(tenantId), anyString(), eq(false), eq(AiSearchScope.NONE), eq(30)))
+                .thenReturn(List.of(chunk(1)));
 
-        assertEquals(1, hybridRetriever.search(tenantId, null, "question", EMBEDDING, false).size());
+        assertEquals(1, hybridRetriever.search(
+                tenantId, null, "question", EMBEDDING, false, AiSearchScope.NONE).size());
 
-        verify(documentChunkRepository).findNearestByTenant(eq(tenantId), anyString(), eq(false), eq(30));
-        verifyNoMoreInteractions(documentChunkRepository);
+        verify(chunkSearchRepository).findNearest(
+                eq(tenantId), anyString(), eq(false), eq(AiSearchScope.NONE), eq(30));
+        verifyNoMoreInteractions(chunkSearchRepository);
     }
 
     @Test
-    void search_mapsColumnsByPosition() {
-        when(documentChunkRepository.findNearestByTenant(eq(tenantId), anyString(), eq(false), eq(30)))
-                .thenReturn(rows(row(7, 0.25, false)));
-        when(documentChunkRepository.findByKeywordsInTenant(eq(tenantId), anyString(), anyString(), eq(false), eq(30)))
-                .thenReturn(List.of());
+    void summaries_sendsTheEmbeddingAsAVector() {
+        hybridRetriever.summaries(tenantId, EMBEDDING, false, AiSearchScope.NONE, 0.45, 6);
 
-        RetrievedChunk result = hybridRetriever.search(tenantId, null, "question", EMBEDDING, false).get(0);
-
-        assertEquals(new RetrievedChunk(documentId, "lease.pdf", 7, "text 7", 4, 5, "Terms", 0.25, false), result);
+        verify(chunkSearchRepository).findNearestSummaries(
+                tenantId, "[0.1,0.2]", false, AiSearchScope.NONE, 0.45, 6);
     }
 
     @Test

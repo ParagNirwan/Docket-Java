@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { X, Download, Eye, AlertCircle, Loader2, FileText } from "lucide-react";
+import { X, Download, Eye, AlertCircle, Loader2, FileText, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
+import { getDocumentSummary, type DocumentSummary } from "../services/aiService";
 import { previewDocument, previewDocumentVersion, downloadDocument, formatFileSize } from "../services/documentService";
 
 interface DocumentPreviewModalProps {
@@ -30,6 +31,24 @@ export function DocumentPreviewModal({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [resolvedType, setResolvedType] = useState<string>(contentType || "");
   const [textContent, setTextContent] = useState<string | null>(null);
+  const [summary, setSummary] = useState<DocumentSummary | null>(null);
+  const [summaryOpen, setSummaryOpen] = useState(true);
+
+  // The summary describes the current version, so an old version is shown without one
+  useEffect(() => {
+    if (version) return;
+    let active = true;
+    getDocumentSummary(slug, docId, token)
+      .then((data) => {
+        if (active) setSummary(data.summary ? data : null);
+      })
+      .catch(() => {
+        // The preview is still useful without it
+      });
+    return () => {
+      active = false;
+    };
+  }, [slug, docId, version, token]);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -151,6 +170,39 @@ export function DocumentPreviewModal({
             </button>
           </div>
         </div>
+
+        {summary && !version && (
+          <section
+            aria-label="AI summary"
+            className="shrink-0 border-b border-gray-100 bg-indigo-50/40 px-5 py-3 dark:border-gray-800 dark:bg-indigo-950/20"
+          >
+            <button
+              type="button"
+              onClick={() => setSummaryOpen((open) => !open)}
+              aria-expanded={summaryOpen}
+              className="flex w-full items-center gap-1.5 text-xs font-semibold text-indigo-700 dark:text-indigo-300"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              AI summary
+              {summaryOpen ? <ChevronUp className="ml-auto h-3.5 w-3.5" /> : <ChevronDown className="ml-auto h-3.5 w-3.5" />}
+            </button>
+            {summaryOpen && (
+              <div className="mt-2 max-h-40 overflow-y-auto text-xs leading-relaxed text-gray-700 dark:text-gray-300">
+                <p>{summary.summary}</p>
+                {summary.keyPoints.length > 0 && (
+                  <ul className="mt-2 list-disc space-y-0.5 pl-4">
+                    {summary.keyPoints.map((point) => (
+                      <li key={point}>{point}</li>
+                    ))}
+                  </ul>
+                )}
+                <p className="mt-2 text-[10px] text-gray-400 dark:text-gray-500">
+                  Written by AI. Check the document before relying on it.
+                </p>
+              </div>
+            )}
+          </section>
+        )}
 
         {/* Preview Viewport */}
         <div className="flex-1 bg-gray-50/70 dark:bg-gray-950/80 p-4 overflow-auto flex items-center justify-center">

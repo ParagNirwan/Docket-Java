@@ -289,6 +289,19 @@ public class DocumentController {
         return ResponseEntity.ok(Map.of("status", status));
     }
 
+    // ─── GET AI SUMMARY ────────────────────────────────────────────────
+    // GET /api/tenants/{slug}/documents/{docId}/summary
+    // The summary and key points written when the document was indexed.
+    // "summary" is null when there isn't one.
+    @GetMapping("/documents/{docId}/summary")
+    public ResponseEntity<com.docket.app.dto.DocumentSummaryDTO> getAiSummary(
+            @PathVariable String slug,
+            @PathVariable UUID docId,
+            Authentication authentication
+    ) {
+        return ResponseEntity.ok(documentService.getAiSummary(slug, docId, authentication));
+    }
+
     // ─── RE-INDEX A DOCUMENT ───────────────────────────────────────────
     // POST /api/tenants/{slug}/documents/{docId}/reindex
     // Triggers re-processing of a document (deletes old chunks, creates new ones).

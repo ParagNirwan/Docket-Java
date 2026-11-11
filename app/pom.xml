@@ -144,6 +144,12 @@
             <artifactId>google-cloud-vertexai</artifactId>
         </dependency>
 
+        <!-- Vertex AI Ranking API (re-ranking search results) -->
+        <dependency>
+            <groupId>com.google.cloud</groupId>
+            <artifactId>google-cloud-discoveryengine</artifactId>
+        </dependency>
+
         <!-- Google Cloud Vision OCR -->
         <dependency>
             <groupId>com.google.cloud</groupId>

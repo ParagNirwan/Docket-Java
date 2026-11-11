@@ -4,6 +4,7 @@ import com.docket.app.dto.*;
 import com.docket.app.entity.AiFeedback;
 import com.docket.app.entity.Conversation;
 import com.docket.app.entity.ConversationMessage;
+import com.docket.app.enums.AiQueryMode;
 import com.docket.app.repository.AiFeedbackRepository;
 import com.docket.app.repository.ConversationRepository;
 import com.docket.app.service.ai.AiQueryService;
@@ -58,6 +59,12 @@ public class ConversationService {
 
     @Transactional
     public ConversationDTO createConversation(Authentication authentication, UUID tenantId, UUID userId, String question) {
+        return createConversation(authentication, tenantId, userId, question, AiQueryMode.ASK);
+    }
+
+    @Transactional
+    public ConversationDTO createConversation(Authentication authentication, UUID tenantId, UUID userId,
+                                             String question, AiQueryMode mode) {
         String title = question.length() > 80 ? question.substring(0, 80) + "..." : question;
 
         Conversation conversation = new Conversation();
@@ -71,7 +78,7 @@ public class ConversationService {
         userMsg.setContent(question);
         conversation.getMessages().add(userMsg);
 
-        AiQueryResponseDTO aiResponse = aiQueryService.query(authentication, tenantId, question, null);
+        AiQueryResponseDTO aiResponse = aiQueryService.query(authentication, tenantId, question, null, mode);
 
         ConversationMessage aiMsg = new ConversationMessage();
         aiMsg.setConversation(conversation);
@@ -87,6 +94,12 @@ public class ConversationService {
 
     @Transactional
     public ConversationMessageDTO sendMessage(Authentication authentication, UUID conversationId, UUID tenantId, UUID userId, String question) {
+        return sendMessage(authentication, conversationId, tenantId, userId, question, AiQueryMode.ASK);
+    }
+
+    @Transactional
+    public ConversationMessageDTO sendMessage(Authentication authentication, UUID conversationId, UUID tenantId,
+                                              UUID userId, String question, AiQueryMode mode) {
         Conversation conversation = conversationRepository
                 .findByIdAndTenantIdAndUserId(conversationId, tenantId, userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Conversation not found"));
@@ -102,7 +115,7 @@ public class ConversationService {
         conversation.getMessages().add(userMsg);
 
         AiQueryResponseDTO aiResponse = aiQueryService.query(
-                authentication, tenantId, question, null, searchQuery, history);
+                authentication, tenantId, question, null, searchQuery, history, mode);
 
         ConversationMessage aiMsg = new ConversationMessage();
         aiMsg.setConversation(conversation);

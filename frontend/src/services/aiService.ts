@@ -18,13 +18,15 @@ export interface AiQueryResponse {
   sources: AiSourceChunk[];
 }
 
+export type AiQueryMode = "ASK" | "SUMMARIZE";
+
 export interface IndexingStatusResponse {
   status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED" | "NOT_PROCESSABLE";
 }
 
 export async function queryAi(
   slug: string,
-  payload: { question: string; documentId: string },
+  payload: { question: string; documentId: string; mode?: AiQueryMode },
   token: string,
 ): Promise<AiQueryResponse> {
   const url = `${API_BASE}/tenants/${encodeURIComponent(slug)}/ai/query`;

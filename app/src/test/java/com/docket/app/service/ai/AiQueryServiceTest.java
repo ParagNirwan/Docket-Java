@@ -3,6 +3,7 @@ package com.docket.app.service.ai;
 import com.docket.app.dto.AiQueryResponseDTO;
 import com.docket.app.dto.AiSourceChunkDTO;
 import com.docket.app.entity.Document;
+import com.docket.app.enums.AiQueryMode;
 import com.docket.app.enums.FileStatus;
 import com.docket.app.repository.DocumentRepository;
 import com.docket.app.service.FolderAccessService;
@@ -33,12 +34,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class AiQueryServiceTest {
     private static final String QUESTION = "What is the termination clause?";
-    private static final String SUMMARY_QUESTION = "Summarize this document";
+    private static final String SUMMARY_QUESTION = "Give me the gist of this";
     private static final float[] EMBEDDING = {0.1f};
 
     private final Authentication authentication =
@@ -170,10 +172,30 @@ class AiQueryServiceTest {
                 .thenReturn(List.of(EMBEDDING));
 
         aiQueryService.query(authentication, tenantId, QUESTION, documentId);
-        aiQueryService.query(authentication, tenantId, SUMMARY_QUESTION, documentId);
+        aiQueryService.query(authentication, tenantId, SUMMARY_QUESTION, documentId, AiQueryMode.SUMMARIZE);
 
         verify(hybridRetriever).search(tenantId, documentId, QUESTION, EMBEDDING, false);
-        verify(hybridRetriever).firstChunks(tenantId, documentId, false, 20);
+        verify(hybridRetriever).firstChunks(tenantId, documentId, false, 200);
+    }
+
+    @Test
+    void query_summaryModeUsesMapReduceForLongDocuments() throws IOException {
+        when(documentRepository.findByIdAndTenantId(documentId, tenantId))
+                .thenReturn(Optional.of(documentWithStatus(FileStatus.ACTIVE)));
+        when(folderAccessService.canAccessFolder(authentication, tenantId, folderId)).thenReturn(true);
+        when(folderAccessService.canAccessRestrictedTrays(authentication, tenantId)).thenReturn(false);
+        List<RetrievedChunk> chunks = java.util.stream.IntStream.range(0, 15)
+                .mapToObj(index -> new RetrievedChunk(documentId, "lease.pdf", index, "section " + index,
+                        index + 1, index + 1, "Terms", null, false))
+                .toList();
+        when(hybridRetriever.firstChunks(tenantId, documentId, false, 200)).thenReturn(chunks);
+        modelReplies("{\"answer\": \"Summary [1].\", \"citations\": [{\"sourceId\": 1}]}");
+
+        AiQueryResponseDTO response = aiQueryService.query(
+                authentication, tenantId, "Give me the gist", documentId, AiQueryMode.SUMMARIZE);
+
+        assertEquals("Summary [1].", response.getAnswer());
+        verify(geminiClient, times(3)).generate(any(), any(), any(GenerationConfig.class));
     }
 
     @Test

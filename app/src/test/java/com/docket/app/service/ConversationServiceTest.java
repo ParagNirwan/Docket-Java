@@ -5,6 +5,7 @@ import com.docket.app.dto.AiSourceChunkDTO;
 import com.docket.app.dto.ConversationMessageDTO;
 import com.docket.app.entity.Conversation;
 import com.docket.app.entity.ConversationMessage;
+import com.docket.app.enums.AiQueryMode;
 import com.docket.app.repository.AiFeedbackRepository;
 import com.docket.app.repository.ConversationRepository;
 import com.docket.app.service.ai.AiQueryService;
@@ -85,7 +86,7 @@ class ConversationServiceTest {
                 new ConversationTurn("user", "Who is the landlord in the lease?"),
                 new ConversationTurn("ai", "Acme Ltd."));
         when(queryRewriteService.rewrite(history, FOLLOW_UP)).thenReturn(REWRITTEN);
-        when(aiQueryService.query(authentication, tenantId, FOLLOW_UP, null, REWRITTEN, history))
+        when(aiQueryService.query(authentication, tenantId, FOLLOW_UP, null, REWRITTEN, history, AiQueryMode.ASK))
                 .thenReturn(new AiQueryResponseDTO("In May [1].", List.of(source())));
 
         service.sendMessage(authentication, conversationId, tenantId, userId, FOLLOW_UP);
@@ -105,7 +106,7 @@ class ConversationServiceTest {
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<ConversationTurn>> history = ArgumentCaptor.forClass(List.class);
         when(queryRewriteService.rewrite(history.capture(), eq(FOLLOW_UP))).thenReturn(FOLLOW_UP);
-        when(aiQueryService.query(any(), any(), any(), any(), any(), any()))
+        when(aiQueryService.query(any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(new AiQueryResponseDTO("Answer", List.of()));
 
         service.sendMessage(authentication, conversationId, tenantId, userId, FOLLOW_UP);
@@ -119,7 +120,7 @@ class ConversationServiceTest {
         conversationExists();
         AiSourceChunkDTO source = source();
         when(queryRewriteService.rewrite(List.of(), FOLLOW_UP)).thenReturn(FOLLOW_UP);
-        when(aiQueryService.query(any(), any(), any(), any(), any(), any()))
+        when(aiQueryService.query(any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(new AiQueryResponseDTO("Answer [1].", List.of(source)));
 
         ConversationMessageDTO result = service.sendMessage(

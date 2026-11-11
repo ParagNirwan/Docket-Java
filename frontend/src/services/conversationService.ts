@@ -1,6 +1,6 @@
 import { apiFetch } from "../lib/session";
 import { API_BASE } from "./documentService";
-import type { AiSourceChunk } from "./aiService";
+import type { AiQueryMode, AiSourceChunk } from "./aiService";
 
 export interface ConversationMessage {
   id: string;
@@ -86,12 +86,13 @@ export async function createConversation(
   slug: string,
   question: string,
   token: string,
+  mode: AiQueryMode = "ASK",
 ): Promise<Conversation> {
   const url = `${API_BASE}/tenants/${encodeURIComponent(slug)}/ai/conversations`;
   const response = await apiFetch(url, {
     method: "POST",
     headers: headers(token),
-    body: JSON.stringify({ question }),
+    body: JSON.stringify({ question, mode }),
   });
   return handleResponse<Conversation>(response);
 }
@@ -101,12 +102,13 @@ export async function sendMessage(
   conversationId: string,
   question: string,
   token: string,
+  mode: AiQueryMode = "ASK",
 ): Promise<ConversationMessage> {
   const url = `${API_BASE}/tenants/${encodeURIComponent(slug)}/ai/conversations/${conversationId}/messages`;
   const response = await apiFetch(url, {
     method: "POST",
     headers: headers(token),
-    body: JSON.stringify({ question }),
+    body: JSON.stringify({ question, mode }),
   });
   return handleResponse<ConversationMessage>(response);
 }

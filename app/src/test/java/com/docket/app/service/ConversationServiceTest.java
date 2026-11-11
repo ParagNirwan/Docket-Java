@@ -9,6 +9,8 @@ import com.docket.app.enums.AiQueryMode;
 import com.docket.app.repository.AiFeedbackRepository;
 import com.docket.app.repository.ConversationRepository;
 import com.docket.app.service.ai.AiQueryService;
+import com.docket.app.service.ai.AiSearchScope;
+import com.docket.app.service.ai.AiStreamListener;
 import com.docket.app.service.ai.ConversationTurn;
 import com.docket.app.service.ai.QueryRewriteService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -86,7 +88,8 @@ class ConversationServiceTest {
                 new ConversationTurn("user", "Who is the landlord in the lease?"),
                 new ConversationTurn("ai", "Acme Ltd."));
         when(queryRewriteService.rewrite(history, FOLLOW_UP)).thenReturn(REWRITTEN);
-        when(aiQueryService.query(authentication, tenantId, FOLLOW_UP, null, REWRITTEN, history, AiQueryMode.ASK))
+        when(aiQueryService.query(authentication, tenantId, FOLLOW_UP, null, REWRITTEN, history, AiQueryMode.ASK,
+                AiSearchScope.NONE))
                 .thenReturn(new AiQueryResponseDTO("In May [1].", List.of(source())));
 
         service.sendMessage(authentication, conversationId, tenantId, userId, FOLLOW_UP);
@@ -106,7 +109,7 @@ class ConversationServiceTest {
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<ConversationTurn>> history = ArgumentCaptor.forClass(List.class);
         when(queryRewriteService.rewrite(history.capture(), eq(FOLLOW_UP))).thenReturn(FOLLOW_UP);
-        when(aiQueryService.query(any(), any(), any(), any(), any(), any(), any()))
+        when(aiQueryService.query(any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(new AiQueryResponseDTO("Answer", List.of()));
 
         service.sendMessage(authentication, conversationId, tenantId, userId, FOLLOW_UP);
@@ -120,7 +123,7 @@ class ConversationServiceTest {
         conversationExists();
         AiSourceChunkDTO source = source();
         when(queryRewriteService.rewrite(List.of(), FOLLOW_UP)).thenReturn(FOLLOW_UP);
-        when(aiQueryService.query(any(), any(), any(), any(), any(), any(), any()))
+        when(aiQueryService.query(any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(new AiQueryResponseDTO("Answer [1].", List.of(source)));
 
         ConversationMessageDTO result = service.sendMessage(
@@ -128,6 +131,38 @@ class ConversationServiceTest {
 
         assertEquals(List.of(source), result.getSources());
         verify(conversationRepository).save(conversation);
+    }
+
+    @Test
+    void sendMessage_streaming_storesTheStreamedAnswerWithItsScope() {
+        conversationExists();
+        AiSearchScope scope = new AiSearchScope(UUID.randomUUID(), null, null, null, null, null, null);
+        AiStreamListener listener = org.mockito.Mockito.mock(AiStreamListener.class);
+        when(queryRewriteService.rewrite(List.of(), FOLLOW_UP)).thenReturn(FOLLOW_UP);
+        when(aiQueryService.stream(authentication, tenantId, FOLLOW_UP, null, FOLLOW_UP, List.of(),
+                AiQueryMode.ASK, scope, listener)).thenReturn(new AiQueryResponseDTO("Streamed [1].", List.of(source())));
+
+        ConversationMessageDTO result = service.sendMessage(
+                authentication, conversationId, tenantId, userId, FOLLOW_UP, AiQueryMode.ASK, scope, listener);
+
+        assertEquals("Streamed [1].", result.getContent());
+        assertEquals("Streamed [1].", conversation.getMessages().get(1).getContent());
+        verify(conversationRepository).save(conversation);
+    }
+
+    @Test
+    void sendMessage_streamingCancelled_storesNothing() {
+        conversationExists();
+        AiStreamListener listener = org.mockito.Mockito.mock(AiStreamListener.class);
+        when(queryRewriteService.rewrite(List.of(), FOLLOW_UP)).thenReturn(FOLLOW_UP);
+        when(aiQueryService.stream(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenThrow(new com.docket.app.service.ai.AiStreamCancelledException(new java.io.IOException("gone")));
+
+        org.junit.jupiter.api.Assertions.assertThrows(com.docket.app.service.ai.AiStreamCancelledException.class,
+                () -> service.sendMessage(authentication, conversationId, tenantId, userId, FOLLOW_UP,
+                        AiQueryMode.ASK, AiSearchScope.NONE, listener));
+
+        verify(conversationRepository, org.mockito.Mockito.never()).save(any());
     }
 
     @Test

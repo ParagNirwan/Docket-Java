@@ -1,6 +1,6 @@
 package com.docket.app.service.ai;
 
-import com.docket.app.repository.DocumentChunkRepository;
+import com.docket.app.repository.ChunkSearchRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
@@ -29,41 +29,40 @@ public class HybridRetriever {
     private static final int MIN_IDENTIFIER_LENGTH = 3;
     private static final int MIN_DIGITS_ONLY_IDENTIFIER_LENGTH = 5; // so that a year isn't an identifier
 
-    private final DocumentChunkRepository documentChunkRepository;
+    private final ChunkSearchRepository chunkSearchRepository;
 
     @Value("${docket.ai.retrieval.hybrid}")
     private boolean hybrid = true;
 
-    // Best match first. documentId limits the search to one document when it isn't null.
+    // Best match first. documentId limits the search to one document when it isn't null,
+    // and the scope is then ignored.
     public List<RetrievedChunk> search(UUID tenantId, UUID documentId, String query, float[] queryEmbedding,
-                                       boolean includeRestricted) {
+                                       boolean includeRestricted, AiSearchScope scope) {
         String embedding = toVectorString(queryEmbedding);
+        AiSearchScope effectiveScope = documentId == null ? scope : AiSearchScope.ofDocument(documentId);
 
-        List<Object[]> vectorRows = documentId == null
-                ? documentChunkRepository.findNearestByTenant(tenantId, embedding, includeRestricted, CANDIDATES_PER_SEARCH)
-                : documentChunkRepository.findNearestByTenantAndDocument(
-                        tenantId, documentId, embedding, includeRestricted, CANDIDATES_PER_SEARCH);
-        List<RetrievedChunk> vectorResults = vectorRows.stream().map(HybridRetriever::toChunk).toList();
+        List<RetrievedChunk> vectorResults = chunkSearchRepository.findNearest(
+                tenantId, embedding, includeRestricted, effectiveScope, CANDIDATES_PER_SEARCH);
 
         if (!hybrid) {
             return vectorResults;
         }
 
-        String keywordQuery = keywordQuery(query);
-        List<Object[]> keywordRows = documentId == null
-                ? documentChunkRepository.findByKeywordsInTenant(
-                        tenantId, keywordQuery, embedding, includeRestricted, CANDIDATES_PER_SEARCH)
-                : documentChunkRepository.findByKeywordsInDocument(
-                        tenantId, documentId, keywordQuery, embedding, includeRestricted, CANDIDATES_PER_SEARCH);
+        List<RetrievedChunk> keywordResults = chunkSearchRepository.findByKeywords(
+                tenantId, keywordQuery(query), embedding, includeRestricted, effectiveScope, CANDIDATES_PER_SEARCH);
 
-        return fuse(vectorResults, keywordRows.stream().map(HybridRetriever::toChunk).toList());
+        return fuse(vectorResults, keywordResults);
     }
 
     public List<RetrievedChunk> firstChunks(UUID tenantId, UUID documentId, boolean includeRestricted, int limit) {
-        return documentChunkRepository.findByDocumentOrdered(tenantId, documentId, includeRestricted, limit)
-                .stream()
-                .map(HybridRetriever::toChunk)
-                .toList();
+        return chunkSearchRepository.findInDocumentOrder(tenantId, documentId, includeRestricted, limit);
+    }
+
+    // Documents whose AI summary matches the question, closest first
+    public List<RetrievedChunk> summaries(UUID tenantId, float[] queryEmbedding, boolean includeRestricted,
+                                          AiSearchScope scope, double maxDistance, int limit) {
+        return chunkSearchRepository.findNearestSummaries(
+                tenantId, toVectorString(queryEmbedding), includeRestricted, scope, maxDistance, limit);
     }
 
     // In "what is the total on INV-2024-0042" only the invoice number tells chunks apart.
@@ -112,20 +111,7 @@ public class HybridRetriever {
         return chunk.documentId() + ":" + chunk.chunkIndex();
     }
 
-    private static RetrievedChunk toChunk(Object[] row) {
-        return new RetrievedChunk(
-                (UUID) row[0],
-                (String) row[1],
-                ((Number) row[2]).intValue(),
-                (String) row[3],
-                row[4] == null ? null : ((Number) row[4]).intValue(),
-                row[5] == null ? null : ((Number) row[5]).intValue(),
-                (String) row[6],
-                row[7] == null ? null : ((Number) row[7]).doubleValue(),
-                Boolean.TRUE.equals(row[8]));
-    }
-
-    private static String toVectorString(float[] vector) {
+    static String toVectorString(float[] vector) {
         StringBuilder sb = new StringBuilder("[");
         for (int i = 0; i < vector.length; i++) {
             if (i > 0) sb.append(",");

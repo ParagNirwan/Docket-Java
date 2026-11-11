@@ -58,6 +58,15 @@ public class Document {
     @Enumerated(EnumType.STRING)
     private IndexingStatus indexingStatus;
 
+    // Written by DocumentSummaryService after indexing, through its own queries. The embedding
+    // of the summary is only ever read in SQL, so it isn't mapped here.
+    @Column(columnDefinition = "TEXT")
+    private String aiSummary;
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb")
+    private java.util.List<String> aiKeyPoints;
+    private Instant aiSummaryGeneratedAt;
+
     // Retention: see RetentionService. A document is locked while retainUntil is in the future.
     private Instant retainUntil;
     @Enumerated(EnumType.STRING)

@@ -37,6 +37,7 @@ public class DocumentProcessingService {
     private final TransactionTemplate transactionTemplate;
     private final NotificationService notificationService;
     private final TenantRepository tenantRepository;
+    private final DocumentSummaryService documentSummaryService;
 
     // Raising this makes the re-index job process every document again. Do that whenever
     // a change to extraction, chunking or embedding should reach existing documents.
@@ -76,6 +77,7 @@ public class DocumentProcessingService {
 
             if (extraction.status() == IndexingStatus.NOT_PROCESSABLE) {
                 replaceChunks(documentId, List.of(), IndexingStatus.NOT_PROCESSABLE);
+                refreshSummary(document, List.of());
                 log.info("Document not processable: {}", documentId);
                 return;
             }
@@ -89,6 +91,7 @@ public class DocumentProcessingService {
 
             if (chunks.isEmpty()) {
                 replaceChunks(documentId, List.of(), IndexingStatus.COMPLETED);
+                refreshSummary(document, List.of());
                 log.info("No text content to index for document: {}", documentId);
                 return;
             }
@@ -114,6 +117,8 @@ public class DocumentProcessingService {
             }
 
             replaceChunks(documentId, chunkEntities, IndexingStatus.COMPLETED);
+            // After the chunks are saved, so the document is searchable while its summary is written
+            refreshSummary(document, chunks);
             log.info("Document processing completed: {} ({} chunks)", documentId, chunks.size());
 
         } catch (Exception e) {
@@ -129,6 +134,15 @@ public class DocumentProcessingService {
             documentChunkRepository.saveAll(chunks);
             documentRepository.markIndexed(documentId, status.name(), embeddingVersion);
         });
+    }
+
+    // A summary is an extra, so a problem here can't fail the indexing that already succeeded.
+    private void refreshSummary(Document document, List<TextChunk> chunks) {
+        try {
+            documentSummaryService.refresh(document, chunks);
+        } catch (RuntimeException e) {
+            log.warn("Could not refresh the summary of {}", document.getId(), e);
+        }
     }
 
     private void markFailed(Document document, boolean alreadySearchable) {

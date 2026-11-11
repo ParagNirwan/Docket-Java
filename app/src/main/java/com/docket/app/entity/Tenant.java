@@ -25,6 +25,8 @@ public class Tenant {
     private TenantStatus status;
     private Integer trashRetentionDays = 30;
     private Long storageQuotaBytes;
+    // Whether the AI may write a summary of each document. See DocumentSummaryService.
+    private boolean aiSummariesEnabled = true;
 
     @PrePersist
     void prePersist() {

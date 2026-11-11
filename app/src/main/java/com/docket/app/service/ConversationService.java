@@ -8,6 +8,8 @@ import com.docket.app.enums.AiQueryMode;
 import com.docket.app.repository.AiFeedbackRepository;
 import com.docket.app.repository.ConversationRepository;
 import com.docket.app.service.ai.AiQueryService;
+import com.docket.app.service.ai.AiSearchScope;
+import com.docket.app.service.ai.AiStreamListener;
 import com.docket.app.service.ai.ConversationTurn;
 import com.docket.app.service.ai.QueryRewriteService;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -65,6 +67,15 @@ public class ConversationService {
     @Transactional
     public ConversationDTO createConversation(Authentication authentication, UUID tenantId, UUID userId,
                                              String question, AiQueryMode mode) {
+        return createConversation(authentication, tenantId, userId, question, mode, AiSearchScope.NONE, null);
+    }
+
+    // With a listener, the answer is also handed over piece by piece while it is written.
+    // Nothing is stored unless the answer completes, so a cancelled question leaves no trace.
+    @Transactional
+    public ConversationDTO createConversation(Authentication authentication, UUID tenantId, UUID userId,
+                                             String question, AiQueryMode mode, AiSearchScope scope,
+                                             AiStreamListener listener) {
         String title = question.length() > 80 ? question.substring(0, 80) + "..." : question;
 
         Conversation conversation = new Conversation();
@@ -78,7 +89,8 @@ public class ConversationService {
         userMsg.setContent(question);
         conversation.getMessages().add(userMsg);
 
-        AiQueryResponseDTO aiResponse = aiQueryService.query(authentication, tenantId, question, null, mode);
+        AiQueryResponseDTO aiResponse = ask(
+                authentication, tenantId, question, question, List.of(), mode, scope, listener);
 
         ConversationMessage aiMsg = new ConversationMessage();
         aiMsg.setConversation(conversation);
@@ -100,6 +112,13 @@ public class ConversationService {
     @Transactional
     public ConversationMessageDTO sendMessage(Authentication authentication, UUID conversationId, UUID tenantId,
                                               UUID userId, String question, AiQueryMode mode) {
+        return sendMessage(authentication, conversationId, tenantId, userId, question, mode, AiSearchScope.NONE, null);
+    }
+
+    @Transactional
+    public ConversationMessageDTO sendMessage(Authentication authentication, UUID conversationId, UUID tenantId,
+                                              UUID userId, String question, AiQueryMode mode, AiSearchScope scope,
+                                              AiStreamListener listener) {
         Conversation conversation = conversationRepository
                 .findByIdAndTenantIdAndUserId(conversationId, tenantId, userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Conversation not found"));
@@ -114,8 +133,8 @@ public class ConversationService {
         userMsg.setRewrittenQuery(searchQuery);
         conversation.getMessages().add(userMsg);
 
-        AiQueryResponseDTO aiResponse = aiQueryService.query(
-                authentication, tenantId, question, null, searchQuery, history, mode);
+        AiQueryResponseDTO aiResponse = ask(
+                authentication, tenantId, question, searchQuery, history, mode, scope, listener);
 
         ConversationMessage aiMsg = new ConversationMessage();
         aiMsg.setConversation(conversation);
@@ -127,6 +146,15 @@ public class ConversationService {
         conversationRepository.save(conversation);
 
         return toMessageDTO(aiMsg);
+    }
+
+    private AiQueryResponseDTO ask(Authentication authentication, UUID tenantId, String question, String searchQuery,
+                                   List<ConversationTurn> history, AiQueryMode mode, AiSearchScope scope,
+                                   AiStreamListener listener) {
+        return listener == null
+                ? aiQueryService.query(authentication, tenantId, question, null, searchQuery, history, mode, scope)
+                : aiQueryService.stream(
+                        authentication, tenantId, question, null, searchQuery, history, mode, scope, listener);
     }
 
     @Transactional

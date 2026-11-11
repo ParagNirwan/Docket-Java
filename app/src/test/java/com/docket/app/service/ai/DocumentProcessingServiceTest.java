@@ -41,6 +41,7 @@ class DocumentProcessingServiceTest {
     @Mock private EmbeddingService embeddingService;
     @Mock private com.docket.app.service.NotificationService notificationService;
     @Mock private com.docket.app.repository.TenantRepository tenantRepository;
+    @Mock private DocumentSummaryService documentSummaryService;
 
     private DocumentProcessingService service;
     private final UUID documentId = UUID.randomUUID();
@@ -51,7 +52,8 @@ class DocumentProcessingServiceTest {
         service = new DocumentProcessingService(
                 documentRepository, documentChunkRepository, textExtractionService, new ChunkingService(),
                 chunkEnrichmentService, embeddingService,
-                new TransactionTemplate(mock(PlatformTransactionManager.class)), notificationService, tenantRepository);
+                new TransactionTemplate(mock(PlatformTransactionManager.class)), notificationService, tenantRepository,
+                documentSummaryService);
 
         document = new Document();
         document.setId(documentId);
@@ -132,6 +134,31 @@ class DocumentProcessingServiceTest {
         verify(documentChunkRepository, never()).deleteByDocumentId(any());
         verify(documentRepository, never()).updateIndexingStatus(any(), any());
         verify(documentRepository, never()).markIndexed(any(), anyString(), anyInt());
+    }
+
+    @Test
+    void processDocument_summarizesAfterTheChunksAreSaved() {
+        extractionSucceeds();
+        embeddingSucceeds();
+
+        service.processDocument(documentId);
+
+        InOrder order = inOrder(documentRepository, documentSummaryService);
+        order.verify(documentRepository).markIndexed(documentId, "COMPLETED", 1);
+        order.verify(documentSummaryService).refresh(eq(document), anyList());
+    }
+
+    @Test
+    void processDocument_summaryFails_documentStaysIndexed() {
+        extractionSucceeds();
+        embeddingSucceeds();
+        org.mockito.Mockito.doThrow(new RuntimeException("model down"))
+                .when(documentSummaryService).refresh(any(), anyList());
+
+        service.processDocument(documentId);
+
+        verify(documentRepository).markIndexed(documentId, "COMPLETED", 1);
+        verify(documentRepository, never()).updateIndexingStatus(documentId, IndexingStatus.FAILED);
     }
 
     @Test

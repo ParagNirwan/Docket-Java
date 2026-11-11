@@ -1,6 +1,6 @@
 import { apiFetch } from "../lib/session";
 import { API_BASE } from "./documentService";
-import type { AiQueryMode, AiSourceChunk } from "./aiService";
+import { readAiStream, type AiQueryMode, type AiSearchScope, type AiSourceChunk, type AiStreamHandlers } from "./aiService";
 
 export interface ConversationMessage {
   id: string;
@@ -126,4 +126,43 @@ export async function deleteConversation(
   if (!response.ok && response.status !== 204) {
     throw new Error(`Failed to delete conversation (${response.status})`);
   }
+}
+
+// Starts a conversation and streams its first answer. Resolves with the stored conversation.
+export async function streamCreateConversation(
+  slug: string,
+  question: string,
+  token: string,
+  mode: AiQueryMode,
+  scope: AiSearchScope,
+  handlers: AiStreamHandlers,
+): Promise<Conversation> {
+  const url = `${API_BASE}/tenants/${encodeURIComponent(slug)}/ai/conversations/stream`;
+  const response = await apiFetch(url, {
+    method: "POST",
+    headers: headers(token),
+    body: JSON.stringify({ question, mode, scope }),
+    signal: handlers.signal,
+  });
+  return readAiStream<Conversation>(response, handlers);
+}
+
+// Streams the answer to a follow-up. Resolves with the stored AI message.
+export async function streamSendMessage(
+  slug: string,
+  conversationId: string,
+  question: string,
+  token: string,
+  mode: AiQueryMode,
+  scope: AiSearchScope,
+  handlers: AiStreamHandlers,
+): Promise<ConversationMessage> {
+  const url = `${API_BASE}/tenants/${encodeURIComponent(slug)}/ai/conversations/${conversationId}/messages/stream`;
+  const response = await apiFetch(url, {
+    method: "POST",
+    headers: headers(token),
+    body: JSON.stringify({ question, mode, scope }),
+    signal: handlers.signal,
+  });
+  return readAiStream<ConversationMessage>(response, handlers);
 }

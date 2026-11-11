@@ -9,16 +9,19 @@ import {
   ChevronLeft,
   Clock,
   Search,
+  Square,
 } from "lucide-react";
 import { AiMessage } from "./AiMessage";
 import { DocumentPreviewModal } from "./DocumentPreviewModal";
 import { notify } from "../lib/notifications";
-import type { AiQueryMode, AiSourceChunk } from "../services/aiService";
+import { AiScopePicker } from "./AiScopePicker";
+import { EMPTY_SCOPE_SELECTION, toAiScope, type AiScopeSelection } from "../lib/aiScope";
+import { isAbortError, type AiQueryMode, type AiSourceChunk } from "../services/aiService";
 import {
   listConversations,
   getConversation,
-  createConversation,
-  sendMessage,
+  streamCreateConversation,
+  streamSendMessage,
   deleteConversation,
   submitAiFeedback,
   type Conversation,
@@ -40,6 +43,12 @@ export function WorkspaceAiSearch({ slug, token }: WorkspaceAiSearchProps) {
   const [searchFilter, setSearchFilter] = useState("");
   const [previewSource, setPreviewSource] = useState<AiSourceChunk | null>(null);
   const [queryMode, setQueryMode] = useState<AiQueryMode>("ASK");
+  const [scopeSelection, setScopeSelection] = useState<AiScopeSelection>(EMPTY_SCOPE_SELECTION);
+  // What the answer being written is based on, shown until its first words arrive
+  const [readingStatus, setReadingStatus] = useState<string | null>(null);
+  // Messages that only exist on this screen (stopped or failed answers), so they can't be rated
+  const [localMessageIds, setLocalMessageIds] = useState<ReadonlySet<string>>(new Set());
+  const abortRef = useRef<AbortController | null>(null);
   const [now] = useState(() => Date.now());
   const conversationKey = `${slug}:${token ?? ""}`;
   const isLoading = !!token && loadedConversationKey !== conversationKey;
@@ -65,6 +74,11 @@ export function WorkspaceAiSearch({ slug, token }: WorkspaceAiSearchProps) {
       active = false;
     };
   }, [slug, token, conversationKey]);
+
+  // Leaving the page stops an answer nobody will read
+  useEffect(() => () => abortRef.current?.abort(), []);
+
+  const handleStop = useCallback(() => abortRef.current?.abort(), []);
 
   // Auto-scroll on new messages
   useEffect(() => {
@@ -134,19 +148,50 @@ export function WorkspaceAiSearch({ slug, token }: WorkspaceAiSearchProps) {
     };
     setMessages((prev) => [...prev, tempUserMsg]);
 
+    // The answer fills this message in as it arrives
+    const answerId = randomUUID();
+    const updateAnswer = (change: (message: ConversationMessage) => ConversationMessage) =>
+      setMessages((prev) => prev.map((message) => (message.id === answerId ? change(message) : message)));
+    const keepAsLocal = () => setLocalMessageIds((prev) => new Set(prev).add(answerId));
+    setMessages((prev) => [
+      ...prev,
+      { id: answerId, role: "ai", content: "", sources: [], createdAt: new Date().toISOString() },
+    ]);
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const scope = toAiScope(scopeSelection);
+    const handlers = {
+      signal: controller.signal,
+      onSources: (sources: AiSourceChunk[]) => {
+        const documents = new Set(sources.map((source) => source.documentId)).size;
+        setReadingStatus(
+          sources.length === 0
+            ? null
+            : `Reading ${sources.length} passage${sources.length === 1 ? "" : "s"} from ${documents} document${documents === 1 ? "" : "s"}…`,
+        );
+      },
+      onDelta: (text: string) => {
+        setReadingStatus(null);
+        updateAnswer((message) => ({ ...message, content: message.content + text }));
+      },
+    };
+
     try {
       if (!activeConversation) {
         // Create new conversation
-        const conv = await createConversation(slug, question, token, queryMode);
+        const conv = await streamCreateConversation(slug, question, token, queryMode, scope, handlers);
         setActiveConversation(conv);
         setMessages(conv.messages || []);
         setConversations((prev) => [conv, ...prev]);
       } else {
         // Send message to existing conversation
-        const aiMsg = await sendMessage(slug, activeConversation.id, question, token, queryMode);
+        const aiMsg = await streamSendMessage(
+          slug, activeConversation.id, question, token, queryMode, scope, handlers,
+        );
 
-        // Replace temp user msg with real messages: keep the user msg, add AI response
-        setMessages((prev) => [...prev, aiMsg]);
+        // The stored message replaces the one that was filled in while streaming
+        setMessages((prev) => prev.map((message) => (message.id === answerId ? aiMsg : message)));
 
         // Update conversation's updatedAt in the list
         setConversations((prev) =>
@@ -158,21 +203,21 @@ export function WorkspaceAiSearch({ slug, token }: WorkspaceAiSearchProps) {
         );
       }
     } catch (err) {
+      keepAsLocal();
+      if (isAbortError(err)) {
+        // A stopped answer isn't saved, but what was written stays on screen
+        updateAnswer((message) => ({ ...message, content: message.content || "Stopped." }));
+        return;
+      }
       const errorText = err instanceof Error ? err.message : "Something went wrong";
       notify.error("AI query failed", errorText);
-
-      const errorMsg: ConversationMessage = {
-        id: randomUUID(),
-        role: "ai",
-        content: `I couldn't process that question. ${errorText}`,
-        sources: [],
-        createdAt: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, errorMsg]);
+      updateAnswer((message) => ({ ...message, content: `I couldn't process that question. ${errorText}` }));
     } finally {
+      abortRef.current = null;
+      setReadingStatus(null);
       setIsQuerying(false);
     }
-  }, [input, token, isQuerying, slug, activeConversation, queryMode]);
+  }, [input, token, isQuerying, slug, activeConversation, queryMode, scopeSelection]);
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -257,8 +302,10 @@ export function WorkspaceAiSearch({ slug, token }: WorkspaceAiSearchProps) {
               content={msg.content}
               sources={msg.sources}
               onCitationClick={token && msg.role === "ai" ? setPreviewSource : undefined}
+              isLoading={msg.role === "ai" && msg.content === ""}
               onFeedback={
-                activeConversation && token && msg.role === "ai"
+                activeConversation && token && msg.role === "ai" && !localMessageIds.has(msg.id)
+                  && !(isQuerying && msg === messages[messages.length - 1])
                   ? (rating, reason) => submitAiFeedback(
                       slug, activeConversation.id, msg.id, token, rating, reason,
                     )
@@ -267,12 +314,25 @@ export function WorkspaceAiSearch({ slug, token }: WorkspaceAiSearchProps) {
             />
           ))}
 
-          {isQuerying && <AiMessage role="ai" content="" isLoading />}
+          {readingStatus && (
+            <p role="status" className="pl-10 text-[11px] text-gray-400 dark:text-gray-500">
+              {readingStatus}
+            </p>
+          )}
           <div ref={messagesEndRef} />
         </div>
 
         {/* Input area */}
         <div className="border-t border-gray-100 dark:border-gray-800 px-5 py-3">
+          <div className="mb-2">
+            <AiScopePicker
+              slug={slug}
+              token={token}
+              selection={scopeSelection}
+              onChange={setScopeSelection}
+              disabled={isQuerying}
+            />
+          </div>
           <div className="flex items-end gap-2">
             <div className="relative flex-1">
               <textarea
@@ -292,15 +352,27 @@ export function WorkspaceAiSearch({ slug, token }: WorkspaceAiSearchProps) {
                 </span>
               )}
             </div>
-            <button
-              type="button"
-              onClick={handleSend}
-              disabled={!input.trim() || isQuerying}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white shadow-xs hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              aria-label="Send message"
-            >
-              <Send className="h-4 w-4" />
-            </button>
+            {isQuerying ? (
+              <button
+                type="button"
+                onClick={handleStop}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-900 text-white shadow-xs hover:bg-gray-700 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-white transition-colors"
+                aria-label="Stop answering"
+                title="Stop"
+              >
+                <Square className="h-3.5 w-3.5 fill-current" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleSend}
+                disabled={!input.trim()}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white shadow-xs hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                aria-label="Send message"
+              >
+                <Send className="h-4 w-4" />
+              </button>
+            )}
           </div>
           <p className="mt-1.5 text-[10px] text-gray-400 dark:text-gray-500">
             Enter to send · Shift+Enter for new line
@@ -382,6 +454,9 @@ export function WorkspaceAiSearch({ slug, token }: WorkspaceAiSearchProps) {
               </button>
             ),
           )}
+        </div>
+        <div className="mt-3">
+          <AiScopePicker slug={slug} token={token} selection={scopeSelection} onChange={setScopeSelection} />
         </div>
         <label className="mt-3 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
           AI mode

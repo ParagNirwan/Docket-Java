@@ -6,6 +6,7 @@ services:
       APP_BASE_URL: ${APP_BASE_URL}
       EMAIL_PROVIDER: ${EMAIL_PROVIDER:-disabled}
       EMAIL_FROM: ${EMAIL_FROM}
+      EMAIL_VERIFICATION_ENABLED: ${EMAIL_VERIFICATION_ENABLED:-false}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
     # No volume mounts for source code — use the built image only
     volumes:

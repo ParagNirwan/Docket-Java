@@ -14,6 +14,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Duration;
@@ -88,6 +89,7 @@ class AuthServiceTest {
 
     @Test
     void registerStillSucceedsWhenTheInviteHasExpired() {
+        ReflectionTestUtils.setField(authService, "emailVerificationEnabled", true);
         RegisterRequestDTO request = registerFromInvite();
         when(invitationService.acceptForNewUser(eq("invite-token"), any(User.class)))
                 .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "expired"));
@@ -124,6 +126,7 @@ class AuthServiceTest {
 
     @Test
     void registerNormalizesEmailUsesBothNamesStoresEncodedPasswordAndSendsVerification() {
+        ReflectionTestUtils.setField(authService, "emailVerificationEnabled", true);
         RegisterRequestDTO request = new RegisterRequestDTO();
         request.setFirstName("Ada");
         request.setLastName("Lovelace");
@@ -147,6 +150,7 @@ class AuthServiceTest {
 
     @Test
     void registerStillSucceedsWhenVerificationEmailCannotBeQueued() {
+        ReflectionTestUtils.setField(authService, "emailVerificationEnabled", true);
         RegisterRequestDTO request = new RegisterRequestDTO();
         request.setFirstName("Ada");
         request.setLastName("Lovelace");
@@ -158,6 +162,21 @@ class AuthServiceTest {
                 .when(accountRecoveryService).sendVerificationEmail(any(User.class));
 
         assertEquals("token", authService.register(request).getToken());
+    }
+
+    @Test
+    void registrationDoesNotSendVerificationWhenGloballyDisabled() {
+        RegisterRequestDTO request = new RegisterRequestDTO();
+        request.setFirstName("Ada");
+        request.setLastName("Lovelace");
+        request.setEmail("ada@example.com");
+        request.setPassword("plain-password");
+        when(jwtService.generateAccessToken(any(User.class), org.mockito.ArgumentMatchers.isNull()))
+                .thenReturn("token");
+
+        assertEquals("token", authService.register(request).getToken());
+
+        verify(accountRecoveryService, never()).sendVerificationEmail(any(User.class));
     }
 
     @Test

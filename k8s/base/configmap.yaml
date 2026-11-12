@@ -14,6 +14,7 @@ data:
   # No email is sent yet. See docs/email.md to turn it on.
   EMAIL_PROVIDER: "disabled"
   EMAIL_FROM: "Docket <onboarding@resend.dev>"
+  EMAIL_VERIFICATION_ENABLED: "false"
   # Change to the real domain when there is one. Used for email links and CORS.
   APP_BASE_URL: "http://136.82.179.212"
   # The Google load balancer appends "client, load balancer" to X-Forwarded-For

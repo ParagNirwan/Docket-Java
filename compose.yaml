@@ -34,6 +34,7 @@ services:
       APP_BASE_URL: http://localhost
       EMAIL_PROVIDER: smtp
       EMAIL_FROM: Docket <no-reply@docket.local>
+      EMAIL_VERIFICATION_ENABLED: ${EMAIL_VERIFICATION_ENABLED:-false}
       SMTP_HOST: mailpit
       SMTP_PORT: "1025"
     ports:

@@ -52,4 +52,13 @@ describe("OrganizationSettings", () => {
     expect(screen.getByText("members panel")).toBeTruthy();
     expect(screen.queryByText("retention panel")).toBeNull();
   });
+
+  it("only exposes email verification settings to tenant admins", () => {
+    show(["members.read"]);
+    expect(screen.queryByRole("tab", { name: "Email" })).toBeNull();
+
+    cleanup();
+    show(["tenant.update"]);
+    expect(screen.getByRole("tab", { name: "Email" })).toBeTruthy();
+  });
 });

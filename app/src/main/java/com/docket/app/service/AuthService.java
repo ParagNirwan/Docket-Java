@@ -13,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -44,6 +45,9 @@ public class AuthService {
     private final AuthRateLimiter authRateLimiter;
     private final ClientRequestInfo clientRequestInfo;
 
+    @Value("${docket.email.verification.enabled:false}")
+    private boolean emailVerificationEnabled;
+
     // Compared against when an email isn't registered. See login().
     private volatile String dummyPasswordHash;
 
@@ -72,7 +76,9 @@ public class AuthService {
         try {
             if (!acceptedInvite(request.getInviteToken(), user)) {
                 if (!tenantDomainService.autoJoinVerifiedDomain(user)) {
-                    accountRecoveryService.sendVerificationEmail(user);
+                    if (emailVerificationEnabled) {
+                        accountRecoveryService.sendVerificationEmail(user);
+                    }
                 }
             }
         } catch (RuntimeException exception) {

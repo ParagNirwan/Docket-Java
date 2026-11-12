@@ -9,10 +9,18 @@ Outside Docker the default provider is `logging`, which prints emails to the con
 That provider doesn't exist under the `prod` or `gcp` profiles, because emails can
 contain password reset links.
 
+Verification emails are disabled by default (`EMAIL_VERIFICATION_ENABLED=false`) in
+development and production. Tenant owners and admins can opt a workspace in under
+**Workspace settings → Email**. Enabling the setting sends links to existing
+unverified members and enables the resend reminder for that workspace. Verification
+is optional and does not block account or workspace access. Password reset and other
+transactional emails are unaffected by this setting.
+
 ## Production
 
 The Kubernetes deployment starts with `EMAIL_PROVIDER: "disabled"`. The app runs normally
-but sends nothing, so nobody receives reset or verification emails.
+but sends nothing, so nobody receives reset, invitation, or verification emails.
+Enabling verification in a workspace does not configure the mail provider.
 
 To turn email on with [Resend](https://resend.com) (any SMTP service also works, using
 `EMAIL_PROVIDER=smtp` and the `SMTP_*` variables):
@@ -34,7 +42,9 @@ To turn email on with [Resend](https://resend.com) (any SMTP service also works,
    ```
 
 4. In `k8s/base/configmap.yaml`, set `EMAIL_PROVIDER: "resend"` and update `APP_BASE_URL`
-   and `EMAIL_FROM`.
+   and `EMAIL_FROM`. Verification remains opt-in per workspace; set
+   `EMAIL_VERIFICATION_ENABLED: "true"` only if unassociated new signups should also
+   receive a verification email.
 
 The CD pipeline checks that the secrets and settings exist before it touches the cluster,
 and stops with production still running if anything is missing.

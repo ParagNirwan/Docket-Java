@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AiSettingsPanel } from "./AiSettingsPanel";
+import { EmailVerificationSettingsPanel } from "./EmailVerificationSettingsPanel";
 import { DangerZone } from "./DangerZone";
 import { LegalHoldsPanel } from "./LegalHoldsPanel";
 import { MembersPanel } from "./MembersPanel";
@@ -19,12 +20,13 @@ type OrganizationSettingsProps = {
   onOwnershipTransferred: () => void;
 };
 
-type Tab = "members" | "storage" | "ai" | "retention" | "legal-holds" | "danger";
+type Tab = "members" | "storage" | "ai" | "email" | "retention" | "legal-holds" | "danger";
 
 export function OrganizationSettings({ slug, token, tenantName, permissions, trays = [], initialTab, onOwnershipTransferred }: OrganizationSettingsProps) {
   const canSeeMembers = hasPermission(permissions, "members.read");
   const canSeeRetention = hasPermission(permissions, "retention.read");
   const canManageQuota = hasPermission(permissions, "tenant.update") || hasPermission(permissions, "retention.manage");
+  const canManageTenant = hasPermission(permissions, "tenant.update");
 
   const resolvedInitialTab = initialTab === "general" ? "storage" : initialTab;
 
@@ -32,6 +34,7 @@ export function OrganizationSettings({ slug, token, tenantName, permissions, tra
     ...(canSeeMembers ? [{ id: "members" as const, label: "Members" }] : []),
     { id: "storage" as const, label: "Storage & Quotas" },
     { id: "ai" as const, label: "AI" },
+    ...(canManageTenant ? [{ id: "email" as const, label: "Email" }] : []),
     ...(canSeeRetention ? [
       { id: "retention" as const, label: "Retention" },
       { id: "legal-holds" as const, label: "Legal holds" },
@@ -67,7 +70,10 @@ export function OrganizationSettings({ slug, token, tenantName, permissions, tra
       {tab === "members" && canSeeMembers && <MembersPanel slug={slug} token={token} permissions={permissions} />}
       {tab === "storage" && <StorageQuotaPanel slug={slug} token={token} canManageQuota={canManageQuota} />}
       {tab === "ai" && (
-        <AiSettingsPanel slug={slug} token={token} canManage={hasPermission(permissions, "tenant.update")} />
+        <AiSettingsPanel slug={slug} token={token} canManage={canManageTenant} />
+      )}
+      {tab === "email" && canManageTenant && (
+        <EmailVerificationSettingsPanel slug={slug} token={token} canManage={canManageTenant} />
       )}
       {tab === "retention" && canSeeRetention && <RetentionPanel slug={slug} token={token} trays={trays} permissions={permissions} />}
       {tab === "legal-holds" && canSeeRetention && <LegalHoldsPanel slug={slug} token={token} trays={trays} permissions={permissions} />}

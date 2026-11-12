@@ -39,6 +39,9 @@ public class Tenant {
     // Admins can switch shareable invite links off for the whole organization
     private boolean inviteLinksEnabled = true;
 
+    // Whether this organization sends verification emails to unverified members.
+    private boolean emailVerificationEnabled = false;
+
     @Enumerated(EnumType.STRING)
     private Plan plan = Plan.FREE;
 

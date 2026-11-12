@@ -34,6 +34,7 @@ public class TenantController {
     private final FolderService folderService;
     private final com.docket.app.service.StorageQuotaService storageQuotaService;
     private final com.docket.app.service.AiSettingsService aiSettingsService;
+    private final com.docket.app.service.EmailVerificationSettingsService emailVerificationSettingsService;
 
     // POST /api/tenants/create
     // "I want to create a new organization."
@@ -174,6 +175,23 @@ public class TenantController {
             Authentication authentication
     ) {
         return ResponseEntity.ok(aiSettingsService.update(slug, request, authentication));
+    }
+
+    @GetMapping("/{slug}/email-verification-settings")
+    public ResponseEntity<com.docket.app.dto.EmailVerificationSettingsDTO> getEmailVerificationSettings(
+            @PathVariable String slug,
+            Authentication authentication
+    ) {
+        return ResponseEntity.ok(emailVerificationSettingsService.get(slug, authentication));
+    }
+
+    @PutMapping("/{slug}/email-verification-settings")
+    public ResponseEntity<com.docket.app.dto.EmailVerificationSettingsDTO> updateEmailVerificationSettings(
+            @PathVariable String slug,
+            @RequestBody com.docket.app.dto.EmailVerificationSettingsDTO request,
+            Authentication authentication
+    ) {
+        return ResponseEntity.ok(emailVerificationSettingsService.update(slug, request, authentication));
     }
 
     @GetMapping("/{slug}/usage")

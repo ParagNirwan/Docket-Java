@@ -10,6 +10,7 @@ import com.docket.app.security.ClientRequestInfo;
 import com.docket.app.service.AccountRecoveryService;
 import com.docket.app.service.AuthRateLimiter;
 import com.docket.app.service.AuthService;
+import com.docket.app.service.EmailVerificationSettingsService;
 import com.docket.app.service.SessionService;
 import com.docket.app.service.SsoService;
 import jakarta.validation.Valid;
@@ -48,6 +49,7 @@ public class AuthController {
     private final AuthRateLimiter authRateLimiter;
     private final ClientRequestInfo clientRequestInfo;
     private final SsoService ssoService;
+    private final EmailVerificationSettingsService emailVerificationSettingsService;
 
     @Value("${docket.auth.cookie-secure}")
     private boolean cookieSecure;
@@ -168,8 +170,19 @@ public class AuthController {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
         }
         authRateLimiter.check("resend-verification:account:" + authentication.getName(), 3, FIFTEEN_MINUTES);
-        accountRecoveryService.resendVerificationEmail(authentication.getName());
+        if (emailVerificationSettingsService.isEnabledForUser(authentication.getName())) {
+            accountRecoveryService.resendVerificationEmail(authentication.getName());
+        }
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/email-verification-enabled")
+    public ResponseEntity<java.util.Map<String, Boolean>> isEmailVerificationEnabled(Authentication authentication) {
+        if (authentication == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
+        }
+        return ResponseEntity.ok(java.util.Map.of(
+                "enabled", emailVerificationSettingsService.isEnabledForUser(authentication.getName())));
     }
 
     private void limitByIp(String endpoint, int limitPerMinute) {

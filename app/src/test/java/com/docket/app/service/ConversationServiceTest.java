@@ -1,13 +1,16 @@
 package com.docket.app.service;
 
-import com.docket.app.dto.AiQueryResponseDTO;
-import com.docket.app.dto.AiSourceChunkDTO;
-import com.docket.app.dto.ConversationMessageDTO;
+import com.docket.app.dto.*;
 import com.docket.app.entity.Conversation;
 import com.docket.app.entity.ConversationMessage;
+import com.docket.app.entity.Document;
 import com.docket.app.enums.AiQueryMode;
+import com.docket.app.enums.ConversationVisibility;
+import com.docket.app.enums.FileStatus;
 import com.docket.app.repository.AiFeedbackRepository;
+import com.docket.app.repository.ConversationMessageRepository;
 import com.docket.app.repository.ConversationRepository;
+import com.docket.app.repository.DocumentRepository;
 import com.docket.app.service.ai.AiQueryService;
 import com.docket.app.service.ai.AiSearchScope;
 import com.docket.app.service.ai.AiStreamListener;
@@ -27,8 +30,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
@@ -47,9 +49,13 @@ class ConversationServiceTest {
     private final UUID userId = UUID.randomUUID();
 
     @Mock private ConversationRepository conversationRepository;
+    @Mock private ConversationMessageRepository conversationMessageRepository;
     @Mock private AiFeedbackRepository aiFeedbackRepository;
     @Mock private AiQueryService aiQueryService;
     @Mock private QueryRewriteService queryRewriteService;
+    @Mock private FolderAccessService folderAccessService;
+    @Mock private DocumentRepository documentRepository;
+    @Mock private TenantAuthorizationService tenantAuthorizationService;
 
     private ConversationService service;
     private Conversation conversation;
@@ -57,26 +63,44 @@ class ConversationServiceTest {
     @BeforeEach
     void setUp() {
         service = new ConversationService(
-                conversationRepository, aiFeedbackRepository, aiQueryService, queryRewriteService, new ObjectMapper());
+                conversationRepository,
+                conversationMessageRepository,
+                aiFeedbackRepository,
+                aiQueryService,
+                queryRewriteService,
+                folderAccessService,
+                documentRepository,
+                tenantAuthorizationService,
+                new ObjectMapper());
         conversation = new Conversation();
+        conversation.setId(conversationId);
+        conversation.setTenantId(tenantId);
+        conversation.setUserId(userId);
+        conversation.setTitle("Initial Question");
+        conversation.setVisibility(ConversationVisibility.PRIVATE);
     }
 
-    private void addMessage(String role, String content) {
+    private ConversationMessage addMessage(String role, String content) {
         ConversationMessage message = new ConversationMessage();
         message.setId(UUID.randomUUID());
         message.setConversation(conversation);
         message.setRole(role);
         message.setContent(content);
         conversation.getMessages().add(message);
+        return message;
     }
 
     private void conversationExists() {
-        when(conversationRepository.findByIdAndTenantIdAndUserId(conversationId, tenantId, userId))
+        when(conversationRepository.findByIdAndTenantId(conversationId, tenantId))
                 .thenReturn(Optional.of(conversation));
     }
 
+    private AiSourceChunkDTO source(UUID docId) {
+        return new AiSourceChunkDTO(docId, "lease.pdf", "text", 2, 0.8, 4, 4, "Term");
+    }
+
     private AiSourceChunkDTO source() {
-        return new AiSourceChunkDTO(UUID.randomUUID(), "lease.pdf", "text", 2, 0.8, 4, 4, "Term");
+        return source(UUID.randomUUID());
     }
 
     @Test
@@ -196,5 +220,96 @@ class ConversationServiceTest {
 
         assertEquals(documentId, source.getDocumentId());
         assertNull(source.getPageStart());
+    }
+
+    @Test
+    void updateVisibility_changesVisibility() {
+        when(conversationRepository.findByIdAndTenantIdAndUserId(conversationId, tenantId, userId))
+                .thenReturn(Optional.of(conversation));
+
+        ConversationDTO dto = service.updateVisibility(conversationId, tenantId, userId, ConversationVisibility.TENANT);
+
+        assertEquals(ConversationVisibility.TENANT, conversation.getVisibility());
+        assertEquals(ConversationVisibility.TENANT, dto.getVisibility());
+        verify(conversationRepository).save(conversation);
+    }
+
+    @Test
+    void getConversation_viewerOnlySeesSourcesTheyHaveAccessTo() {
+        conversation.setVisibility(ConversationVisibility.TENANT);
+        conversationExists();
+
+        UUID docAllowedId = UUID.randomUUID();
+        UUID docDeniedId = UUID.randomUUID();
+        UUID folder1 = UUID.randomUUID();
+        UUID folder2 = UUID.randomUUID();
+
+        Document docAllowed = new Document();
+        docAllowed.setId(docAllowedId);
+        docAllowed.setTenantId(tenantId);
+        docAllowed.setFolderId(folder1);
+        docAllowed.setFileStatus(FileStatus.ACTIVE);
+
+        Document docDenied = new Document();
+        docDenied.setId(docDeniedId);
+        docDenied.setTenantId(tenantId);
+        docDenied.setFolderId(folder2);
+        docDenied.setFileStatus(FileStatus.ACTIVE);
+
+        when(documentRepository.findById(docAllowedId)).thenReturn(Optional.of(docAllowed));
+        when(documentRepository.findById(docDeniedId)).thenReturn(Optional.of(docDenied));
+        when(folderAccessService.canAccessFolder(authentication, tenantId, folder1)).thenReturn(true);
+        when(folderAccessService.canAccessFolder(authentication, tenantId, folder2)).thenReturn(false);
+
+        ConversationMessage msg = addMessage("ai", "Summary with 2 sources");
+        msg.setSourcesJson("""
+                [
+                  {"documentId":"%s","documentName":"allowed.pdf","chunkText":"t1","chunkIndex":0},
+                  {"documentId":"%s","documentName":"denied.pdf","chunkText":"t2","chunkIndex":0}
+                ]
+                """.formatted(docAllowedId, docDeniedId));
+
+        UUID viewerUserId = UUID.randomUUID(); // different user
+        ConversationDTO result = service.getConversation(authentication, conversationId, tenantId, viewerUserId);
+
+        assertEquals(1, result.getMessages().get(0).getSources().size());
+        assertEquals(docAllowedId, result.getMessages().get(0).getSources().get(0).getDocumentId());
+    }
+
+    @Test
+    void pinAndUnpinMessage_updatesPinnedFields() {
+        conversationExists();
+        ConversationMessage message = addMessage("ai", "Useful insight");
+        UUID messageId = message.getId();
+
+        when(conversationMessageRepository.findByIdAndConversationId(messageId, conversationId))
+                .thenReturn(Optional.of(message));
+
+        ConversationMessageDTO pinned = service.pinMessage(authentication, conversationId, messageId, tenantId, userId);
+        assertNotNull(pinned.getPinnedAt());
+        assertEquals(userId, pinned.getPinnedBy());
+        verify(conversationMessageRepository).save(message);
+
+        ConversationMessageDTO unpinned = service.unpinMessage(authentication, conversationId, messageId, tenantId, userId);
+        assertNull(unpinned.getPinnedAt());
+        assertNull(unpinned.getPinnedBy());
+    }
+
+    @Test
+    void listSavedAnswers_returnsPinnedAnswersWithPrecedingQuestion() {
+        conversation.setVisibility(ConversationVisibility.TENANT);
+        ConversationMessage q = addMessage("user", "What is the policy?");
+        ConversationMessage a = addMessage("ai", "The policy is 30 days.");
+        a.setPinnedAt(java.time.Instant.now());
+        a.setPinnedBy(userId);
+
+        when(conversationMessageRepository.findPinnedByTenantId(tenantId)).thenReturn(List.of(a));
+
+        List<SavedAnswerDTO> saved = service.listSavedAnswers(authentication, tenantId, userId);
+
+        assertEquals(1, saved.size());
+        assertEquals("What is the policy?", saved.get(0).getQuestion());
+        assertEquals("The policy is 30 days.", saved.get(0).getAnswer());
+        assertEquals(conversationId, saved.get(0).getConversationId());
     }
 }

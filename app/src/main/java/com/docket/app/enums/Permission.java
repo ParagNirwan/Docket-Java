@@ -64,7 +64,15 @@ public enum Permission {
     // Can you change retention policies and apply legal holds?
     RETENTION_MANAGE("retention.manage"),
     // Can you override a Governance lock, and release a legal hold?
-    RETENTION_OVERRIDE("retention.override");
+    RETENTION_OVERRIDE("retention.override"),
+
+    // --- Platform permissions ---
+
+    // Can you create API keys and webhooks for the organization?
+    API_MANAGE("api.manage"),
+
+    // Can you see and change the organization's plan and payment details?
+    BILLING_MANAGE("billing.manage");
 
     // The short text code sent to the frontend (e.g. "members.invite")
     private final String code;

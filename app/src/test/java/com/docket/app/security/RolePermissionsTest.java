@@ -33,7 +33,8 @@ class RolePermissionsTest {
             Permission.FOLDERS_UPDATE,
             Permission.AUDIT_READ,
             Permission.RETENTION_READ,
-            Permission.RETENTION_MANAGE);
+            Permission.RETENTION_MANAGE,
+            Permission.API_MANAGE);
 
     @Test
     void ownerAndAdminHaveAdministrativeAndFeaturePermissions() {
@@ -60,7 +61,9 @@ class RolePermissionsTest {
                         Permission.AUDIT_READ,
                         Permission.RETENTION_READ,
                         Permission.RETENTION_MANAGE,
-                        Permission.RETENTION_OVERRIDE),
+                        Permission.RETENTION_OVERRIDE,
+                        Permission.API_MANAGE,
+                        Permission.BILLING_MANAGE),
                 RolePermissions.forRole(Roles.OWNER));
     }
 

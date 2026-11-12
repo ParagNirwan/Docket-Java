@@ -22,4 +22,6 @@ public interface TenantRepository extends JpaRepository<Tenant, UUID> {
     // make sure the org hasn't been shut down before granting access.
     boolean existsByIdAndStatus(UUID id, TenantStatus status);
 
+    Optional<Tenant> findByStripeCustomerId(String stripeCustomerId);
+
 }

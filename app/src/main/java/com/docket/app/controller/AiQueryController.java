@@ -50,7 +50,7 @@ public class AiQueryController {
         return ResponseEntity.ok(response);
     }
 
-    // The same answer as /ai/query, as server-sent events while it is written. See SseStream.
+    // The same answer as /AI/query, as server-sent events while it is written. See SseStream.
     @PostMapping("/ai/query/stream")
     public void queryStream(
             @PathVariable String slug,

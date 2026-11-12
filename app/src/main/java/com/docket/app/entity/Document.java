@@ -10,6 +10,11 @@ import org.hibernate.annotations.DynamicUpdate;
 import com.docket.app.enums.IndexingStatus;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 // Only changed columns are written. Processing updates the indexing status while other
@@ -67,6 +72,18 @@ public class Document {
     private java.util.List<String> aiKeyPoints;
     private Instant aiSummaryGeneratedAt;
 
+    // AI classification and extracted fields for growth/enterprise workflows.
+    private String aiDocumentType;
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb")
+    private java.util.List<String> aiSuggestedTags = new ArrayList<>();
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb")
+    private java.util.Map<String, Object> aiFields = new HashMap<>();
+    private Instant aiFieldsReviewedAt;
+    private LocalDate keyDate;
+    private Instant keyDateNotifiedAt;
+
     // Retention: see RetentionService. A document is locked while retainUntil is in the future.
     private Instant retainUntil;
     @Enumerated(EnumType.STRING)
@@ -79,6 +96,7 @@ public class Document {
 
     private Instant archivedAt;
     private UUID archivedFromFolderId;
+    private boolean storageHold;
 
     // Trash: folderId points at the Trash tray while a document is deleted.
     private Instant deletedAt;

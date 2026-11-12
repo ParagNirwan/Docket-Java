@@ -74,8 +74,14 @@ export function NotificationBell({ token }: { token: string }) {
       markNotificationRead(item.id, token).catch(() => {});
     }
     setOpen(false);
-    // Links come from the server and are always paths inside the app.
-    if (item.link?.startsWith("/")) navigate(item.link);
+    // Older invitation notifications had no link, but their dashboard acceptance
+    // action is available there even when the invitation email could not be sent.
+    const link = item.link?.startsWith("/")
+      ? item.link
+      : item.type === "INVITED"
+        ? "/tenants"
+        : null;
+    if (link) navigate(link);
   }
 
   async function handleMarkAll() {

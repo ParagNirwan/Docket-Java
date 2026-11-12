@@ -45,6 +45,15 @@ public class AuditController {
 
     // GET /api/tenants/{slug}/audit-events/export
     // Writes straight to the response so a long log isn't held in memory.
+    @GetMapping("/recent")
+    public ResponseEntity<java.util.List<AuditEventDTO>> recent(
+            @PathVariable String slug,
+            @RequestParam(defaultValue = "20") int limit,
+            Authentication authentication
+    ) {
+        return ResponseEntity.ok(auditService.recent(slug, limit, authentication));
+    }
+
     @GetMapping("/export")
     public void export(
             @PathVariable String slug,

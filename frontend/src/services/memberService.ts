@@ -113,9 +113,7 @@ export async function listInvitations(slug: string, token: string): Promise<Invi
 export async function listMyInvitations(token: string): Promise<DashboardInvitation[]> {
   const response = await send(`${API_BASE}/users/invitations`, token);
   if (!response.ok) {
-    throw failure(response, {
-      403: "Verify your email to accept invitations from your dashboard, or use the link in your invitation email.",
-    }, "Could not load invitations");
+    throw failure(response, {}, "Could not load invitations");
   }
   return response.json();
 }
@@ -124,7 +122,6 @@ export async function acceptDashboardInvitation(invitationId: string, token: str
   const response = await send(`${API_BASE}/users/invitations/${encodeURIComponent(invitationId)}/accept`, token, "POST");
   if (!response.ok) {
     throw failure(response, {
-      403: "Verify your email to accept invitations from your dashboard, or use the link in your invitation email.",
       404: "This invitation is invalid or has expired. Ask for a new one.",
     }, "Could not accept the invitation");
   }

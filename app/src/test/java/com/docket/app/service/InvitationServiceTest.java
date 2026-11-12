@@ -49,6 +49,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -326,6 +327,21 @@ class InvitationServiceTest {
     }
 
     @Test
+    void dashboardListsPendingInvitationsForAnUnverifiedAccount() {
+        TenantInvitation invitation = liveInvitation("token", "ada@example.com");
+        invitation.setCreatedAt(Instant.now());
+        when(invitationRepository.findByEmailIgnoreCaseAndStatusAndExpiresAtAfterOrderByCreatedAtDesc(
+                eq("ada@example.com"), eq(InvitationStatus.PENDING), any()))
+                .thenReturn(List.of(invitation));
+        when(tenantRepository.findAllById(any())).thenReturn(List.of(tenant));
+
+        var invitations = service.listMyPending(authentication);
+
+        assertEquals(1, invitations.size());
+        assertEquals(tenant.getName(), invitations.getFirst().tenantName());
+    }
+
+    @Test
     void dashboardAccept_joinsOnlyForTheInvitedAccount() {
         TenantInvitation invitation = liveInvitation("token", "ada@example.com");
         inviter.setEmailVerifiedAt(Instant.now());
@@ -348,13 +364,32 @@ class InvitationServiceTest {
     }
 
     @Test
-    void dashboardAccept_requiresAVerifiedAccount() {
+    void dashboardAccept_doesNotRequireOrSetEmailVerification() {
         TenantInvitation invitation = liveInvitation("token", "ada@example.com");
 
-        assertStatus(HttpStatus.FORBIDDEN,
-                () -> service.acceptFromDashboard(invitation.getId(), authentication));
-        verify(invitationRepository, never()).findById(invitation.getId());
-        verify(membershipRepository, never()).saveAndFlush(any());
+        when(invitationRepository.findById(invitation.getId())).thenReturn(Optional.of(invitation));
+
+        service.acceptFromDashboard(invitation.getId(), authentication);
+
+        verify(membershipRepository).saveAndFlush(any());
+        assertNull(inviter.getEmailVerifiedAt());
+        verify(userRepository, never()).save(inviter);
+    }
+
+    @Test
+    void invite_existingAccountNotificationLinksToDashboardAcceptance() {
+        User bob = user("Bob", "bob@x.com");
+        when(userRepository.findByEmailIgnoreCase("bob@x.com")).thenReturn(Optional.of(bob));
+
+        service.invite(SLUG, new InviteMemberRequestDTO("bob@x.com", Roles.MEMBER), authentication);
+
+        verify(notificationService).notifyInAppOnly(
+                eq(tenant.getId()),
+                eq(bob.getId()),
+                eq(com.docket.app.enums.NotificationType.INVITED),
+                eq("Ada Lovelace invited you to Acme"),
+                eq("Open your organization dashboard to accept the invitation."),
+                eq("/tenants"));
     }
 
     @Test

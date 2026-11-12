@@ -68,6 +68,36 @@ describe("NotificationBell", () => {
     await screen.findByRole("button", { name: "Notifications" });
   });
 
+  it("takes an invitation notification to pending invitations", async () => {
+    setUp([{
+      ...NOTE,
+      type: "INVITED",
+      title: "Ada invited you to Acme",
+      body: "Open your organization dashboard to accept the invitation.",
+      link: "/tenants",
+    }]);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Notifications, 1 unread" }));
+    fireEvent.click(await screen.findByText("Ada invited you to Acme"));
+
+    expect(navigate).toHaveBeenCalledWith("/tenants");
+  });
+
+  it("takes older invitation notifications without a link to pending invitations", async () => {
+    setUp([{
+      ...NOTE,
+      type: "INVITED",
+      title: "Ada invited you to Acme",
+      body: "Open the invitation email link to verify your email and join.",
+      link: null,
+    }]);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Notifications, 1 unread" }));
+    fireEvent.click(await screen.findByText("Ada invited you to Acme"));
+
+    expect(navigate).toHaveBeenCalledWith("/tenants");
+  });
+
   it("won't navigate anywhere outside the app", async () => {
     setUp([{ ...NOTE, link: "https://evil.example" }]);
 

@@ -118,15 +118,11 @@ public class InvitationService {
         }
 
         sendEmail(invitation, rawToken, inviter, tenant);
-        // Dashboard acceptance is limited to accounts that have verified this email address.
         userRepository.findByEmailIgnoreCase(email).ifPresent(user ->
                 notificationService.notifyInAppOnly(tenantId, user.getId(), NotificationType.INVITED,
                         inviter.getName() + " invited you to " + tenant.getName(),
-                        user.getEmailVerifiedAt() == null
-                                ? "Open the invitation email link to verify your email and join."
-                                : "Accept the invitation from your organization dashboard or open the link in the email we sent to "
-                                        + email + ".",
-                        null));
+                        "Open your organization dashboard to accept the invitation.",
+                        "/tenants"));
         auditService.record(tenantId, inviter.getId(), AuditAction.MEMBER_INVITED, "INVITATION", invitation.getId(),
                 Map.of("email", email, "role", role.name()));
         return toDTO(invitation, inviter.getName());
@@ -151,7 +147,6 @@ public class InvitationService {
     @Transactional(readOnly = true)
     public List<DashboardInvitationDTO> listMyPending(Authentication authentication) {
         User user = currentUser(authentication);
-        requireVerifiedEmail(user);
         List<TenantInvitation> invitations = invitationRepository
                 .findByEmailIgnoreCaseAndStatusAndExpiresAtAfterOrderByCreatedAtDesc(
                         user.getEmail(), InvitationStatus.PENDING, Instant.now());
@@ -239,20 +234,19 @@ public class InvitationService {
         if (!invitation.getEmail().equalsIgnoreCase(user.getEmail())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "This invitation is for a different email address");
         }
-        return join(invitation, user);
+        return join(invitation, user, true);
     }
 
     @Transactional
     public AcceptedInvitationDTO acceptFromDashboard(UUID invitationId, Authentication authentication) {
         User user = currentUser(authentication);
-        requireVerifiedEmail(user);
         Instant now = Instant.now();
         TenantInvitation invitation = invitationRepository.findById(invitationId)
                 .filter(candidate -> candidate.getEmail().equalsIgnoreCase(user.getEmail()))
                 .filter(candidate -> candidate.getStatus() == InvitationStatus.PENDING
                         && candidate.getExpiresAt().isAfter(now))
                 .orElseThrow(this::invalidLink);
-        return join(invitation, user);
+        return join(invitation, user, false);
     }
 
     // Registering from an invite link. A mismatched address isn't an error for the caller
@@ -263,11 +257,11 @@ public class InvitationService {
         if (!invitation.getEmail().equalsIgnoreCase(user.getEmail())) {
             return false;
         }
-        join(invitation, user);
+        join(invitation, user, true);
         return true;
     }
 
-    private AcceptedInvitationDTO join(TenantInvitation invitation, User user) {
+    private AcceptedInvitationDTO join(TenantInvitation invitation, User user, boolean emailVerifiedByInviteLink) {
         Tenant tenant = findActiveTenant(invitation);
         Instant now = Instant.now();
         if (invitationRepository.markAccepted(invitation.getId(), now) == 0) {
@@ -276,8 +270,8 @@ public class InvitationService {
 
         activateMembership(tenant, user, invitation.getRole());
 
-        // The link arrived in their inbox, so the address is proven too.
-        if (user.getEmailVerifiedAt() == null) {
+        // Only accepting the inbox link itself proves control of the email address.
+        if (emailVerifiedByInviteLink && user.getEmailVerifiedAt() == null) {
             user.setEmailVerifiedAt(now);
             userRepository.save(user);
         }
@@ -361,13 +355,6 @@ public class InvitationService {
     private User currentUser(Authentication authentication) {
         return userRepository.findByEmailIgnoreCase(authentication.getName())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
-    }
-
-    private void requireVerifiedEmail(User user) {
-        if (user.getEmailVerifiedAt() == null) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                    "Verify your email address to accept invitations from the dashboard");
-        }
     }
 
     private String refreshToken(TenantInvitation invitation, Instant now) {

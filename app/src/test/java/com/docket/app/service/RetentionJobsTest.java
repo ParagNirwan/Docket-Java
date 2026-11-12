@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -35,7 +36,7 @@ class RetentionJobsTest {
 
     @Test
     void anotherPodHoldingTheLease_meansThisOneSkipsItsTurn() {
-        when(jobLockService.tryAcquire(any(), any())).thenReturn(false);
+        when(jobLockService.tryAcquire(any(), any(), any(), any())).thenReturn(false);
 
         jobs.runRetentionExpiry();
         jobs.runTrashPurge();
@@ -46,7 +47,7 @@ class RetentionJobsTest {
 
     @Test
     void holdingTheLease_runsEverything() {
-        when(jobLockService.tryAcquire(eq("retention-expiry"), any())).thenReturn(true);
+        when(jobLockService.tryAcquire(eq("retention-expiry"), any(), any(), any())).thenReturn(true);
         UUID id = UUID.randomUUID();
         when(retentionExpiryService.findDueForAutoDelete(200)).thenReturn(List.of(id));
 
@@ -55,11 +56,23 @@ class RetentionJobsTest {
         verify(retentionExpiryService).warnAboutExpiring();
         verify(retentionExpiryService).handleExpired();
         verify(retentionExpiryService).autoDelete(id);
+        verify(jobLockService).release(eq("retention-expiry"), any(), any(), eq(true));
+    }
+
+    @Test
+    void failingBeforeCompletion_releasesLeaseWithoutMarkingTheRunComplete() {
+        when(jobLockService.tryAcquire(eq("retention-expiry"), any(), any(), any())).thenReturn(true);
+        org.mockito.Mockito.doThrow(new RuntimeException("boom"))
+                .when(retentionExpiryService).warnAboutExpiring();
+
+        assertThrows(RuntimeException.class, jobs::runRetentionExpiry);
+
+        verify(jobLockService).release(eq("retention-expiry"), any(), any(), eq(false));
     }
 
     @Test
     void oneDigestFailing_doesntStopTheOthers() {
-        when(jobLockService.tryAcquire(eq("notification-digest"), any())).thenReturn(true);
+        when(jobLockService.tryAcquire(eq("notification-digest"), any(), any(), any())).thenReturn(true);
         UUID bad = UUID.randomUUID();
         UUID good = UUID.randomUUID();
         when(notificationRepository.findUsersWithPendingDigest()).thenReturn(List.of(bad, good));
@@ -68,6 +81,7 @@ class RetentionJobsTest {
         jobs.runDailyDigest();
 
         verify(notificationService).sendDigest(good);
+        verify(jobLockService).release(eq("notification-digest"), any(), any(), eq(true));
     }
 
     @Test

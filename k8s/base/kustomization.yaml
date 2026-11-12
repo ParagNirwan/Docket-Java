@@ -12,4 +12,5 @@ resources:
   - frontend-service.yaml
   - gateway.yaml
   - health-check-policy.yaml
+  - backend-policy.yaml
   - hpa.yaml

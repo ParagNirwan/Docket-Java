@@ -33,6 +33,7 @@ public class TenantController {
     private final AuthRateLimiter authRateLimiter;
     private final FolderService folderService;
     private final com.docket.app.service.StorageQuotaService storageQuotaService;
+    private final com.docket.app.service.AiSettingsService aiSettingsService;
 
     // POST /api/tenants/create
     // "I want to create a new organization."
@@ -152,6 +153,27 @@ public class TenantController {
             Authentication authentication
     ) {
         return ResponseEntity.ok(tenantService.updateTrayPermissions(slug, trayId, request.userIds(), authentication));
+    }
+
+    // GET /api/tenants/{slug}/ai-settings
+    // "What is the AI allowed to do with this organization's documents?"
+    @GetMapping("/{slug}/ai-settings")
+    public ResponseEntity<com.docket.app.dto.AiSettingsDTO> getAiSettings(
+            @PathVariable String slug,
+            Authentication authentication
+    ) {
+        return ResponseEntity.ok(aiSettingsService.get(slug, authentication));
+    }
+
+    // PUT /api/tenants/{slug}/ai-settings
+    // Switching summaries off also deletes the ones already written.
+    @PutMapping("/{slug}/ai-settings")
+    public ResponseEntity<com.docket.app.dto.AiSettingsDTO> updateAiSettings(
+            @PathVariable String slug,
+            @RequestBody com.docket.app.dto.AiSettingsDTO request,
+            Authentication authentication
+    ) {
+        return ResponseEntity.ok(aiSettingsService.update(slug, request, authentication));
     }
 
     @GetMapping("/{slug}/usage")

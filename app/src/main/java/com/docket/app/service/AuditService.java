@@ -123,6 +123,14 @@ public class AuditService {
         return events.map(event -> toDTO(event, actors));
     }
 
+    public List<AuditEventDTO> recent(String slug, int limit, Authentication authentication) {
+        Tenant tenant = requireAuditAccess(slug, authentication);
+        Pageable pageable = PageRequest.of(0, Math.max(1, Math.min(limit, 50)), NEWEST_FIRST);
+        List<AuditEvent> events = auditEventRepository.findAll(matching(tenant.getId(), new Filter(null, null, null, null)), pageable).getContent();
+        Map<UUID, User> actors = loadActors(events);
+        return events.stream().map(event -> toDTO(event, actors)).toList();
+    }
+
     public void exportCsv(String slug, Filter filter, Authentication authentication, Writer writer) throws IOException {
         Tenant tenant = requireAuditAccess(slug, authentication);
         record(authentication, tenant.getId(), AuditAction.AUDIT_LOG_EXPORTED, null, null, null);

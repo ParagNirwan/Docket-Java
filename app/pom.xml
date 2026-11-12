@@ -100,6 +100,11 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+            <version>3.2.0</version>
+        </dependency>
         <!-- Transactional email -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -137,6 +142,12 @@
         <dependency>
             <groupId>com.google.cloud</groupId>
             <artifactId>google-cloud-vertexai</artifactId>
+        </dependency>
+
+        <!-- Vertex AI Ranking API (re-ranking search results) -->
+        <dependency>
+            <groupId>com.google.cloud</groupId>
+            <artifactId>google-cloud-discoveryengine</artifactId>
         </dependency>
 
         <!-- Google Cloud Vision OCR -->

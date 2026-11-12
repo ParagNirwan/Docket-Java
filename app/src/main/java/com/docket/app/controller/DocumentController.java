@@ -119,6 +119,7 @@ public class DocumentController {
                 .contentType(MediaType.parseMediaType(download.document().getContentType()))
                 .contentLength(download.document().getFileSize())
                 .header("X-Content-Type-Options", "nosniff")
+                .header("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox")
                 .body(download.resource());
     }
 
@@ -172,6 +173,8 @@ public class DocumentController {
                 .contentType(MediaType.parseMediaType(d.document().getContentType()))
                 .contentLength(d.document().getFileSize())
                 .header("X-Content-Type-Options", "nosniff")
+                .header("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox")
+                .header("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox")
                 .body(d.resource());
     }
 
@@ -284,6 +287,19 @@ public class DocumentController {
                 ? doc.getIndexingStatus().name()
                 : "PENDING";
         return ResponseEntity.ok(Map.of("status", status));
+    }
+
+    // ─── GET AI SUMMARY ────────────────────────────────────────────────
+    // GET /api/tenants/{slug}/documents/{docId}/summary
+    // The summary and key points written when the document was indexed.
+    // "summary" is null when there isn't one.
+    @GetMapping("/documents/{docId}/summary")
+    public ResponseEntity<com.docket.app.dto.DocumentSummaryDTO> getAiSummary(
+            @PathVariable String slug,
+            @PathVariable UUID docId,
+            Authentication authentication
+    ) {
+        return ResponseEntity.ok(documentService.getAiSummary(slug, docId, authentication));
     }
 
     // ─── RE-INDEX A DOCUMENT ───────────────────────────────────────────

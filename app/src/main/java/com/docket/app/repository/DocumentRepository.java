@@ -204,6 +204,37 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
             """, nativeQuery = true)
     void markIndexed(@Param("id") UUID id, @Param("status") String status, @Param("version") int version);
 
+    @Transactional
+    @Modifying
+    @Query(value = """
+            UPDATE documents
+            SET ai_summary = :summary, ai_key_points = CAST(:keyPoints AS jsonb),
+                ai_summary_embedding = CAST(:embedding AS vector), ai_summary_generated_at = now()
+            WHERE id = :id
+            """, nativeQuery = true)
+    void saveAiSummary(@Param("id") UUID id, @Param("summary") String summary,
+                       @Param("keyPoints") String keyPoints, @Param("embedding") String embedding);
+
+    @Transactional
+    @Modifying
+    @Query(value = """
+            UPDATE documents
+            SET ai_summary = NULL, ai_key_points = NULL, ai_summary_embedding = NULL,
+                ai_summary_generated_at = NULL
+            WHERE id = :id AND ai_summary IS NOT NULL
+            """, nativeQuery = true)
+    void clearAiSummary(@Param("id") UUID id);
+
+    @Transactional
+    @Modifying
+    @Query(value = """
+            UPDATE documents
+            SET ai_summary = NULL, ai_key_points = NULL, ai_summary_embedding = NULL,
+                ai_summary_generated_at = NULL
+            WHERE tenant_id = :tenantId AND ai_summary IS NOT NULL
+            """, nativeQuery = true)
+    void clearAiSummariesForTenant(@Param("tenantId") UUID tenantId);
+
     // Claims the next documents below the current embedding version. SKIP LOCKED lets several
     // pods work side by side, and if a pod dies the claim is free again once it passes
     // claimedBefore. Documents still waiting for their first processing are left alone.

@@ -1,5 +1,6 @@
 package com.docket.app.entity;
 
+import com.docket.app.enums.ConversationVisibility;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -27,6 +28,10 @@ public class Conversation {
 
     private String title;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 10)
+    private ConversationVisibility visibility = ConversationVisibility.PRIVATE;
+
     private Instant createdAt;
 
     private Instant updatedAt;
@@ -40,6 +45,9 @@ public class Conversation {
         Instant now = Instant.now();
         this.createdAt = now;
         this.updatedAt = now;
+        if (this.visibility == null) {
+            this.visibility = ConversationVisibility.PRIVATE;
+        }
     }
 
     @PreUpdate

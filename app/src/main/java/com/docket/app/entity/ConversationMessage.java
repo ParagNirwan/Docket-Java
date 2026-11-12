@@ -37,6 +37,10 @@ public class ConversationMessage {
 
     private Instant createdAt;
 
+    private Instant pinnedAt;
+
+    private UUID pinnedBy;
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = Instant.now();

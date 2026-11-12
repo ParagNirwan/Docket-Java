@@ -39,6 +39,7 @@ public class AuthService {
     private final SessionService sessionService;
     private final AccountRecoveryService accountRecoveryService;
     private final InvitationService invitationService;
+    private final TenantDomainService tenantDomainService;
     private final AuditService auditService;
     private final AuthRateLimiter authRateLimiter;
     private final ClientRequestInfo clientRequestInfo;
@@ -70,7 +71,9 @@ public class AuthService {
         // a problem here shouldn't turn a successful registration into an error.
         try {
             if (!acceptedInvite(request.getInviteToken(), user)) {
-                accountRecoveryService.sendVerificationEmail(user);
+                if (!tenantDomainService.autoJoinVerifiedDomain(user)) {
+                    accountRecoveryService.sendVerificationEmail(user);
+                }
             }
         } catch (RuntimeException exception) {
             log.error("Could not queue verification email for user {}", user.getId(), exception);
@@ -151,12 +154,12 @@ public class AuthService {
         }
 
         // 2. Check backup codes
-        if (!valid && user.getTwoFactorBackupCodes() != null && !user.getTwoFactorBackupCodes().isBlank()) {
+        if (!valid && user.getTwoFactorBackupCodes() != null && !user.getTwoFactorBackupCodes().isEmpty()) {
             String hashedInput = com.docket.app.security.TokenHasher.hash(code.toUpperCase());
-            List<String> storedCodes = new java.util.ArrayList<>(java.util.Arrays.asList(user.getTwoFactorBackupCodes().split(",")));
+            List<String> storedCodes = new java.util.ArrayList<>(user.getTwoFactorBackupCodes());
             if (storedCodes.remove(hashedInput)) {
                 valid = true;
-                user.setTwoFactorBackupCodes(String.join(",", storedCodes));
+                user.setTwoFactorBackupCodes(storedCodes);
                 userRepository.save(user);
             }
         }

@@ -27,7 +27,8 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/docketdb
       SPRING_DATASOURCE_USERNAME: docket
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-docket_dev_password}
-      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
+      # Local-only fallback; compose.prod.yaml requires an explicit secret.
+      JWT_SECRET: ${JWT_SECRET:-MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}
       # Requests arrive through the frontend's nginx
       TRUSTED_PROXY_HOPS: "1"
       APP_BASE_URL: http://localhost

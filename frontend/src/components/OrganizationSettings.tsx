@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { AiSettingsPanel } from "./AiSettingsPanel";
 import { DangerZone } from "./DangerZone";
 import { LegalHoldsPanel } from "./LegalHoldsPanel";
 import { MembersPanel } from "./MembersPanel";
@@ -18,7 +19,7 @@ type OrganizationSettingsProps = {
   onOwnershipTransferred: () => void;
 };
 
-type Tab = "members" | "storage" | "retention" | "legal-holds" | "danger";
+type Tab = "members" | "storage" | "ai" | "retention" | "legal-holds" | "danger";
 
 export function OrganizationSettings({ slug, token, tenantName, permissions, trays = [], initialTab, onOwnershipTransferred }: OrganizationSettingsProps) {
   const canSeeMembers = hasPermission(permissions, "members.read");
@@ -30,6 +31,7 @@ export function OrganizationSettings({ slug, token, tenantName, permissions, tra
   const tabs: { id: Tab; label: string }[] = [
     ...(canSeeMembers ? [{ id: "members" as const, label: "Members" }] : []),
     { id: "storage" as const, label: "Storage & Quotas" },
+    { id: "ai" as const, label: "AI" },
     ...(canSeeRetention ? [
       { id: "retention" as const, label: "Retention" },
       { id: "legal-holds" as const, label: "Legal holds" },
@@ -64,6 +66,9 @@ export function OrganizationSettings({ slug, token, tenantName, permissions, tra
 
       {tab === "members" && canSeeMembers && <MembersPanel slug={slug} token={token} permissions={permissions} />}
       {tab === "storage" && <StorageQuotaPanel slug={slug} token={token} canManageQuota={canManageQuota} />}
+      {tab === "ai" && (
+        <AiSettingsPanel slug={slug} token={token} canManage={hasPermission(permissions, "tenant.update")} />
+      )}
       {tab === "retention" && canSeeRetention && <RetentionPanel slug={slug} token={token} trays={trays} permissions={permissions} />}
       {tab === "legal-holds" && canSeeRetention && <LegalHoldsPanel slug={slug} token={token} trays={trays} permissions={permissions} />}
       {tab === "danger" && (

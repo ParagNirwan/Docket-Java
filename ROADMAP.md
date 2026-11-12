@@ -82,26 +82,26 @@ Later phases rely on these.
 
 ### Members and sign-in
 
-- #59 Invite links
-- #63 Bulk CSV invites
-- #60 Domain auto-join
-- #77 Google and Microsoft SSO
+- ~~#59 Invite links~~
+- ~~#63 Bulk CSV invites~~
+- ~~#60 Domain auto-join~~
+- ~~#77 Google and Microsoft SSO~~
 
 ### Documents
 
-- #70 Duplicate detection
-- #72 Favourites and recent files
-- #87 Activity feed
+- ~~#70 Duplicate detection~~
+- ~~#72 Favourites and recent files~~
+- ~~#87 Activity feed~~
 - #54 GCS object locks
 
 ### AI
 
-- #82 Classification and tags
-- #83 Key-field extraction
-- #84 Document comparison
-- #85 Shared conversations
+- ~~#82 Classification and tags~~
+- ~~#83 Key-field extraction~~
+- ~~#84 Document comparison~~
+- ~~#85 Shared conversations~~
 
 ### Commercial
 
-- #88 Public API and webhooks
+- ~~#88 Public API and webhooks~~
 - #89 Billing

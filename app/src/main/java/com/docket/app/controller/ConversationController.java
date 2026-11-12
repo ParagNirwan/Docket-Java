@@ -9,6 +9,8 @@ import com.docket.app.repository.UserRepository;
 import com.docket.app.service.ConversationService;
 import com.docket.app.service.TenantAuthorizationService;
 import com.docket.app.service.ai.RateLimiterService;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -18,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/tenants/{slug}/ai/conversations")
@@ -30,6 +33,7 @@ public class ConversationController {
     private final TenantAuthorizationService tenantAuthorizationService;
     private final TenantRepository tenantRepository;
     private final UserRepository userRepository;
+    private final ObjectMapper objectMapper;
 
     @GetMapping
     public ResponseEntity<List<ConversationDTO>> list(
@@ -45,10 +49,22 @@ public class ConversationController {
                 conversationService.listConversations(tenant.getId(), user.getId()));
     }
 
-    @GetMapping("/{conversationId}")
-    public ResponseEntity<ConversationDTO> get(
+    @GetMapping("/shared")
+    public ResponseEntity<List<ConversationDTO>> listShared(
             @PathVariable String slug,
-            @PathVariable java.util.UUID conversationId,
+            Authentication authentication
+    ) {
+        Tenant tenant = resolveTenant(slug);
+        tenantAuthorizationService.requirePermission(
+                authentication, tenant.getId(), Permission.DOCUMENTS_READ);
+
+        return ResponseEntity.ok(
+                conversationService.listSharedConversations(authentication, tenant.getId()));
+    }
+
+    @GetMapping("/saved-answers")
+    public ResponseEntity<List<SavedAnswerDTO>> listSavedAnswers(
+            @PathVariable String slug,
             Authentication authentication
     ) {
         Tenant tenant = resolveTenant(slug);
@@ -57,7 +73,70 @@ public class ConversationController {
         User user = resolveUser(authentication);
 
         return ResponseEntity.ok(
-                conversationService.getConversation(conversationId, tenant.getId(), user.getId()));
+                conversationService.listSavedAnswers(authentication, tenant.getId(), user.getId()));
+    }
+
+    @GetMapping("/{conversationId}")
+    public ResponseEntity<ConversationDTO> get(
+            @PathVariable String slug,
+            @PathVariable UUID conversationId,
+            Authentication authentication
+    ) {
+        Tenant tenant = resolveTenant(slug);
+        tenantAuthorizationService.requirePermission(
+                authentication, tenant.getId(), Permission.DOCUMENTS_READ);
+        User user = resolveUser(authentication);
+
+        return ResponseEntity.ok(
+                conversationService.getConversation(authentication, conversationId, tenant.getId(), user.getId()));
+    }
+
+    @PatchMapping("/{conversationId}/visibility")
+    public ResponseEntity<ConversationDTO> updateVisibility(
+            @PathVariable String slug,
+            @PathVariable UUID conversationId,
+            @Valid @RequestBody UpdateConversationVisibilityRequestDTO request,
+            Authentication authentication
+    ) {
+        Tenant tenant = resolveTenant(slug);
+        tenantAuthorizationService.requirePermission(
+                authentication, tenant.getId(), Permission.DOCUMENTS_READ);
+        User user = resolveUser(authentication);
+
+        return ResponseEntity.ok(
+                conversationService.updateVisibility(conversationId, tenant.getId(), user.getId(), request.getVisibility()));
+    }
+
+    @PostMapping("/{conversationId}/messages/{messageId}/pin")
+    public ResponseEntity<ConversationMessageDTO> pinMessage(
+            @PathVariable String slug,
+            @PathVariable UUID conversationId,
+            @PathVariable UUID messageId,
+            Authentication authentication
+    ) {
+        Tenant tenant = resolveTenant(slug);
+        tenantAuthorizationService.requirePermission(
+                authentication, tenant.getId(), Permission.DOCUMENTS_READ);
+        User user = resolveUser(authentication);
+
+        return ResponseEntity.ok(
+                conversationService.pinMessage(authentication, conversationId, messageId, tenant.getId(), user.getId()));
+    }
+
+    @DeleteMapping("/{conversationId}/messages/{messageId}/pin")
+    public ResponseEntity<ConversationMessageDTO> unpinMessage(
+            @PathVariable String slug,
+            @PathVariable UUID conversationId,
+            @PathVariable UUID messageId,
+            Authentication authentication
+    ) {
+        Tenant tenant = resolveTenant(slug);
+        tenantAuthorizationService.requirePermission(
+                authentication, tenant.getId(), Permission.DOCUMENTS_READ);
+        User user = resolveUser(authentication);
+
+        return ResponseEntity.ok(
+                conversationService.unpinMessage(authentication, conversationId, messageId, tenant.getId(), user.getId()));
     }
 
     @PostMapping
@@ -73,15 +152,36 @@ public class ConversationController {
         requireRateLimit(user);
 
         ConversationDTO conversation = conversationService.createConversation(
-                authentication, tenant.getId(), user.getId(), request.getQuestion());
+                authentication, tenant.getId(), user.getId(), request.getQuestion(), request.getMode(),
+                request.getScope(), request.getVisibility(), null);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(conversation);
+    }
+
+    // Starts a conversation and streams its first answer. The "done" event carries the
+    // stored conversation, the same as the response of the endpoint above.
+    @PostMapping("/stream")
+    public void createStream(
+            @PathVariable String slug,
+            @Valid @RequestBody CreateConversationRequestDTO request,
+            Authentication authentication,
+            HttpServletResponse response
+    ) {
+        Tenant tenant = resolveTenant(slug);
+        tenantAuthorizationService.requirePermission(
+                authentication, tenant.getId(), Permission.DOCUMENTS_READ);
+        User user = resolveUser(authentication);
+        requireRateLimit(user);
+
+        SseStream.run(response, objectMapper, listener -> conversationService.createConversation(
+                authentication, tenant.getId(), user.getId(), request.getQuestion(), request.getMode(),
+                request.getScope(), request.getVisibility(), listener));
     }
 
     @PostMapping("/{conversationId}/messages")
     public ResponseEntity<ConversationMessageDTO> sendMessage(
             @PathVariable String slug,
-            @PathVariable java.util.UUID conversationId,
+            @PathVariable UUID conversationId,
             @Valid @RequestBody SendMessageRequestDTO request,
             Authentication authentication
     ) {
@@ -92,15 +192,53 @@ public class ConversationController {
         requireRateLimit(user);
 
         ConversationMessageDTO aiMessage = conversationService.sendMessage(
-                authentication, conversationId, tenant.getId(), user.getId(), request.getQuestion());
+                authentication, conversationId, tenant.getId(), user.getId(), request.getQuestion(),
+                request.getMode(), request.getScope(), null);
 
         return ResponseEntity.ok(aiMessage);
+    }
+
+    // Streams the answer to a follow-up. The "done" event carries the stored AI message.
+    @PostMapping("/{conversationId}/messages/stream")
+    public void sendMessageStream(
+            @PathVariable String slug,
+            @PathVariable UUID conversationId,
+            @Valid @RequestBody SendMessageRequestDTO request,
+            Authentication authentication,
+            HttpServletResponse response
+    ) {
+        Tenant tenant = resolveTenant(slug);
+        tenantAuthorizationService.requirePermission(
+                authentication, tenant.getId(), Permission.DOCUMENTS_READ);
+        User user = resolveUser(authentication);
+        requireRateLimit(user);
+
+        SseStream.run(response, objectMapper, listener -> conversationService.sendMessage(
+                authentication, conversationId, tenant.getId(), user.getId(), request.getQuestion(),
+                request.getMode(), request.getScope(), listener));
+    }
+
+    @PostMapping("/{conversationId}/messages/{messageId}/feedback")
+    public ResponseEntity<Void> addFeedback(
+            @PathVariable String slug,
+            @PathVariable UUID conversationId,
+            @PathVariable UUID messageId,
+            @Valid @RequestBody AiFeedbackRequestDTO request,
+            Authentication authentication
+    ) {
+        Tenant tenant = resolveTenant(slug);
+        tenantAuthorizationService.requirePermission(
+                authentication, tenant.getId(), Permission.DOCUMENTS_READ);
+        User user = resolveUser(authentication);
+        conversationService.addFeedback(conversationId, messageId, tenant.getId(), user.getId(),
+                request.getRating(), request.getReason(), request.getComment());
+        return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/{conversationId}")
     public ResponseEntity<Void> delete(
             @PathVariable String slug,
-            @PathVariable java.util.UUID conversationId,
+            @PathVariable UUID conversationId,
             Authentication authentication
     ) {
         Tenant tenant = resolveTenant(slug);
@@ -108,7 +246,7 @@ public class ConversationController {
                 authentication, tenant.getId(), Permission.DOCUMENTS_READ);
         User user = resolveUser(authentication);
 
-        conversationService.deleteConversation(conversationId, tenant.getId(), user.getId());
+        conversationService.deleteConversation(authentication, conversationId, tenant.getId(), user.getId());
         return ResponseEntity.noContent().build();
     }
 

@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { randomUUID } from "../lib/uuid";
-import { X, Send, Sparkles } from "lucide-react";
+import { X, Send, Sparkles, Square } from "lucide-react";
 import { AiMessage } from "./AiMessage";
-import { queryAi, type AiSourceChunk } from "../services/aiService";
+import { isAbortError, streamAiQuery, type AiSourceChunk } from "../services/aiService";
 import { notify } from "../lib/notifications";
 
 interface ChatMessage {
@@ -35,6 +35,12 @@ export function AiChatPanel({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const prevDocIdRef = useRef<string>("");
+  const abortRef = useRef<AbortController | null>(null);
+
+  // Leaving the panel's document, or the page, stops an answer nobody will read
+  useEffect(() => () => abortRef.current?.abort(), [documentId]);
+
+  const handleStop = useCallback(() => abortRef.current?.abort(), []);
 
   // Reset chat when document changes
   useEffect(() => {
@@ -81,29 +87,33 @@ export function AiChatPanel({
     setInput("");
     setIsQuerying(true);
 
+    // The answer fills this message in as it arrives
+    const answerId = randomUUID();
+    const updateAnswer = (change: (message: ChatMessage) => ChatMessage) =>
+      setMessages((prev) => prev.map((message) => (message.id === answerId ? change(message) : message)));
+    setMessages((prev) => [...prev, { id: answerId, role: "ai", content: "" }]);
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
-      const response = await queryAi(slug, { question, documentId }, token);
+      const response = await streamAiQuery(slug, { question, documentId }, token, {
+        signal: controller.signal,
+        onDelta: (text) => updateAnswer((message) => ({ ...message, content: message.content + text })),
+      });
 
-      const aiMessage: ChatMessage = {
-        id: randomUUID(),
-        role: "ai",
-        content: response.answer,
-        sources: response.sources,
-      };
-
-      setMessages((prev) => [...prev, aiMessage]);
+      updateAnswer((message) => ({ ...message, content: response.answer, sources: response.sources }));
     } catch (err) {
+      if (isAbortError(err)) {
+        // Keep what was written so far
+        updateAnswer((message) => ({ ...message, content: message.content || "Stopped." }));
+        return;
+      }
       const errorText = err instanceof Error ? err.message : "Something went wrong";
       notify.error("AI query failed", errorText);
-
-      const errorMessage: ChatMessage = {
-        id: randomUUID(),
-        role: "ai",
-        content: `I couldn't process that question. ${errorText}`,
-      };
-
-      setMessages((prev) => [...prev, errorMessage]);
+      updateAnswer((message) => ({ ...message, content: `I couldn't process that question. ${errorText}` }));
     } finally {
+      abortRef.current = null;
       setIsQuerying(false);
     }
   }, [input, token, isQuerying, slug, documentId]);
@@ -205,13 +215,9 @@ export function AiChatPanel({
               role={msg.role}
               content={msg.content}
               sources={msg.sources}
+              isLoading={msg.role === "ai" && msg.content === ""}
             />
           ))}
-
-          {/* Loading indicator */}
-          {isQuerying && (
-            <AiMessage role="ai" content="" isLoading />
-          )}
 
           <div ref={messagesEndRef} />
         </div>
@@ -237,15 +243,27 @@ export function AiChatPanel({
                 </span>
               )}
             </div>
-            <button
-              type="button"
-              onClick={handleSend}
-              disabled={!input.trim() || isQuerying}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white shadow-xs hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              aria-label="Send message"
-            >
-              <Send className="h-4 w-4" />
-            </button>
+            {isQuerying ? (
+              <button
+                type="button"
+                onClick={handleStop}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-900 text-white shadow-xs hover:bg-gray-700 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-white transition-colors"
+                aria-label="Stop answering"
+                title="Stop"
+              >
+                <Square className="h-3.5 w-3.5 fill-current" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleSend}
+                disabled={!input.trim()}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white shadow-xs hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                aria-label="Send message"
+              >
+                <Send className="h-4 w-4" />
+              </button>
+            )}
           </div>
           <p className="mt-1.5 text-[10px] text-gray-400 dark:text-gray-500">
             Enter to send · Shift+Enter for new line · Esc to close

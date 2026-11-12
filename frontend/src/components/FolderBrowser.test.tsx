@@ -4,7 +4,7 @@ import { FolderBrowser } from "./FolderBrowser";
 import type { Tray } from "../services/trayService";
 
 // Mock AuthContext
-vi.mock("../context/AuthContext", () => ({
+vi.mock("../context/useAuth", () => ({
   useAuth: () => ({
     user: { email: "sarah.connor@example.com" },
     token: "test-token",
@@ -488,4 +488,3 @@ describe("FolderBrowser - rename, move and copy", () => {
     expect(trayService.getFolderChildren).toHaveBeenCalledWith("test-tenant", "b8a53df4-6e82-41a4-bb50-2bcfe4df5481", "test-token");
   });
 });
-

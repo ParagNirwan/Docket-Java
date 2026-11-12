@@ -94,7 +94,7 @@ import {
   type DocumentDTO,
 } from "../services/documentService";
 import { archiveDocument, createLegalHold, unarchiveDocument } from "../services/retentionService";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

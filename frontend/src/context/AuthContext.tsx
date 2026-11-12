@@ -1,6 +1,4 @@
 import {
-  createContext,
-  useContext,
   useState,
   useEffect,
   useCallback,
@@ -8,27 +6,13 @@ import {
 } from "react";
 import { type AuthUser, parseJwt, isTokenExpired } from "../lib/jwt";
 import { endServerSession, getStoredToken, onTokenChange, refreshAccessToken, storeToken } from "../lib/session";
+import { AuthContext } from "./AuthContextValue";
 
 export type { AuthUser };
 
 // Refresh this long before the access token expires.
 const REFRESH_MARGIN_MS = 60_000;
 const MIN_REFRESH_DELAY_MS = 5_000;
-
-export interface AuthContextType {
-  token: string | null;
-  user: AuthUser | null;
-  isAuthenticated: boolean;
-  // True while restoring a session on page load. Routes should wait for this.
-  isInitializing: boolean;
-  isSettingsModalOpen: boolean;
-  openSettingsModal: () => void;
-  closeSettingsModal: () => void;
-  login: (newToken: string) => void;
-  logout: () => void;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(getStoredToken);
@@ -134,12 +118,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
 }

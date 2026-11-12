@@ -7,7 +7,7 @@ const auth = vi.hoisted(() => ({
   value: {} as Record<string, unknown>,
 }));
 
-vi.mock("../context/AuthContext", () => ({
+vi.mock("../context/useAuth", () => ({
   useAuth: () => auth.value,
 }));
 

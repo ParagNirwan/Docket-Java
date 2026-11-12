@@ -1,7 +1,7 @@
 import { apiFetch } from "../lib/session";
 import { useState, useEffect } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
 import { hasPermission, type PermissionCode } from "../lib/permissions";
 import {
   ArrowLeft,

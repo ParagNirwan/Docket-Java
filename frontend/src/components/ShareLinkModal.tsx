@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { X, Share2, Link as LinkIcon, Copy, Check, Shield, Trash2, AlertCircle, Loader2 } from "lucide-react";
 import {
   createShareLink,
@@ -17,8 +17,10 @@ interface ShareLinkModalProps {
 
 export function ShareLinkModal({ slug, document, token, onClose }: ShareLinkModalProps) {
   const [links, setLinks] = useState<ShareLinkDTO[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadedLinksKey, setLoadedLinksKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const linksKey = `${slug}:${document.id}:${token}`;
+  const loading = loadedLinksKey !== linksKey;
 
   // Creation form state
   const [expiryDays, setExpiryDays] = useState<number | "never">(7);
@@ -35,22 +37,31 @@ export function ShareLinkModal({ slug, document, token, onClose }: ShareLinkModa
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
 
-  async function loadLinks() {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await listShareLinks(slug, document.id, token);
-      setLinks(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load share links");
-    } finally {
-      setLoading(false);
-    }
-  }
+  const loadLinks = useCallback(async () => {
+    const data = await listShareLinks(slug, document.id, token);
+    setLinks(data);
+    setError(null);
+  }, [slug, document.id, token]);
 
   useEffect(() => {
-    void loadLinks();
-  }, [slug, document.id, token]);
+    let active = true;
+    listShareLinks(slug, document.id, token)
+      .then((data) => {
+        if (active) {
+          setLinks(data);
+          setError(null);
+        }
+      })
+      .catch((err: unknown) => {
+        if (active) setError(err instanceof Error ? err.message : "Failed to load share links");
+      })
+      .finally(() => {
+        if (active) setLoadedLinksKey(linksKey);
+      });
+    return () => {
+      active = false;
+    };
+  }, [slug, document.id, token, linksKey]);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -317,4 +328,3 @@ export function ShareLinkModal({ slug, document, token, onClose }: ShareLinkModa
     </div>
   );
 }
-

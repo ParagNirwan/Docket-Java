@@ -43,6 +43,15 @@ final class CitationResolver {
             }
         }
 
+        return resolveText(answer, sourceCount, declared);
+    }
+
+    // For an answer that is plain text rather than JSON, as a streamed one is
+    static ResolvedAnswer resolveText(String text, int sourceCount) {
+        return resolveText(text.strip(), sourceCount, List.of());
+    }
+
+    private static ResolvedAnswer resolveText(String answer, int sourceCount, List<Integer> declared) {
         // Maps the model's number to the new one. Numbers that match no source are dropped.
         Map<Integer, Integer> renumbered = new LinkedHashMap<>();
 

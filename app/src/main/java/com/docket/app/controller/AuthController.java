@@ -11,6 +11,7 @@ import com.docket.app.service.AccountRecoveryService;
 import com.docket.app.service.AuthRateLimiter;
 import com.docket.app.service.AuthService;
 import com.docket.app.service.SessionService;
+import com.docket.app.service.SsoService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,9 +21,12 @@ import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.CookieValue;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -43,6 +47,7 @@ public class AuthController {
     private final AccountRecoveryService accountRecoveryService;
     private final AuthRateLimiter authRateLimiter;
     private final ClientRequestInfo clientRequestInfo;
+    private final SsoService ssoService;
 
     @Value("${docket.auth.cookie-secure}")
     private boolean cookieSecure;
@@ -70,6 +75,28 @@ public class AuthController {
     public ResponseEntity<AuthResponseDTO> verify2fa(@Valid @RequestBody com.docket.app.dto.TwoFactorVerifyRequestDTO request) {
         limitByIp("2fa-verify", 10);
         SessionService.IssuedSession session = authService.verify2fa(request);
+        return sessionResponse(session);
+    }
+
+    @GetMapping({"/sso/{provider}", "/sso/{provider}/authorize"})
+    public ResponseEntity<java.util.Map<String, String>> startSso(
+            @PathVariable String provider,
+            @RequestParam(required = false) String redirectUri,
+            @RequestParam(required = false) String state
+    ) {
+        String resolvedRedirect = redirectUri == null || redirectUri.isBlank() ? "http://localhost:5173/auth/sso/callback" : redirectUri;
+        return ResponseEntity.ok(java.util.Map.of("provider", provider, "authUrl", ssoService.buildAuthUrl(provider, resolvedRedirect, state)));
+    }
+
+    @PostMapping({"/sso/{provider}/callback", "/sso/{provider}/login"})
+    public ResponseEntity<AuthResponseDTO> completeSso(
+            @PathVariable String provider,
+            @RequestBody(required = false) java.util.Map<String, String> payload
+    ) {
+        limitByIp("sso-login", 30);
+        String code = payload == null ? null : payload.get("code");
+        String redirectUri = payload == null ? null : payload.get("redirectUri");
+        SessionService.IssuedSession session = ssoService.login(provider, code, redirectUri);
         return sessionResponse(session);
     }
 

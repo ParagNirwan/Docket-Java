@@ -22,6 +22,9 @@ public interface TenantInvitationRepository extends JpaRepository<TenantInvitati
     List<TenantInvitation> findByTenantIdAndStatusAndExpiresAtAfterOrderByCreatedAtDesc(
             UUID tenantId, InvitationStatus status, Instant now);
 
+    List<TenantInvitation> findByEmailIgnoreCaseAndStatusAndExpiresAtAfterOrderByCreatedAtDesc(
+            String email, InvitationStatus status, Instant now);
+
     long countByTenantIdAndStatusAndExpiresAtAfter(UUID tenantId, InvitationStatus status, Instant now);
 
     // Only one request can move an invite out of PENDING, so a double click or a link

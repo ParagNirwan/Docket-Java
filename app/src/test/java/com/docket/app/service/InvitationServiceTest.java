@@ -306,6 +306,58 @@ class InvitationServiceTest {
     }
 
     @Test
+    void dashboardListsPendingInvitationsForTheSignedInEmail() {
+        TenantInvitation invitation = liveInvitation("token", "ada@example.com");
+        inviter.setEmailVerifiedAt(Instant.now());
+        invitation.setInvitedBy(inviter.getId());
+        invitation.setCreatedAt(Instant.now());
+        when(invitationRepository.findByEmailIgnoreCaseAndStatusAndExpiresAtAfterOrderByCreatedAtDesc(
+                eq("ada@example.com"), eq(InvitationStatus.PENDING), any()))
+                .thenReturn(List.of(invitation));
+        when(userRepository.findAllById(any())).thenReturn(List.of(inviter));
+        when(tenantRepository.findAllById(any())).thenReturn(List.of(tenant));
+
+        var invitations = service.listMyPending(authentication);
+
+        assertEquals(1, invitations.size());
+        assertEquals(tenant.getName(), invitations.getFirst().tenantName());
+        assertEquals(SLUG, invitations.getFirst().tenantSlug());
+        assertEquals("Ada Lovelace", invitations.getFirst().invitedByName());
+    }
+
+    @Test
+    void dashboardAccept_joinsOnlyForTheInvitedAccount() {
+        TenantInvitation invitation = liveInvitation("token", "ada@example.com");
+        inviter.setEmailVerifiedAt(Instant.now());
+        when(invitationRepository.findById(invitation.getId())).thenReturn(Optional.of(invitation));
+
+        var accepted = service.acceptFromDashboard(invitation.getId(), authentication);
+
+        assertEquals(SLUG, accepted.tenantSlug());
+        verify(membershipRepository).saveAndFlush(any());
+    }
+
+    @Test
+    void dashboardAccept_rejectsAnInvitationForAnotherEmail() {
+        TenantInvitation invitation = liveInvitation("token", "bob@example.com");
+        inviter.setEmailVerifiedAt(Instant.now());
+        when(invitationRepository.findById(invitation.getId())).thenReturn(Optional.of(invitation));
+
+        assertStatus(HttpStatus.NOT_FOUND, () -> service.acceptFromDashboard(invitation.getId(), authentication));
+        verify(membershipRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void dashboardAccept_requiresAVerifiedAccount() {
+        TenantInvitation invitation = liveInvitation("token", "ada@example.com");
+
+        assertStatus(HttpStatus.FORBIDDEN,
+                () -> service.acceptFromDashboard(invitation.getId(), authentication));
+        verify(invitationRepository, never()).findById(invitation.getId());
+        verify(membershipRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
     void accept_someoneWhoLeft_getsTheirOldRecordBack() {
         liveInvitation("token", "ada@example.com");
         TenantMembership old = new TenantMembership();

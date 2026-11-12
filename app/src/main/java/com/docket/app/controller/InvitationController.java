@@ -1,6 +1,7 @@
 package com.docket.app.controller;
 
 import com.docket.app.dto.AcceptedInvitationDTO;
+import com.docket.app.dto.DashboardInvitationDTO;
 import com.docket.app.dto.InvitationDTO;
 import com.docket.app.dto.InvitationPreviewDTO;
 import com.docket.app.dto.InviteMemberRequestDTO;
@@ -32,6 +33,19 @@ public class InvitationController {
     private final InvitationService invitationService;
     private final AuthRateLimiter authRateLimiter;
     private final ClientRequestInfo clientRequestInfo;
+
+    @GetMapping("/api/users/invitations")
+    public ResponseEntity<List<DashboardInvitationDTO>> listMyPending(Authentication authentication) {
+        return ResponseEntity.ok(invitationService.listMyPending(authentication));
+    }
+
+    @PostMapping("/api/users/invitations/{invitationId}/accept")
+    public ResponseEntity<AcceptedInvitationDTO> acceptFromDashboard(
+            @PathVariable UUID invitationId,
+            Authentication authentication
+    ) {
+        return ResponseEntity.ok(invitationService.acceptFromDashboard(invitationId, authentication));
+    }
 
     @PostMapping("/api/tenants/{slug}/invitations")
     public ResponseEntity<InvitationDTO> invite(

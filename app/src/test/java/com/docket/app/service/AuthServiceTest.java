@@ -51,6 +51,9 @@ class AuthServiceTest {
     private InvitationService invitationService;
 
     @Mock
+    private TenantDomainService tenantDomainService;
+
+    @Mock
     private AuditService auditService;
 
     @Mock
@@ -88,10 +91,28 @@ class AuthServiceTest {
         RegisterRequestDTO request = registerFromInvite();
         when(invitationService.acceptForNewUser(eq("invite-token"), any(User.class)))
                 .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "expired"));
+        when(tenantDomainService.autoJoinVerifiedDomain(any(User.class))).thenReturn(false);
 
         authService.register(request);
 
         verify(accountRecoveryService).sendVerificationEmail(any(User.class));
+    }
+
+    @Test
+    void registerAutoJoinsVerifiedDomainUsersWithoutSendingVerificationEmail() {
+        RegisterRequestDTO request = new RegisterRequestDTO();
+        request.setFirstName("Ada");
+        request.setLastName("Lovelace");
+        request.setEmail("ada@example.com");
+        request.setPassword("plain-password");
+        when(userRepository.existsByEmailIgnoreCase("ada@example.com")).thenReturn(false);
+        when(passwordEncoder.encode("plain-password")).thenReturn("encoded-password");
+        when(jwtService.generateAccessToken(any(User.class), org.mockito.ArgumentMatchers.isNull())).thenReturn("token");
+        when(tenantDomainService.autoJoinVerifiedDomain(any(User.class))).thenReturn(true);
+
+        assertEquals("token", authService.register(request).getToken());
+        verify(tenantDomainService).autoJoinVerifiedDomain(any(User.class));
+        verify(accountRecoveryService, never()).sendVerificationEmail(any(User.class));
     }
 
     private LoginRequestDTO loginRequest(String email) {

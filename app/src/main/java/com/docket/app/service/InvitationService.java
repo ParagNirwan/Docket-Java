@@ -13,6 +13,7 @@ import com.docket.app.enums.InvitationStatus;
 import com.docket.app.enums.MemberStatus;
 import com.docket.app.enums.NotificationType;
 import com.docket.app.enums.Permission;
+import com.docket.app.enums.Roles;
 import com.docket.app.enums.TenantStatus;
 import com.docket.app.enums.UserType;
 import com.docket.app.repository.TenantInvitationRepository;
@@ -23,7 +24,9 @@ import com.docket.app.security.TokenHasher;
 import com.docket.app.service.email.EmailOutboxService;
 import com.docket.app.service.email.EmailTemplate;
 import lombok.RequiredArgsConstructor;
+import com.docket.app.service.billing.PlanLimitService;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -59,6 +62,8 @@ public class InvitationService {
     private final EmailOutboxService emailOutboxService;
     private final AuditService auditService;
     private final NotificationService notificationService;
+    private final PlanLimitService planLimitService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Value("${docket.app.base-url}")
     private String baseUrl;
@@ -77,7 +82,15 @@ public class InvitationService {
         tenantAuthorizationService.requireCanAssignRole(authentication, tenantId, request.getRole());
         authRateLimiter.check(limitKey(tenantId), limitPerHour, ONE_HOUR);
 
-        String email = request.getEmail().trim().toLowerCase(Locale.ROOT);
+        return createInvitation(tenant, currentUser(authentication), request.getEmail(), request.getRole());
+    }
+
+    // The invite itself, once the caller has checked the inviter may send it. Bulk invites
+    // call this once per row, each in its own transaction, so one bad row can't undo the rest.
+    @Transactional
+    public InvitationDTO createInvitation(Tenant tenant, User inviter, String rawEmail, Roles role) {
+        UUID tenantId = tenant.getId();
+        String email = rawEmail.trim().toLowerCase(Locale.ROOT);
         userRepository.findByEmailIgnoreCase(email)
                 .filter(user -> !membershipRepository
                         .findByUserIdAndTenantIdAndMemberStatus(user.getId(), tenantId, MemberStatus.ACTIVE).isEmpty())
@@ -85,13 +98,13 @@ public class InvitationService {
                     throw new ResponseStatusException(HttpStatus.CONFLICT, "This person is already a member");
                 });
         retireExpiredOrRejectPending(tenantId, email);
+        planLimitService.requireSeatsForInvites(tenant, 1);
 
-        User inviter = currentUser(authentication);
         Instant now = Instant.now();
         TenantInvitation invitation = new TenantInvitation();
         invitation.setTenantId(tenantId);
         invitation.setEmail(email);
-        invitation.setRole(request.getRole());
+        invitation.setRole(role);
         invitation.setInvitedBy(inviter.getId());
         invitation.setStatus(InvitationStatus.PENDING);
         invitation.setCreatedAt(now);
@@ -111,7 +124,7 @@ public class InvitationService {
                         "Open the link in the email we sent to " + email + " to join.",
                         null));
         auditService.record(tenantId, inviter.getId(), AuditAction.MEMBER_INVITED, "INVITATION", invitation.getId(),
-                Map.of("email", email, "role", request.getRole().name()));
+                Map.of("email", email, "role", role.name()));
         return toDTO(invitation, inviter.getName());
     }
 
@@ -205,23 +218,7 @@ public class InvitationService {
             throw invalidLink();
         }
 
-        List<TenantMembership> memberships = membershipRepository.findByUserIdAndTenantId(user.getId(), tenant.getId());
-        boolean alreadyActive = memberships.stream().anyMatch(m -> m.getMemberStatus() == MemberStatus.ACTIVE);
-        if (!alreadyActive) {
-            // Someone who left or was removed gets their old record back.
-            TenantMembership membership = memberships.isEmpty() ? new TenantMembership() : memberships.getFirst();
-            membership.setTenantId(tenant.getId());
-            membership.setUserId(user.getId());
-            membership.setUserType(UserType.INTERNAL);
-            membership.setMemberStatus(MemberStatus.ACTIVE);
-            membership.setRole(invitation.getRole());
-            membership.setJoinedAt(now);
-            try {
-                membershipRepository.saveAndFlush(membership);
-            } catch (DataIntegrityViolationException e) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "This person is already a member");
-            }
-        }
+        activateMembership(tenant, user, invitation.getRole());
 
         // The link arrived in their inbox, so the address is proven too.
         if (user.getEmailVerifiedAt() == null) {
@@ -238,6 +235,32 @@ public class InvitationService {
                     NotificationService.workspaceLink(tenant.getSlug(), "settings", "members"));
         }
         return new AcceptedInvitationDTO(tenant.getName(), tenant.getSlug());
+    }
+
+    // Makes someone an active member, whichever way they came in: an email invite, an invite
+    // link, or their email domain. Returns false if they already were one.
+    @Transactional
+    public boolean activateMembership(Tenant tenant, User user, Roles role) {
+        List<TenantMembership> memberships = membershipRepository.findByUserIdAndTenantId(user.getId(), tenant.getId());
+        if (memberships.stream().anyMatch(m -> m.getMemberStatus() == MemberStatus.ACTIVE)) {
+            return false;
+        }
+        planLimitService.requireSeat(tenant);
+        // Someone who left or was removed gets their old record back.
+        TenantMembership membership = memberships.isEmpty() ? new TenantMembership() : memberships.getFirst();
+        membership.setTenantId(tenant.getId());
+        membership.setUserId(user.getId());
+        membership.setUserType(UserType.INTERNAL);
+        membership.setMemberStatus(MemberStatus.ACTIVE);
+        membership.setRole(role);
+        membership.setJoinedAt(Instant.now());
+        try {
+            membershipRepository.saveAndFlush(membership);
+        } catch (DataIntegrityViolationException e) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This person is already a member");
+        }
+        eventPublisher.publishEvent(new MemberJoinedEvent(tenant.getId(), user.getId(), role.name()));
+        return true;
     }
 
     // An expired invite still holds the "one pending invite per address" slot until the

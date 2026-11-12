@@ -39,6 +39,7 @@ public class AuthService {
     private final SessionService sessionService;
     private final AccountRecoveryService accountRecoveryService;
     private final InvitationService invitationService;
+    private final TenantDomainService tenantDomainService;
     private final AuditService auditService;
     private final AuthRateLimiter authRateLimiter;
     private final ClientRequestInfo clientRequestInfo;
@@ -70,7 +71,9 @@ public class AuthService {
         // a problem here shouldn't turn a successful registration into an error.
         try {
             if (!acceptedInvite(request.getInviteToken(), user)) {
-                accountRecoveryService.sendVerificationEmail(user);
+                if (!tenantDomainService.autoJoinVerifiedDomain(user)) {
+                    accountRecoveryService.sendVerificationEmail(user);
+                }
             }
         } catch (RuntimeException exception) {
             log.error("Could not queue verification email for user {}", user.getId(), exception);

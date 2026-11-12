@@ -17,11 +17,13 @@ import com.docket.app.repository.TenantMembershipRepository;
 import com.docket.app.repository.TenantRepository;
 import com.docket.app.repository.UserRepository;
 import com.docket.app.security.TokenHasher;
+import com.docket.app.service.billing.PlanLimitService;
 import com.docket.app.service.email.EmailOutboxService;
 import com.docket.app.service.email.EmailTemplate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.context.ApplicationEventPublisher;
 import org.junit.jupiter.api.function.Executable;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
@@ -84,6 +86,10 @@ class InvitationServiceTest {
 
     @Mock
     private NotificationService notificationService;
+    @Mock
+    private PlanLimitService planLimitService;
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private InvitationService service;

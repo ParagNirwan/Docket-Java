@@ -28,4 +28,7 @@ public interface TenantMembershipRepository extends JpaRepository<TenantMembersh
 
     // "Who is in this organization?"
     List<TenantMembership> findByTenantIdAndMemberStatus(UUID tenantId, MemberStatus memberStatus);
+
+    // Seats in use, for the plan's limit
+    long countByTenantIdAndMemberStatus(UUID tenantId, MemberStatus memberStatus);
 }

@@ -1,54 +1,48 @@
 @import "tailwindcss";
 
-/*
- * Reddit-inspired palette. Components use Tailwind's stock `gray` and
- * `indigo` classes, so redefining those two scales repaints the whole app:
- * `indigo` is the orangered accent, `gray` the cool blue-gray neutrals.
- */
 @theme {
-  --font-sans: "Reddit Sans", "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 
-  --color-indigo-50: #fff2ec;
-  --color-indigo-100: #ffe1d3;
-  --color-indigo-200: #ffc3a6;
-  --color-indigo-300: #ff9b6d;
-  --color-indigo-400: #ff6c36;
-  --color-indigo-500: #ff4500;
-  --color-indigo-600: #d93900;
-  --color-indigo-700: #ae2c00;
-  --color-indigo-800: #862300;
-  --color-indigo-900: #5c1900;
-  --color-indigo-950: #351003;
+  --color-indigo-50: #f0f7ff;
+  --color-indigo-100: #e0efff;
+  --color-indigo-200: #b8dcff;
+  --color-indigo-300: #83c0ff;
+  --color-indigo-400: #409cff;
+  --color-indigo-500: #007aff;
+  --color-indigo-600: #0071e3;
+  --color-indigo-700: #006edb;
+  --color-indigo-800: #005bb5;
+  --color-indigo-900: #004785;
+  --color-indigo-950: #002b52;
 
-  --color-gray-50: #f6f8f9;
-  --color-gray-100: #eaedef;
-  --color-gray-200: #dbe2e6;
-  --color-gray-300: #b7cad4;
-  --color-gray-400: #8ba2ad;
-  --color-gray-500: #5c6f77;
-  --color-gray-600: #46565d;
-  --color-gray-700: #333d42;
-  --color-gray-800: #1f2d32;
-  --color-gray-900: #131f23;
-  --color-gray-950: #0b1416;
+  --color-gray-50: #f5f5f7;
+  --color-gray-100: #e8e8ed;
+  --color-gray-200: #d2d2d7;
+  --color-gray-300: #c7c7cc;
+  --color-gray-400: #737378;
+  --color-gray-500: #6e6e73;
+  --color-gray-600: #515154;
+  --color-gray-700: #3a3a3c;
+  --color-gray-800: #1d1d1f;
+  --color-gray-900: #1d1d1f;
+  --color-gray-950: #000000;
 
-  /* Reddit's link/secondary blue, used for the few `blue-*` accents. */
-  --color-blue-500: #0079d3;
-  --color-blue-600: #0045ac;
-  --color-blue-400: #648efc;
+  --color-blue-400: #409cff;
+  --color-blue-500: #007aff;
+  --color-blue-600: #0071e3;
 }
 
 :root {
   --color-ink: var(--color-gray-900);
-  --color-paper: #ffffff;
+  --color-paper: var(--color-gray-50);
   --color-vault: var(--color-indigo-600);
   --color-vault-hover: var(--color-indigo-700);
   --color-seal: var(--color-indigo-500);
   --color-line: var(--color-gray-100);
   --color-muted: var(--color-gray-500);
-  --color-success: #008a10;
-  --color-danger: #c4250a;
-  --color-warning: #a36b00;
+  --color-success: #248a3d;
+  --color-danger: #d70015;
+  --color-warning: #9a6700;
 
   --sans: var(--font-sans);
   --heading: var(--font-sans);
@@ -58,11 +52,14 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-ink: var(--color-gray-100);
-    --color-paper: var(--color-gray-950);
-    --color-line: var(--color-gray-800);
-    --color-muted: var(--color-gray-400);
+    --color-ink: #f5f5f7;
+    --color-paper: #000000;
+    --color-line: #3a3a3c;
+    --color-muted: #aeaeb2;
     --color-vault: var(--color-indigo-400);
+    --color-success: #30d158;
+    --color-danger: #ff453a;
+    --color-warning: #ffd60a;
   }
 }
 
@@ -73,16 +70,30 @@ body {
   font-family: var(--sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 h1, h2, h3, .heading {
   font-family: var(--heading);
-  letter-spacing: -0.01em;
+  letter-spacing: -0.025em;
+}
+
+button, input, select, textarea {
+  font-family: inherit;
+}
+
+button, a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-seal);
+  outline-offset: 2px;
 }
 
 ::selection {
   background-color: var(--color-indigo-200);
-  color: var(--color-gray-950);
+  color: var(--color-gray-900);
 }
 
 #root {

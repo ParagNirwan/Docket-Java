@@ -1,6 +1,7 @@
 package com.docket.app.service;
 
 import com.docket.app.dto.AcceptedInvitationDTO;
+import com.docket.app.dto.DashboardInvitationDTO;
 import com.docket.app.dto.InvitationDTO;
 import com.docket.app.dto.InvitationPreviewDTO;
 import com.docket.app.dto.InviteMemberRequestDTO;
@@ -117,11 +118,14 @@ public class InvitationService {
         }
 
         sendEmail(invitation, rawToken, inviter, tenant);
-        // The link only exists in the email, as just its hash is stored, so this points there.
+        // Dashboard acceptance is limited to accounts that have verified this email address.
         userRepository.findByEmailIgnoreCase(email).ifPresent(user ->
                 notificationService.notifyInAppOnly(tenantId, user.getId(), NotificationType.INVITED,
                         inviter.getName() + " invited you to " + tenant.getName(),
-                        "Open the link in the email we sent to " + email + " to join.",
+                        user.getEmailVerifiedAt() == null
+                                ? "Open the invitation email link to verify your email and join."
+                                : "Accept the invitation from your organization dashboard or open the link in the email we sent to "
+                                        + email + ".",
                         null));
         auditService.record(tenantId, inviter.getId(), AuditAction.MEMBER_INVITED, "INVITATION", invitation.getId(),
                 Map.of("email", email, "role", role.name()));
@@ -142,6 +146,45 @@ public class InvitationService {
                 : userRepository.findAllById(inviterIds).stream().collect(Collectors.toMap(User::getId, User::getName));
 
         return invitations.stream().map(i -> toDTO(i, inviterNames.get(i.getInvitedBy()))).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<DashboardInvitationDTO> listMyPending(Authentication authentication) {
+        User user = currentUser(authentication);
+        requireVerifiedEmail(user);
+        List<TenantInvitation> invitations = invitationRepository
+                .findByEmailIgnoreCaseAndStatusAndExpiresAtAfterOrderByCreatedAtDesc(
+                        user.getEmail(), InvitationStatus.PENDING, Instant.now());
+        if (invitations.isEmpty()) {
+            return List.of();
+        }
+
+        Map<UUID, Tenant> tenants = tenantRepository.findAllById(
+                        invitations.stream().map(TenantInvitation::getTenantId).collect(Collectors.toSet()))
+                .stream()
+                .filter(tenant -> tenant.getStatus() == TenantStatus.ACTIVE)
+                .collect(Collectors.toMap(Tenant::getId, tenant -> tenant));
+        Set<UUID> inviterIds = invitations.stream()
+                .map(TenantInvitation::getInvitedBy)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<UUID, String> inviterNames = inviterIds.isEmpty() ? Map.of()
+                : userRepository.findAllById(inviterIds).stream().collect(Collectors.toMap(User::getId, User::getName));
+
+        return invitations.stream()
+                .filter(invitation -> tenants.containsKey(invitation.getTenantId()))
+                .map(invitation -> {
+                    Tenant tenant = tenants.get(invitation.getTenantId());
+                    return new DashboardInvitationDTO(
+                            invitation.getId(),
+                            tenant.getName(),
+                            tenant.getSlug(),
+                            invitation.getRole(),
+                            invitation.getInvitedBy() == null ? null : inviterNames.get(invitation.getInvitedBy()),
+                            invitation.getCreatedAt(),
+                            invitation.getExpiresAt());
+                })
+                .toList();
     }
 
     // Issues a new link and restarts the clock. The link in the earlier email stops working.
@@ -196,6 +239,19 @@ public class InvitationService {
         if (!invitation.getEmail().equalsIgnoreCase(user.getEmail())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "This invitation is for a different email address");
         }
+        return join(invitation, user);
+    }
+
+    @Transactional
+    public AcceptedInvitationDTO acceptFromDashboard(UUID invitationId, Authentication authentication) {
+        User user = currentUser(authentication);
+        requireVerifiedEmail(user);
+        Instant now = Instant.now();
+        TenantInvitation invitation = invitationRepository.findById(invitationId)
+                .filter(candidate -> candidate.getEmail().equalsIgnoreCase(user.getEmail()))
+                .filter(candidate -> candidate.getStatus() == InvitationStatus.PENDING
+                        && candidate.getExpiresAt().isAfter(now))
+                .orElseThrow(this::invalidLink);
         return join(invitation, user);
     }
 
@@ -305,6 +361,13 @@ public class InvitationService {
     private User currentUser(Authentication authentication) {
         return userRepository.findByEmailIgnoreCase(authentication.getName())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+    }
+
+    private void requireVerifiedEmail(User user) {
+        if (user.getEmailVerifiedAt() == null) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Verify your email address to accept invitations from the dashboard");
+        }
     }
 
     private String refreshToken(TenantInvitation invitation, Instant now) {

@@ -1,7 +1,9 @@
 import { apiFetch } from "../lib/session";
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
+import { ROLE_LABELS } from "../lib/permissions";
+import { acceptDashboardInvitation, listMyInvitations, type DashboardInvitation } from "../services/memberService";
 import {
   BuildingIcon,
   PlusIcon,
@@ -23,9 +25,13 @@ interface TenantItem {
 
 export function TenantsPage() {
   const { token, openSettingsModal } = useAuth();
+  const navigate = useNavigate();
   const [tenants, setTenants] = useState<TenantItem[]>([]);
+  const [invitations, setInvitations] = useState<DashboardInvitation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [invitationError, setInvitationError] = useState<string | null>(null);
+  const [acceptingId, setAcceptingId] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadTenants() {
@@ -52,8 +58,35 @@ export function TenantsPage() {
       }
     }
 
-    loadTenants();
+    async function loadInvitations() {
+      if (!token) return;
+      try {
+        setInvitations(await listMyInvitations(token));
+      } catch (err) {
+        setInvitationError(err instanceof Error ? err.message : "Unable to load invitations");
+      }
+    }
+
+    void loadTenants();
+    void loadInvitations();
   }, [token]);
+
+  async function acceptInvitation(invitation: DashboardInvitation) {
+    if (!token) return;
+    try {
+      setAcceptingId(invitation.id);
+      setInvitationError(null);
+      const accepted = await acceptDashboardInvitation(invitation.id, token);
+      setInvitations((current) => current.filter((item) => item.id !== invitation.id));
+      navigate(`/workspace/${encodeURIComponent(accepted.tenantSlug)}`, {
+        state: { tenantName: accepted.tenantName },
+      });
+    } catch (err) {
+      setInvitationError(err instanceof Error ? err.message : "Could not accept the invitation");
+    } finally {
+      setAcceptingId(null);
+    }
+  }
 
   return (
     <div className="w-full px-4 py-8 sm:px-6 lg:px-8">
@@ -86,6 +119,39 @@ export function TenantsPage() {
         </div>
       </div>
 
+      {invitations.length > 0 && (
+        <section aria-labelledby="pending-invitations-heading" className="mb-8">
+          <h2 id="pending-invitations-heading" className="mb-3 text-lg font-bold text-gray-900 dark:text-white">
+            Pending invitations
+          </h2>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {invitations.map((invitation) => (
+              <div key={invitation.id} className="flex items-center justify-between gap-4 rounded-2xl border border-indigo-200 bg-white p-5 shadow-xs dark:border-indigo-900 dark:bg-gray-900">
+                <div>
+                  <h3 className="font-semibold text-gray-900 dark:text-white">{invitation.tenantName}</h3>
+                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    {invitation.invitedByName ? `${invitation.invitedByName} invited you` : "You were invited"} as {ROLE_LABELS[invitation.role]}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void acceptInvitation(invitation)}
+                  disabled={acceptingId !== null}
+                  className="shrink-0 rounded-full bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {acceptingId === invitation.id ? "Joining..." : "Accept"}
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+      {invitationError && (
+        <div role="alert" className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-400">
+          {invitationError}
+        </div>
+      )}
+
       {/* Content */}
       {loading ? (
         <div className="flex items-center justify-center p-16 text-sm text-gray-500 dark:text-gray-400">
@@ -105,8 +171,8 @@ export function TenantsPage() {
             No tenants yet
           </h3>
           <p className="text-sm text-gray-500 dark:text-gray-400 max-w-sm mx-auto mt-1 mb-6">
-            You don't have any workspaces yet. Create your first tenant to start
-            managing your legal dockets.
+            You don't have any workspaces yet. Accept a pending invitation above
+            or create your first tenant to start managing your legal dockets.
           </p>
           <Link
             to="/create-first-tenant"

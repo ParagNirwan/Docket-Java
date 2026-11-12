@@ -22,6 +22,16 @@ export interface Invitation {
   expiresAt: string;
 }
 
+export interface DashboardInvitation {
+  id: string;
+  tenantName: string;
+  tenantSlug: string;
+  role: MemberRole;
+  invitedByName: string | null;
+  createdAt: string;
+  expiresAt: string;
+}
+
 export interface InvitationPreview {
   tenantName: string;
   tenantSlug: string;
@@ -97,6 +107,27 @@ export async function transferOwnership(slug: string, newOwnerMembershipId: stri
 export async function listInvitations(slug: string, token: string): Promise<Invitation[]> {
   const response = await send(tenantUrl(slug, "invitations"), token);
   if (!response.ok) throw failure(response, {}, "Could not load invitations");
+  return response.json();
+}
+
+export async function listMyInvitations(token: string): Promise<DashboardInvitation[]> {
+  const response = await send(`${API_BASE}/users/invitations`, token);
+  if (!response.ok) {
+    throw failure(response, {
+      403: "Verify your email to accept invitations from your dashboard, or use the link in your invitation email.",
+    }, "Could not load invitations");
+  }
+  return response.json();
+}
+
+export async function acceptDashboardInvitation(invitationId: string, token: string): Promise<AcceptedInvitation> {
+  const response = await send(`${API_BASE}/users/invitations/${encodeURIComponent(invitationId)}/accept`, token, "POST");
+  if (!response.ok) {
+    throw failure(response, {
+      403: "Verify your email to accept invitations from your dashboard, or use the link in your invitation email.",
+      404: "This invitation is invalid or has expired. Ask for a new one.",
+    }, "Could not accept the invitation");
+  }
   return response.json();
 }
 

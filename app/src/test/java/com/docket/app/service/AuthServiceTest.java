@@ -1,5 +1,6 @@
 package com.docket.app.service;
 
+import com.docket.app.config.DocketAuthProperties;
 import com.docket.app.dto.LoginRequestDTO;
 import com.docket.app.dto.RegisterRequestDTO;
 import com.docket.app.entity.User;
@@ -11,6 +12,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -62,6 +64,9 @@ class AuthServiceTest {
 
     @Mock
     private ClientRequestInfo clientRequestInfo;
+
+    @Spy
+    private DocketAuthProperties authProperties = new DocketAuthProperties();
 
     @InjectMocks
     private AuthService authService;

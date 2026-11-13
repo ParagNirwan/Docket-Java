@@ -1,5 +1,6 @@
 package com.docket.app.service;
 
+import com.docket.app.config.DocketPlatformProperties;
 import com.docket.app.dto.RetentionPolicyRequestDTO;
 import com.docket.app.entity.Folder;
 import com.docket.app.entity.RetentionPolicy;
@@ -19,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
@@ -53,6 +55,8 @@ class RetentionPolicyServiceTest {
     @Mock private TenantAuthorizationService tenantAuthorizationService;
     @Mock private RetentionService retentionService;
     @Mock private AuditService auditService;
+
+    @Spy private DocketPlatformProperties platformProperties = new DocketPlatformProperties();
 
     @InjectMocks
     private RetentionPolicyService service;

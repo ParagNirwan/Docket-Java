@@ -1,11 +1,13 @@
 package com.docket.app.service.ai;
 
+import com.docket.app.config.DocketAiProperties;
 import com.google.cloud.vertexai.api.GenerationConfig;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.IOException;
@@ -26,6 +28,9 @@ class QueryRewriteServiceTest {
 
     @Mock
     private GeminiClient geminiClient;
+
+    @Spy
+    private DocketAiProperties aiProperties = new DocketAiProperties();
 
     @InjectMocks
     private QueryRewriteService queryRewriteService;

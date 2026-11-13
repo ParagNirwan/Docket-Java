@@ -109,23 +109,23 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-[calc(100svh-4rem)] flex-1 items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
+    <div className="flex min-h-[calc(100svh-4rem)] flex-1 items-center justify-center px-4 py-10 sm:px-6 lg:px-8 bg-white">
       <div className="w-full max-w-md">
         {/* Card */}
-        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white p-7 shadow-xs dark:border-gray-800 dark:bg-gray-900 sm:p-8">
+        <div className="overflow-hidden rounded-[8px] border border-[#DDDDDD] bg-white p-7 shadow-[0_4px_12px_rgba(0,0,0,0.1)] sm:p-8">
           {/* Header Icon & Title */}
           <div className="text-center mb-6">
-            <div className="mx-auto mb-3.5 flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
+            <div className="mx-auto mb-3.5 flex h-11 w-11 items-center justify-center rounded-[8px] border border-[#DDDDDD] bg-[#F8F8F8] text-[#1D1C1D] shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
               {twoFactorTempToken ? (
-                <ShieldCheck className="h-6 w-6" strokeWidth={1.8} />
+                <ShieldCheck className="h-5 w-5 text-[#2EB67D]" strokeWidth={1.8} />
               ) : (
-                <Lock className="h-6 w-6" strokeWidth={1.8} />
+                <Lock className="h-5 w-5 text-[#1D1C1D]" strokeWidth={1.8} />
               )}
             </div>
-            <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
+            <h1 className="text-[22px] font-bold tracking-tight text-[#1D1C1D] leading-tight">
               {twoFactorTempToken ? "Two-Factor Verification" : "Sign in to Docket"}
             </h1>
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            <p className="mt-1 text-[13px] text-[#616061]">
               {twoFactorTempToken
                 ? "Enter the 6-digit code from your authenticator app or an 8-character backup code"
                 : "Enter your credentials to access your tenant workspaces"}
@@ -134,15 +134,15 @@ export function LoginPage() {
 
           {/* Success Banner from Registration */}
           {successMessage && !twoFactorTempToken && (
-            <div className="mb-5 flex items-start gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5 text-xs text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300">
-              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400 mt-0.5" />
+            <div className="mb-4 flex items-start gap-2.5 rounded-[4px] border border-[#2EB67D]/30 bg-[#2EB67D]/10 p-3 text-[12px] font-medium text-[#1b7a51]">
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-[#2EB67D] mt-0.5" />
               <span>{successMessage}</span>
             </div>
           )}
 
           {/* Error Message */}
           {error && (
-            <div className="mb-5 rounded-xl border border-red-200 bg-red-50/60 p-3.5 text-xs text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-400">
+            <div className="mb-4 rounded-[4px] border border-[#E01E5A]/30 bg-[#E01E5A]/10 p-3 text-[12px] font-medium text-[#E01E5A]">
               {error}
             </div>
           )}
@@ -153,7 +153,7 @@ export function LoginPage() {
               <div>
                 <label
                   htmlFor="two-factor-code"
-                  className="block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1.5"
+                  className="block text-[11px] font-bold uppercase tracking-wider text-[#616061] mb-1.5"
                 >
                   Verification Code / Backup Code
                 </label>
@@ -165,14 +165,14 @@ export function LoginPage() {
                   placeholder="e.g. 123456 or A1B2C3D4"
                   value={twoFactorCode}
                   onChange={(e) => setTwoFactorCode(e.target.value)}
-                  className="w-full text-center font-mono tracking-widest text-lg font-bold rounded-xl border border-gray-200 bg-gray-50/50 px-3.5 py-2.5 text-gray-900 placeholder-gray-400 transition-all focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-800/50 dark:text-white dark:placeholder-gray-500 dark:focus:bg-gray-900"
+                  className="w-full text-center font-mono tracking-widest text-lg font-bold rounded-[8px] border border-[#DDDDDD] bg-[#F8F8F8] px-3.5 py-2 text-[#1D1C1D] placeholder-[#616061] transition-all focus:border-[#36C5F0] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#36C5F0]"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={loading || !twoFactorCode.trim()}
-                className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:focus:ring-offset-gray-900"
+                className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-[8px] bg-[#007A5A] px-4 py-2 text-[14px] font-bold text-white shadow-[0_1px_2px_rgba(0,0,0,0.1)] transition-colors hover:bg-[#00664B] focus:outline-none focus:ring-2 focus:ring-[#36C5F0] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <span>{loading ? "Verifying..." : "Verify & Sign In"}</span>
                 <ArrowRight className="h-4 w-4" />
@@ -184,7 +184,7 @@ export function LoginPage() {
                   setTwoFactorTempToken(null);
                   setError("");
                 }}
-                className="w-full inline-flex items-center justify-center gap-1 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 py-1"
+                className="w-full inline-flex items-center justify-center gap-1 text-[12px] text-[#616061] hover:text-[#1D1C1D] py-1"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
                 Back to email & password
@@ -196,7 +196,7 @@ export function LoginPage() {
             <div>
               <label
                 htmlFor="login-email"
-                className="block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1.5"
+                className="block text-[11px] font-bold uppercase tracking-wider text-[#616061] mb-1.5"
               >
                 Email Address
               </label>
@@ -209,9 +209,9 @@ export function LoginPage() {
                   placeholder="you@company.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-xl border border-gray-200 bg-gray-50/50 px-3.5 py-2.5 pl-10 text-sm text-gray-900 placeholder-gray-400 transition-all focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-800/50 dark:text-white dark:placeholder-gray-500 dark:focus:bg-gray-900"
+                  className="w-full rounded-[8px] border border-[#DDDDDD] bg-[#F8F8F8] px-3.5 py-2 pl-10 text-[14px] text-[#1D1C1D] placeholder-[#616061] transition-all focus:border-[#36C5F0] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#36C5F0]"
                 />
-                <Mail className="pointer-events-none absolute left-3.5 top-3 h-4 w-4 text-gray-400 dark:text-gray-500" />
+                <Mail className="pointer-events-none absolute left-3.5 top-2.5 h-4 w-4 text-[#616061]" />
               </div>
             </div>
 
@@ -219,13 +219,13 @@ export function LoginPage() {
               <div className="flex items-center justify-between mb-1.5">
                 <label
                   htmlFor="login-password"
-                  className="block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300"
+                  className="block text-[11px] font-bold uppercase tracking-wider text-[#616061]"
                 >
                   Password
                 </label>
                 <Link
                   to="/forgot-password"
-                  className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors"
+                  className="text-[12px] font-semibold text-[#1164A3] hover:underline transition-colors"
                 >
                   Forgot password?
                 </Link>
@@ -239,16 +239,16 @@ export function LoginPage() {
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-xl border border-gray-200 bg-gray-50/50 px-3.5 py-2.5 pl-10 text-sm text-gray-900 placeholder-gray-400 transition-all focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-800/50 dark:text-white dark:placeholder-gray-500 dark:focus:bg-gray-900"
+                  className="w-full rounded-[8px] border border-[#DDDDDD] bg-[#F8F8F8] px-3.5 py-2 pl-10 text-[14px] text-[#1D1C1D] placeholder-[#616061] transition-all focus:border-[#36C5F0] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#36C5F0]"
                 />
-                <Lock className="pointer-events-none absolute left-3.5 top-3 h-4 w-4 text-gray-400 dark:text-gray-500" />
+                <Lock className="pointer-events-none absolute left-3.5 top-2.5 h-4 w-4 text-[#616061]" />
               </div>
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:focus:ring-offset-gray-900"
+              className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-[8px] bg-[#007A5A] px-4 py-2 text-[14px] font-bold text-white shadow-[0_1px_2px_rgba(0,0,0,0.1)] transition-colors hover:bg-[#00664B] focus:outline-none focus:ring-2 focus:ring-[#36C5F0] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <span>{loading ? "Signing in..." : "Sign In"}</span>
               <ArrowRight className="h-4 w-4" />
@@ -257,11 +257,11 @@ export function LoginPage() {
           )}
 
           {/* Footer Navigation */}
-          <div className="mt-6 border-t border-gray-100 pt-5 text-center text-xs text-gray-500 dark:border-gray-800 dark:text-gray-400">
+          <div className="mt-6 border-t border-[#DDDDDD] pt-4 text-center text-[12px] text-[#616061]">
             Don’t have an account yet?{" "}
             <Link
               to="/register"
-              className="font-semibold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors"
+              className="font-semibold text-[#1164A3] hover:underline transition-colors"
             >
               Create an account
             </Link>

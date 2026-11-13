@@ -97,11 +97,15 @@ function NavItem({
   collapsed,
   active,
   onClick,
+  isChannel,
+  isDM,
 }: {
   item: WorkspaceNavItem;
   collapsed: boolean;
   active: boolean;
   onClick: () => void;
+  isChannel?: boolean;
+  isDM?: boolean;
 }) {
   const Icon = item.icon;
 
@@ -112,18 +116,34 @@ function NavItem({
       title={collapsed ? item.label : undefined}
       aria-label={item.label}
       aria-current={active ? "page" : undefined}
-      className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors duration-200 ${
+      className={`group flex w-full items-center gap-2.5 rounded-[12px] px-3 py-1.5 text-left text-[15px] font-normal transition-colors duration-150 ${
         active
-          ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300"
-          : "text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100"
+          ? "bg-[#1164A3] text-white font-bold"
+          : item.count
+            ? "text-white font-bold hover:bg-white/10"
+            : "text-[#D1D2D3] hover:bg-white/10 hover:text-white"
       } ${collapsed ? "justify-center px-0 max-md:w-10" : "max-md:w-auto max-md:shrink-0 max-md:px-3"}`}
     >
-      <Icon className="h-[18px] w-[18px] shrink-0" strokeWidth={1.8} />
+      {isChannel ? (
+        <span className={`text-[15px] font-bold w-4 text-center shrink-0 ${active ? "text-white" : "text-[#D1D2D3]/70"}`}>
+          #
+        </span>
+      ) : isDM ? (
+        <span className="relative flex h-2 w-2 shrink-0 items-center justify-center">
+          <span className="h-2 w-2 rounded-full bg-[#2EB67D]" />
+        </span>
+      ) : (
+        <Icon className={`h-[18px] w-[18px] shrink-0 ${active ? "text-white" : "text-[#D1D2D3]"}`} strokeWidth={1.8} />
+      )}
       {!collapsed && (
         <>
           <span className="min-w-0 flex-1 truncate">{item.label}</span>
           {item.count && (
-            <span className={`rounded-md px-1.5 py-0.5 text-[11px] ${active ? "bg-white/80 text-indigo-600 dark:bg-indigo-900/70 dark:text-indigo-300" : "text-gray-400 dark:text-gray-500"}`}>
+            <span
+              className={`rounded-[4px] px-1.5 py-0.2 text-[11px] font-bold ${
+                active ? "bg-white/20 text-white" : "bg-[#ECB22E] text-[#1D1C1D]"
+              }`}
+            >
               {item.count}
             </span>
           )}
@@ -386,31 +406,34 @@ export function TenantWorkspace() {
   }
 
   return (
-    <div className="flex min-h-[calc(100svh-4rem)] flex-1 flex-col bg-gray-50/80 dark:bg-gray-950 md:flex-row">
-      {/* Sidebar */}
+    <div className="flex min-h-[calc(100svh-4rem)] flex-1 flex-col bg-white text-[#1D1C1D] md:flex-row">
+      {/* Sidebar: Aubergine background, Slack brand anchor */}
       <aside
-        className={`flex shrink-0 flex-col border-r border-gray-200 bg-white transition-[width] duration-300 ease-in-out dark:border-gray-800 dark:bg-gray-900 ${
+        className={`flex shrink-0 flex-col border-r border-[#3F1041] bg-[#4A154B] text-white transition-[width] duration-200 ease-in-out ${
           collapsed ? "w-full md:w-[72px]" : "w-full md:w-[252px]"
         }`}
         aria-label="Workspace navigation"
       >
         {/* Workspace Brand Header */}
-        <div className={`flex h-[72px] items-center border-b border-gray-100 dark:border-gray-800 ${collapsed ? "justify-center px-2" : "justify-between px-5"}`}>
+        <div className={`flex h-[72px] items-center border-b border-[#3F1041] bg-[#4A154B] ${collapsed ? "justify-center px-2" : "justify-between px-4"}`}>
           {!collapsed && (
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
-                <Building2 className="h-[18px] w-[18px]" />
+            <div className="flex min-w-0 items-center gap-2.5">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] bg-white/10 text-white shadow-sm">
+                <Building2 className="h-5 w-5" />
               </div>
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-gray-900 dark:text-white">{tenantName}</p>
-                <p className="text-[11px] text-gray-500 dark:text-gray-400">Workspace</p>
+                <p className="truncate text-[15px] font-bold text-white leading-tight">{tenantName}</p>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="h-2 w-2 rounded-full bg-[#2EB67D]" title="Active" />
+                  <p className="text-[12px] text-[#D1D2D3] leading-none">Active workspace</p>
+                </div>
               </div>
             </div>
           )}
           <button
             type="button"
             onClick={() => setCollapsed((previous) => !previous)}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] text-[#D1D2D3] transition-colors hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#36C5F0]"
             aria-label={collapsed ? "Expand workspace sidebar" : "Collapse workspace sidebar"}
             aria-expanded={!collapsed}
             title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
@@ -419,49 +442,42 @@ export function TenantWorkspace() {
           </button>
         </div>
 
-        {/* Navigation Items */}
-        <nav className={`flex-1 space-y-6 overflow-y-auto py-5 max-md:flex max-md:items-center max-md:gap-2 max-md:overflow-x-auto max-md:space-y-0 max-md:px-3 max-md:py-2 ${collapsed ? "px-2" : "px-3"}`}>
+        {/* Navigation Items (Sections: Channels, DMs, Apps) */}
+        <nav className={`flex-1 space-y-4 overflow-y-auto py-3 max-md:flex max-md:items-center max-md:gap-2 max-md:overflow-x-auto max-md:space-y-0 max-md:px-3 max-md:py-2 ${collapsed ? "px-2" : "px-3"}`}>
           {permissionsLoading ? (
-            <p className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400" role="status">
+            <p className="px-3 py-2 text-xs text-[#D1D2D3]" role="status">
               Checking access...
             </p>
           ) : (
             <>
-              {/* Top Nav Items (Review + AI Search) */}
-              {visibleMainNavItems.filter((item) => item.id === "review" || item.id === "ai-search").map((item) => (
-                <div key={item.id} className="space-y-1 max-md:flex max-md:shrink-0 max-md:items-center max-md:gap-1 max-md:space-y-0">
-                  <NavItem item={item} collapsed={collapsed} active={currentSection === item.id} onClick={() => setActiveSection(item.id)} />
-                </div>
-              ))}
-
-              {/* Dynamic Trays Section */}
+              {/* Section 1: Channels (Trays) */}
               {visibleTrays.length > 0 && (
-                <div className="space-y-1 max-md:flex max-md:shrink-0 max-md:items-center max-md:gap-1 max-md:space-y-0">
+                <div className="space-y-0.5 max-md:flex max-md:shrink-0 max-md:items-center max-md:gap-1 max-md:space-y-0">
                   {!collapsed && (
-                    <div className="flex items-center justify-between px-3 pb-2">
+                    <div className="flex items-center justify-between px-3 py-1.5">
                       <button
                         type="button"
                         onClick={() => setActiveSection("trays")}
-                        className={`text-[10px] font-semibold uppercase tracking-[0.14em] transition-colors hover:text-indigo-600 dark:hover:text-indigo-400 ${
+                        className={`text-[12px] font-bold uppercase tracking-wider transition-colors hover:text-white ${
                           currentSection === "trays"
-                            ? "text-indigo-600 dark:text-indigo-400 font-bold"
-                            : "text-gray-400 dark:text-gray-500"
+                            ? "text-white font-extrabold"
+                            : "text-[#D1D2D3]/80"
                         }`}
                         title="View all trays"
                         aria-label="All trays overview"
                       >
-                        Trays
+                        Channels
                       </button>
-                      {/* + Button on the extreme right of Trays header */}
+                      {/* + Button on the right of Channels header */}
                       {canCreateTray && (
                         <button
                           type="button"
                           onClick={() => setIsCreateTrayModalOpen(true)}
-                          className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-600 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600 dark:text-gray-300 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/60 dark:hover:text-indigo-400 transition-colors"
+                          className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] text-[#D1D2D3] hover:bg-white/10 hover:text-white transition-colors"
                           title="Create new tray"
                           aria-label="Create tray"
                         >
-                          <Plus className="h-3 w-3" />
+                          <Plus className="h-3.5 w-3.5" />
                         </button>
                       )}
                     </div>
@@ -485,6 +501,7 @@ export function TenantWorkspace() {
                         item={item}
                         collapsed={collapsed}
                         active={isActive}
+                        isChannel={!isTrash}
                         onClick={() => setActiveSection(tray.id)}
                       />
                     );
@@ -492,23 +509,58 @@ export function TenantWorkspace() {
                 </div>
               )}
 
-              {/* Workspace Sections (Partners, Emails) */}
-              {visibleMainNavItems.filter((item) => item.id !== "review" && item.id !== "ai-search").map((item) => (
-                <div key={item.id} className="space-y-1 max-md:flex max-md:shrink-0 max-md:items-center max-md:gap-1 max-md:space-y-0">
-                  {!collapsed && <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400 dark:text-gray-500 max-md:hidden">Workspace</p>}
-                  <NavItem item={item} collapsed={collapsed} active={currentSection === item.id} onClick={() => setActiveSection(item.id)} />
+              {/* Section 2: Direct Messages (Partners) */}
+              {visibleMainNavItems.some((item) => item.id === "partners") && (
+                <div className="space-y-0.5 max-md:flex max-md:shrink-0 max-md:items-center max-md:gap-1 max-md:space-y-0">
+                  {!collapsed && (
+                    <p className="px-3 py-1.5 text-[12px] font-bold uppercase tracking-wider text-[#D1D2D3]/80 max-md:hidden">
+                      Direct messages
+                    </p>
+                  )}
+                  {visibleMainNavItems
+                    .filter((item) => item.id === "partners")
+                    .map((item) => (
+                      <NavItem
+                        key={item.id}
+                        item={item}
+                        collapsed={collapsed}
+                        active={currentSection === item.id}
+                        isDM={true}
+                        onClick={() => setActiveSection(item.id)}
+                      />
+                    ))}
                 </div>
-              ))}
+              )}
+
+              {/* Section 3: Apps & Tools (Review, AI Search, Connected Emails, Activity Log, Settings) */}
+              <div className="space-y-0.5 max-md:flex max-md:shrink-0 max-md:items-center max-md:gap-1 max-md:space-y-0">
+                {!collapsed && (
+                  <p className="px-3 py-1.5 text-[12px] font-bold uppercase tracking-wider text-[#D1D2D3]/80 max-md:hidden">
+                    Apps
+                  </p>
+                )}
+                {visibleMainNavItems
+                  .filter((item) => item.id !== "partners")
+                  .map((item) => (
+                    <NavItem
+                      key={item.id}
+                      item={item}
+                      collapsed={collapsed}
+                      active={currentSection === item.id}
+                      onClick={() => setActiveSection(item.id)}
+                    />
+                  ))}
+              </div>
             </>
           )}
         </nav>
 
         {/* Back Link */}
-        <div className={`border-t border-gray-100 py-4 dark:border-gray-800 ${collapsed ? "px-2" : "px-3"}`}>
+        <div className={`border-t border-[#3F1041] py-3 ${collapsed ? "px-2" : "px-3"}`}>
           <Link
             to="/tenants"
             title={collapsed ? "All tenants" : undefined}
-            className={`flex items-center gap-3 rounded-full px-3 py-2.5 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white ${collapsed ? "justify-center px-0" : ""}`}
+            className={`flex items-center gap-2.5 rounded-[12px] px-3 py-2 text-[14px] font-medium text-[#D1D2D3] transition-colors hover:bg-white/10 hover:text-white ${collapsed ? "justify-center px-0" : ""}`}
           >
             <ArrowLeft className="h-[18px] w-[18px] shrink-0" />
             {!collapsed && <span>All tenants</span>}
@@ -516,8 +568,8 @@ export function TenantWorkspace() {
         </div>
       </aside>
 
-      {/* Main Content Area */}
-      <main className="min-w-0 flex-1 flex flex-col">
+      {/* Main Content Area: Pure Canvas (#FFFFFF) */}
+      <main className="min-w-0 flex-1 flex flex-col bg-white">
         {permissionsLoading ? (
           <div className="mx-auto flex min-h-[320px] max-w-[1440px] items-center justify-center px-5 py-7 text-sm text-gray-500 dark:text-gray-400" role="status">
             Checking workspace access...
@@ -535,28 +587,28 @@ export function TenantWorkspace() {
             </div>
           </div>
         ) : (
-          <div className="mx-auto w-full max-w-[1440px] px-5 py-7 sm:px-8 sm:py-9 lg:px-10 flex-1 flex flex-col">
+          <div className="mx-auto w-full max-w-[1440px] px-5 py-6 sm:px-8 sm:py-8 lg:px-10 flex-1 flex flex-col">
             {/* Top Workspace Header (for non-tray views, not "trays" which has its own header) */}
             {!activeTray && currentSection !== "trays" && (
-              <div className="mb-8 flex flex-col gap-4 border-b border-gray-200 pb-6 dark:border-gray-800 sm:flex-row sm:items-end sm:justify-between">
+              <div className="mb-6 flex flex-col gap-4 border-b border-[#DDDDDD] pb-5 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  <div className="mb-2 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                  <div className="mb-1.5 flex items-center gap-2 text-[12px] text-[#616061]">
                     <span>{tenantName}</span>
-                    <ChevronRight className="h-3.5 w-3.5" />
-                    <span className="font-medium text-indigo-600 dark:text-indigo-400">
+                    <ChevronRight className="h-3.5 w-3.5 text-[#DDDDDD]" />
+                    <span className="font-semibold text-[#1164A3]">
                       {sectionLabels[currentSection] || currentSection}
                     </span>
                   </div>
-                  <h1 className="text-3xl font-semibold tracking-tight text-gray-900 dark:text-white">
+                  <h1 className="text-[22px] font-bold tracking-tight text-[#1D1C1D] leading-tight">
                     {currentSection === "review" ? getGreeting() : sectionLabels[currentSection] || currentSection}
                   </h1>
-                  <p className="mt-1.5 text-sm text-gray-500 dark:text-gray-400">
+                  <p className="mt-1 text-[14px] text-[#616061]">
                     {sectionDescription(currentSection)}
                   </p>
                 </div>
                 {currentSection === "review" && (
-                  <div className="flex items-center gap-2 self-start rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-600 shadow-xs dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300 sm:self-auto">
-                    <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                  <div className="flex items-center gap-2 self-start rounded-[8px] border border-[#DDDDDD] bg-white px-3 py-1.5 text-[12px] font-medium text-[#1D1C1D] shadow-[0_1px_2px_rgba(0,0,0,0.05)] sm:self-auto">
+                    <ShieldCheck className="h-4 w-4 text-[#2EB67D]" />
                     Private workspace
                   </div>
                 )}
@@ -662,47 +714,53 @@ function sectionDescription(section: string) {
 function ReviewContent() {
   return (
     <>
-      <div className="mb-7 grid gap-4 sm:grid-cols-3">
+      <div className="mb-6 grid gap-4 sm:grid-cols-3">
         <SummaryCard label="Waiting for review" value="6" icon={Inbox} detail="Across 3 matters" />
         <SummaryCard label="Reviewed this month" value="24" icon={Check} detail="You’re making great progress" />
         <SummaryCard label="Recently added" value="8" icon={Clock3} detail="In the last 7 days" />
       </div>
 
-      <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xs dark:border-gray-800 dark:bg-gray-900">
-        <div className="flex flex-col gap-3 border-b border-gray-100 px-5 py-4 dark:border-gray-800 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+      <section className="overflow-hidden rounded-[8px] border border-[#DDDDDD] bg-white shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+        <div className="flex flex-col gap-3 border-b border-[#DDDDDD] px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div>
-            <h2 className="text-base font-semibold text-gray-900 dark:text-white">Needs your review</h2>
-            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Documents recently added to your workspace</p>
+            <h2 className="text-[16px] font-bold text-[#1D1C1D]">Needs your review</h2>
+            <p className="mt-0.5 text-[12px] text-[#616061]">Documents recently added to your workspace</p>
           </div>
-          <div className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400">
+          <div className="flex items-center gap-2 rounded-[6px] border border-[#DDDDDD] px-3 py-1.5 text-[12px] text-[#616061]">
             <Search className="h-3.5 w-3.5" />
             <span>Search documents</span>
           </div>
         </div>
-        <div className="divide-y divide-gray-100 dark:divide-gray-800">
+        <div className="divide-y divide-[#DDDDDD]">
           {documents.map((document) => (
-            <div key={document.name} className="flex flex-col gap-3 px-5 py-4 transition-colors hover:bg-gray-50/80 dark:hover:bg-gray-800/40 sm:flex-row sm:items-center sm:px-6">
+            <div key={document.name} className="flex flex-col gap-3 px-5 py-3.5 transition-colors hover:bg-[#F8F8F8] sm:flex-row sm:items-center sm:px-6">
               <div className="flex min-w-0 flex-1 items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
-                  <FileText className="h-[18px] w-[18px]" />
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] bg-[#36C5F0]/15 text-[#1164A3]">
+                  <FileText className="h-4 w-4" />
                 </div>
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">{document.name}</p>
-                  <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{document.detail}</p>
+                  <p className="truncate text-[14px] font-semibold text-[#1D1C1D]">{document.name}</p>
+                  <p className="mt-0.5 text-[12px] text-[#616061]">{document.detail}</p>
                 </div>
               </div>
-              <div className="flex items-center justify-between gap-4 pl-[52px] sm:pl-0">
-                <span className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${document.memberStatus === "Needs review" ? "bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300" : "bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300"}`}>
+              <div className="flex items-center justify-between gap-4 pl-[48px] sm:pl-0">
+                <span className={`rounded-[4px] px-2 py-0.5 text-[11px] font-bold ${
+                  document.memberStatus === "Needs review"
+                    ? "bg-[#ECB22E]/20 text-[#8f6200] border border-[#ECB22E]/30"
+                    : "bg-[#36C5F0]/20 text-[#0c7ea5] border border-[#36C5F0]/30"
+                }`}>
                   {document.memberStatus}
                 </span>
-                <span className="w-20 text-right text-xs text-gray-400 dark:text-gray-500">{document.date}</span>
+                <span className="w-20 text-right text-[12px] text-[#616061]">{document.date}</span>
               </div>
             </div>
           ))}
         </div>
-        <div className="flex items-center justify-between border-t border-gray-100 bg-gray-50/70 px-5 py-3 dark:border-gray-800 dark:bg-gray-900/70 sm:px-6">
-          <span className="text-xs text-gray-500 dark:text-gray-400">Showing 3 of 6 items</span>
-          <button type="button" className="text-xs font-semibold text-indigo-600 transition-colors hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300">View review queue <ChevronRight className="ml-0.5 inline h-3.5 w-3.5" /></button>
+        <div className="flex items-center justify-between border-t border-[#DDDDDD] bg-[#F8F8F8] px-5 py-2.5 sm:px-6">
+          <span className="text-[12px] text-[#616061]">Showing 3 of 6 items</span>
+          <button type="button" className="text-[12px] font-bold text-[#1164A3] transition-colors hover:underline">
+            View review queue <ChevronRight className="ml-0.5 inline h-3.5 w-3.5" />
+          </button>
         </div>
       </section>
     </>
@@ -714,21 +772,29 @@ function PartnersContent({ canInvite }: { canInvite: boolean }) {
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       {partners.map((partner) => (
-        <article key={partner.name} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md dark:border-gray-800 dark:bg-gray-900">
+        <article key={partner.name} className="rounded-[8px] border border-[#DDDDDD] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition-all duration-150 hover:bg-[#F8F8F8]">
           <div className="flex items-start justify-between">
-            <div className={`flex h-11 w-11 items-center justify-center rounded-xl text-sm font-semibold ${partner.color}`}>{partner.initials}</div>
-            <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />Active</span>
+            <div className={`flex h-10 w-10 items-center justify-center rounded-[8px] text-[13px] font-bold bg-[#1164A3] text-white`}>
+              {partner.initials}
+            </div>
+            <span className="flex items-center gap-1 rounded-[4px] bg-[#2EB67D]/15 border border-[#2EB67D]/30 px-2 py-0.5 text-[11px] font-bold text-[#1b7a51]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#2EB67D]" />
+              Active
+            </span>
           </div>
-          <h2 className="mt-5 text-sm font-semibold text-gray-900 dark:text-white">{partner.name}</h2>
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{partner.role}</p>
-          <div className="mt-5 flex items-center justify-between border-t border-gray-100 pt-4 text-xs text-gray-500 dark:border-gray-800 dark:text-gray-400">
-            <span>Shared workspace access</span><ChevronRight className="h-4 w-4" />
+          <h2 className="mt-4 text-[15px] font-bold text-[#1D1C1D]">{partner.name}</h2>
+          <p className="mt-1 text-[12px] text-[#616061]">{partner.role}</p>
+          <div className="mt-4 flex items-center justify-between border-t border-[#DDDDDD] pt-3 text-[12px] text-[#616061]">
+            <span>Shared workspace access</span>
+            <ChevronRight className="h-4 w-4" />
           </div>
         </article>
       ))}
       {canInvite && (
-        <button type="button" className="flex min-h-[190px] flex-col items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-white p-5 text-sm font-medium text-gray-500 transition-colors hover:border-indigo-300 hover:bg-indigo-50/30 hover:text-indigo-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:border-indigo-800 dark:hover:bg-indigo-950/20 dark:hover:text-indigo-400">
-          <span className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-800"><Plus className="h-5 w-5" /></span>
+        <button type="button" className="flex min-h-[170px] flex-col items-center justify-center rounded-[8px] border border-dashed border-[#DDDDDD] bg-white p-5 text-[14px] font-medium text-[#616061] transition-colors hover:border-[#1164A3] hover:text-[#1164A3]">
+          <span className="mb-2 flex h-9 w-9 items-center justify-center rounded-[8px] bg-[#F8F8F8]">
+            <Plus className="h-4 w-4" />
+          </span>
           Add a partner
         </button>
       )}
@@ -739,18 +805,23 @@ function PartnersContent({ canInvite }: { canInvite: boolean }) {
 // The "Connected Emails" section
 function ConnectedEmailsContent() {
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {emailAccounts.map((account) => (
-        <article key={account.address} className="flex flex-col gap-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-xs dark:border-gray-800 dark:bg-gray-900 sm:flex-row sm:items-center">
-          <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-sm font-bold ${account.color}`}>{account.initial}</div>
-          <div className="min-w-0 flex-1">
-            <h2 className="truncate text-sm font-semibold text-gray-900 dark:text-white">{account.address}</h2>
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{account.provider} · Connected to this workspace</p>
+        <article key={account.address} className="flex flex-col gap-4 rounded-[8px] border border-[#DDDDDD] bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.05)] sm:flex-row sm:items-center">
+          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[8px] text-[13px] font-bold bg-[#36C5F0]/20 text-[#1164A3]`}>
+            {account.initial}
           </div>
-          <span className="flex items-center gap-1.5 self-start rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 sm:self-auto"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />Connected</span>
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate text-[15px] font-bold text-[#1D1C1D]">{account.address}</h2>
+            <p className="mt-0.5 text-[12px] text-[#616061]">{account.provider} · Connected to this workspace</p>
+          </div>
+          <span className="flex items-center gap-1.5 self-start rounded-[4px] bg-[#2EB67D]/15 border border-[#2EB67D]/30 px-2 py-0.5 text-[11px] font-bold text-[#1b7a51] sm:self-auto">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#2EB67D]" />
+            Connected
+          </span>
         </article>
       ))}
-      <button type="button" className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-gray-300 bg-white px-5 py-4 text-sm font-medium text-gray-600 transition-colors hover:border-indigo-300 hover:text-indigo-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:border-indigo-800 dark:hover:text-indigo-400">
+      <button type="button" className="flex w-full items-center justify-center gap-2 rounded-[8px] border border-dashed border-[#DDDDDD] bg-white px-4 py-3 text-[14px] font-medium text-[#616061] transition-colors hover:border-[#1164A3] hover:text-[#1164A3]">
         <Plus className="h-4 w-4" /> Connect an email account
       </button>
     </div>
@@ -760,13 +831,13 @@ function ConnectedEmailsContent() {
 // Summary card for review dashboard
 function SummaryCard({ label, value, icon: Icon, detail }: { label: string; value: string; icon: LucideIcon; detail: string }) {
   return (
-    <article className="rounded-2xl border border-gray-200 bg-white p-5 shadow-xs transition-shadow duration-200 hover:shadow-sm dark:border-gray-800 dark:bg-gray-900">
+    <article className="rounded-[8px] border border-[#DDDDDD] bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition-shadow duration-150 hover:bg-[#F8F8F8]">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{label}</span>
-        <Icon className="h-4 w-4 text-gray-400 dark:text-gray-500" strokeWidth={1.8} />
+        <span className="text-[12px] font-semibold text-[#616061]">{label}</span>
+        <Icon className="h-4 w-4 text-[#616061]" strokeWidth={1.8} />
       </div>
-      <p className="mt-4 text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">{value}</p>
-      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{detail}</p>
+      <p className="mt-3 text-[24px] font-extrabold tracking-tight text-[#1D1C1D] leading-none">{value}</p>
+      <p className="mt-1.5 text-[12px] text-[#616061]">{detail}</p>
     </article>
   );
 }

@@ -16,7 +16,7 @@ export function BreadcrumbNav({ items, onNavigate, dropProps, dropTargetId }: Br
   return (
     <nav
       aria-label="Folder Breadcrumb"
-      className="flex items-center flex-wrap gap-1.5 text-xs text-gray-500 dark:text-gray-400 py-1"
+      className="flex items-center flex-wrap gap-1.5 text-[12px] text-[#616061] py-1"
     >
       {items.map((item, index) => {
         const isLast = index === items.length - 1;
@@ -25,14 +25,14 @@ export function BreadcrumbNav({ items, onNavigate, dropProps, dropTargetId }: Br
         return (
           <div key={item.id} className="flex items-center gap-1.5">
             {index > 0 && (
-              <ChevronRight className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+              <ChevronRight className="h-3.5 w-3.5 text-[#DDDDDD] shrink-0" />
             )}
             {isLast ? (
               <span
-                className="flex items-center gap-1.5 font-semibold text-gray-900 dark:text-white"
+                className="flex items-center gap-1.5 font-bold text-[#1D1C1D]"
                 aria-current="location"
               >
-                <Icon className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                <Icon className="h-3.5 w-3.5 text-[#1164A3] shrink-0" />
                 <span className="truncate max-w-[200px]">{item.name}</span>
               </span>
             ) : (
@@ -40,10 +40,10 @@ export function BreadcrumbNav({ items, onNavigate, dropProps, dropTargetId }: Br
                 type="button"
                 onClick={() => onNavigate(item)}
                 {...dropProps?.(item)}
-                className={`flex items-center gap-1.5 rounded hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors focus:outline-none focus-visible:underline ${dropTargetId === item.id ? "ring-2 ring-indigo-400" : ""}`}
+                className={`flex items-center gap-1.5 rounded hover:text-[#1164A3] transition-colors focus:outline-none focus-visible:underline ${dropTargetId === item.id ? "ring-2 ring-[#36C5F0]" : ""}`}
                 title={`Go back to ${item.name}`}
               >
-                <Icon className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                <Icon className="h-3.5 w-3.5 text-[#616061] shrink-0" />
                 <span className="truncate max-w-[160px]">{item.name}</span>
               </button>
             )}

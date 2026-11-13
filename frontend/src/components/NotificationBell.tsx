@@ -120,39 +120,39 @@ export function NotificationBell({ token }: { token: string }) {
       <button
         type="button"
         onClick={toggle}
-        className="relative rounded-full border border-gray-200 p-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:border-gray-800 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white"
+        className="relative rounded-[8px] border border-[#DDDDDD] p-2 text-[#616061] transition-colors hover:bg-[#F8F8F8] hover:text-[#1D1C1D] focus:outline-none focus:ring-2 focus:ring-[#36C5F0]"
         aria-label={unread > 0 ? `Notifications, ${unread} unread` : "Notifications"}
         aria-haspopup="true"
         aria-expanded={open}
       >
         <Bell className="h-5 w-5" />
         {unread > 0 && (
-          <span aria-hidden="true" className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">
+          <span aria-hidden="true" className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-[4px] bg-[#E01E5A] px-1 text-[10px] font-bold text-white shadow-[0_1px_2px_rgba(0,0,0,0.2)]">
             {unread > 99 ? "99+" : unread}
           </span>
         )}
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-900">
-          <div className="flex items-center justify-between border-b border-gray-100 px-3 py-2 dark:border-gray-800">
-            <span className="text-sm font-semibold text-gray-900 dark:text-white">Notifications</span>
-            <div className="flex items-center gap-1">
+        <div className="absolute right-0 top-full z-50 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-[8px] border border-[#DDDDDD] bg-white shadow-[0_4px_12px_rgba(0,0,0,0.15)]">
+          <div className="flex items-center justify-between border-b border-[#DDDDDD] px-3.5 py-2.5">
+            <span className="text-[14px] font-bold text-[#1D1C1D]">Notifications</span>
+            <div className="flex items-center gap-1.5">
               {unread > 0 && (
-                <button type="button" onClick={handleMarkAll} className="rounded-full px-2 py-1 text-xs font-medium text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-950/40">
+                <button type="button" onClick={handleMarkAll} className="rounded-[4px] px-2 py-0.5 text-[12px] font-medium text-[#1164A3] hover:bg-[#F8F8F8]">
                   Mark all read
                 </button>
               )}
-              <button type="button" onClick={togglePreferences} aria-label="Notification preferences" aria-expanded={showPreferences} className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200">
+              <button type="button" onClick={togglePreferences} aria-label="Notification preferences" aria-expanded={showPreferences} className="rounded-[4px] p-1 text-[#616061] hover:bg-[#F8F8F8] hover:text-[#1D1C1D]">
                 <Settings2 className="h-4 w-4" />
               </button>
             </div>
           </div>
 
           {showPreferences && preferences && (
-            <div className="space-y-2 border-b border-gray-100 px-3 py-3 dark:border-gray-800">
+            <div className="space-y-2 border-b border-[#DDDDDD] px-3.5 py-3 bg-[#F8F8F8]">
               {PREFERENCES.map(({ key, label, hint }) => (
-                <label key={key} className="flex items-start gap-2 text-xs text-gray-700 dark:text-gray-300">
+                <label key={key} className="flex items-start gap-2 text-xs text-[#1D1C1D]">
                   <input
                     type="checkbox"
                     checked={preferences[key]}
@@ -160,28 +160,28 @@ export function NotificationBell({ token }: { token: string }) {
                     className="mt-0.5"
                   />
                   <span>
-                    <span className="font-medium">{label}</span>
-                    <span className="block text-gray-500 dark:text-gray-400">{hint}</span>
+                    <span className="font-semibold">{label}</span>
+                    <span className="block text-[#616061]">{hint}</span>
                   </span>
                 </label>
               ))}
             </div>
           )}
 
-          <ul className="max-h-96 divide-y divide-gray-100 overflow-y-auto dark:divide-gray-800">
+          <ul className="max-h-96 divide-y divide-[#DDDDDD] overflow-y-auto">
             {items.length === 0 ? (
-              <li className="px-3 py-6 text-center text-xs text-gray-500 dark:text-gray-400">You're all caught up.</li>
+              <li className="px-3 py-6 text-center text-xs text-[#616061]">You're all caught up.</li>
             ) : (
               items.map((item) => (
                 <li key={item.id}>
                   <button
                     type="button"
                     onClick={() => handleSelect(item)}
-                    className={`block w-full px-3 py-2.5 text-left transition-colors hover:bg-gray-50 dark:hover:bg-gray-800 ${item.read ? "" : "bg-indigo-50/60 dark:bg-indigo-950/20"}`}
+                    className={`block w-full px-3.5 py-2.5 text-left transition-colors hover:bg-[#F8F8F8] ${item.read ? "" : "bg-[#ECB22E]/10"}`}
                   >
-                    <span className="block text-xs font-medium text-gray-900 dark:text-white">{item.title}</span>
-                    {item.body && <span className="mt-0.5 block text-xs text-gray-500 dark:text-gray-400">{item.body}</span>}
-                    <span className="mt-1 block text-[10px] text-gray-400 dark:text-gray-500">{new Date(item.createdAt).toLocaleString()}</span>
+                    <span className="block text-[13px] font-semibold text-[#1D1C1D]">{item.title}</span>
+                    {item.body && <span className="mt-0.5 block text-[12px] text-[#616061]">{item.body}</span>}
+                    <span className="mt-1 block text-[12px] text-[#616061]">{new Date(item.createdAt).toLocaleString()}</span>
                   </button>
                 </li>
               ))

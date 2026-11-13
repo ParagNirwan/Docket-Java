@@ -174,23 +174,23 @@ export function Header() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 w-full bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 transition-colors duration-200">
-        <div className="w-full px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <header className="sticky top-0 z-40 w-full bg-white border-b border-[#DDDDDD]">
+        <div className="w-full px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
           {/* Left: Brand / Logo */}
-          <div className="flex items-center gap-8">
+          <div className="flex items-center gap-6">
             <Link
               to={isAuthenticated ? "/tenants" : "/login"}
-              className="flex items-center gap-2.5 group focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-lg p-1 -m-1"
+              className="flex items-center gap-2 group focus:outline-none focus-visible:ring-2 focus-visible:ring-[#36C5F0] rounded-[8px] p-1 -m-1"
               aria-label="Docket Home"
             >
               <div className="transition-transform duration-200 group-hover:scale-105">
-                <LogoIcon className="w-8 h-8 drop-shadow-xs" />
+                <LogoIcon className="w-7 h-7 drop-shadow-xs" />
               </div>
               <div className="flex items-baseline gap-1.5">
-                <span className="text-[22px] font-extrabold tracking-tight text-indigo-500">
+                <span className="text-[20px] font-black tracking-tight text-[#1D1C1D]">
                   docket
                 </span>
-                <span className="hidden sm:inline-block text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400">
+                <span className="hidden sm:inline-block text-[10px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded-[4px] bg-[#F8F8F8] border border-[#DDDDDD] text-[#616061]">
                   Cloud
                 </span>
               </div>
@@ -206,25 +206,25 @@ export function Header() {
                   <button
                     type="button"
                     onClick={() => setTenantMenuPath(isTenantMenuOpen ? null : currentLocationKey)}
-                    className={`flex max-w-[260px] items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                    className={`flex max-w-[260px] items-center gap-2 rounded-[8px] border border-[#DDDDDD] px-3 py-1.5 text-[14px] font-medium transition-colors ${
                       routeSlug || location.pathname === "/tenants"
-                        ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300"
-                        : "text-gray-600 hover:bg-gray-100/70 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800/60 dark:hover:text-white"
+                        ? "bg-[#F8F8F8] text-[#1D1C1D] border-[#C1C1C1] font-semibold"
+                        : "bg-white text-[#616061] hover:bg-[#F8F8F8] hover:text-[#1D1C1D]"
                     }`}
                     aria-haspopup="listbox"
                     aria-expanded={isTenantMenuOpen}
                   >
-                    <BuildingIcon className="h-4 w-4 shrink-0" />
+                    <BuildingIcon className="h-4 w-4 shrink-0 text-[#616061]" />
                     <span className="truncate">{activeTenantName || "Switch tenant"}</span>
-                    <ChevronDown className={`h-4 w-4 shrink-0 transition-transform duration-200 ${isTenantMenuOpen ? "rotate-180" : ""}`} />
+                    <ChevronDown className={`h-4 w-4 shrink-0 text-[#616061] transition-transform duration-200 ${isTenantMenuOpen ? "rotate-180" : ""}`} />
                   </button>
                   {isTenantMenuOpen && (
-                    <div className="absolute left-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-xl border border-gray-200 bg-white p-1.5 shadow-xl animate-in fade-in slide-in-from-top-1 duration-150 dark:border-gray-700 dark:bg-gray-900">
-                      <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                    <div className="absolute left-0 top-full z-50 mt-1.5 w-72 overflow-hidden rounded-[8px] border border-[#DDDDDD] bg-white p-1.5 shadow-[0_4px_12px_rgba(0,0,0,0.15)]">
+                      <div className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-[#616061]">
                         Switch workspace
                       </div>
                       {tenantLoadError ? (
-                        <p className="px-3 py-2 text-sm text-red-600 dark:text-red-400">{tenantLoadError}</p>
+                        <p className="px-3 py-2 text-xs text-[#E01E5A]">{tenantLoadError}</p>
                       ) : tenants.length ? (
                         tenants.map((tenant, index) => {
                           const slug = getTenantSlug(tenant);
@@ -240,27 +240,27 @@ export function Header() {
                                 navigate(`/workspace/${encodeURIComponent(slug)}`, { state: { tenantName: name } });
                                 setTenantMenuPath(null);
                               }}
-                              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
+                              className="flex w-full items-center gap-2.5 rounded-[6px] px-3 py-2 text-left transition-colors hover:bg-[#F8F8F8]"
                             >
-                              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
-                                <BuildingIcon className="h-4 w-4" />
+                              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] bg-[#4A154B] text-white">
+                                <BuildingIcon className="h-3.5 w-3.5" />
                               </span>
                               <span className="min-w-0 flex-1">
-                                <span className="block truncate text-sm font-medium text-gray-800 dark:text-gray-100">{name}</span>
-                                {(tenant.tenantSlug || tenant.slug) && <span className="block truncate text-xs text-gray-500 dark:text-gray-400">{tenant.tenantSlug || tenant.slug}</span>}
+                                <span className="block truncate text-[14px] font-medium text-[#1D1C1D]">{name}</span>
+                                {(tenant.tenantSlug || tenant.slug) && <span className="block truncate text-[11px] text-[#616061]">{tenant.tenantSlug || tenant.slug}</span>}
                               </span>
-                              {selected && <Check className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />}
+                              {selected && <Check className="h-4 w-4 text-[#2EB67D]" />}
                             </button>
                           );
                         })
                       ) : (
-                        <p className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">No tenants available.</p>
+                        <p className="px-3 py-2 text-xs text-[#616061]">No tenants available.</p>
                       )}
-                      <div className="mt-1 border-t border-gray-100 pt-1 dark:border-gray-800">
+                      <div className="mt-1 border-t border-[#DDDDDD] pt-1">
                         <Link
                           to="/tenants"
                           onClick={() => setTenantMenuPath(null)}
-                          className="block rounded-full px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+                          className="block rounded-[6px] px-3 py-1.5 text-[13px] font-medium text-[#1164A3] transition-colors hover:bg-[#F8F8F8]"
                         >
                           View all tenants
                         </Link>
@@ -273,7 +273,7 @@ export function Header() {
           </div>
 
           {/* Right: Actions / Auth States / Hamburger Button */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             {isAuthenticated ? (
               <>
                 {routeSlug && (
@@ -282,9 +282,9 @@ export function Header() {
                     <Link
                       to={`/workspace/${encodeURIComponent(routeSlug)}/search`}
                       aria-label="Search"
-                      className="p-2 rounded-full text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-800 md:hidden"
+                      className="p-2 rounded-[8px] text-[#616061] border border-[#DDDDDD] hover:bg-[#F8F8F8] md:hidden"
                     >
-                      <Search className="w-5 h-5" />
+                      <Search className="w-4 h-4" />
                     </Link>
                   </>
                 )}
@@ -295,7 +295,7 @@ export function Header() {
                 <button
                   type="button"
                   onClick={toggleMenu}
-                  className="p-2 rounded-full text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
+                  className="p-2 rounded-[8px] text-[#616061] hover:text-[#1D1C1D] hover:bg-[#F8F8F8] border border-[#DDDDDD] focus:outline-none focus:ring-2 focus:ring-[#36C5F0] transition-colors"
                   aria-label={isMenuOpen ? "Close menu" : "Open menu"}
                   aria-expanded={isMenuOpen}
                 >
@@ -312,13 +312,13 @@ export function Header() {
                 <div className="hidden sm:flex items-center gap-2">
                   <Link
                     to="/login"
-                    className="px-3.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white rounded-full hover:bg-gray-100/70 dark:hover:bg-gray-800/60 transition-colors"
+                    className="px-3 py-1.5 text-[14px] font-medium text-[#1D1C1D] hover:bg-[#F8F8F8] rounded-[8px] border border-[#DDDDDD] transition-colors"
                   >
                     Log in
                   </Link>
                   <Link
                     to="/register"
-                    className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-full shadow-sm transition-colors"
+                    className="px-3.5 py-1.5 text-[14px] font-semibold text-white bg-[#007A5A] hover:bg-[#00664B] rounded-[8px] shadow-[0_1px_2px_rgba(0,0,0,0.1)] transition-colors"
                   >
                     Register
                   </Link>
@@ -328,7 +328,7 @@ export function Header() {
                 <button
                   type="button"
                   onClick={toggleMenu}
-                  className="sm:hidden p-2 rounded-full text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
+                  className="sm:hidden p-2 rounded-[8px] text-[#616061] hover:text-[#1D1C1D] hover:bg-[#F8F8F8] border border-[#DDDDDD] focus:outline-none focus:ring-2 focus:ring-[#36C5F0] transition-colors"
                   aria-label="Open menu"
                   aria-expanded={isMenuOpen}
                 >
@@ -365,24 +365,24 @@ export function Header() {
           <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
             <div
               onAnimationEnd={handleDrawerAnimationEnd}
-              className={`header-drawer-panel w-screen max-w-sm bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-800 shadow-2xl flex flex-col justify-between ${
+              className={`header-drawer-panel w-screen max-w-sm bg-white border-l border-[#DDDDDD] shadow-[0_8px_30px_rgba(0,0,0,0.2)] flex flex-col justify-between ${
                 isMenuOpen ? "header-drawer-panel-open" : "header-drawer-panel-close"
               }`}
             >
               {/* Drawer Top */}
               <div>
                 {/* Header */}
-                <div className="px-6 py-5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <LogoIcon className="w-7 h-7" />
-                    <span className="font-bold text-gray-900 dark:text-white">
+                <div className="px-5 py-4 border-b border-[#DDDDDD] flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <LogoIcon className="w-6 h-6" />
+                    <span className="font-bold text-[16px] text-[#1D1C1D]">
                       Docket Menu
                     </span>
                   </div>
                   <button
                     type="button"
                     onClick={closeMenu}
-                    className="p-1.5 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                    className="p-1.5 rounded-[8px] text-[#616061] hover:text-[#1D1C1D] hover:bg-[#F8F8F8] transition-colors"
                     aria-label="Close menu"
                   >
                     <CloseIcon className="w-5 h-5" />
@@ -391,19 +391,19 @@ export function Header() {
 
                 {/* Authenticated User Banner */}
                 {isAuthenticated && (
-                  <div className="p-6 border-b border-gray-100 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-800/40">
+                  <div className="p-5 border-b border-[#DDDDDD] bg-[#F8F8F8]">
                     <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-indigo-600 via-indigo-500 to-amber-400 flex items-center justify-center text-white text-lg font-bold shadow-sm">
+                      <div className="w-10 h-10 rounded-[8px] bg-[#1164A3] flex items-center justify-center text-white text-base font-bold shadow-sm">
                         {initial}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                        <div className="text-[14px] font-bold text-[#1D1C1D] truncate">
                           {email}
                         </div>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
-                          <span className="text-xs text-gray-500 dark:text-gray-400 capitalize">
-                            {role.toLowerCase()}
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="inline-block w-2 h-2 rounded-full bg-[#2EB67D]" />
+                          <span className="text-[12px] text-[#616061] capitalize">
+                            {role.toLowerCase()} · Online
                           </span>
                         </div>
                       </div>
@@ -412,90 +412,90 @@ export function Header() {
                 )}
 
                 {/* Navigation Items */}
-                <div className="p-4 space-y-1">
+                <div className="p-3 space-y-1">
                   {isAuthenticated ? (
                     <>
-                      <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                      <div className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-[#616061]">
                         Navigation
                       </div>
 
                       <Link
                         to="/tenants"
                         onClick={closeMenu}
-                        className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                        className={`flex items-center justify-between px-3 py-2 rounded-[8px] text-[14px] font-medium transition-colors ${
                           isCurrent("/tenants")
-                            ? "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400"
-                            : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+                            ? "bg-[#1164A3]/10 text-[#1164A3] font-bold"
+                            : "text-[#1D1C1D] hover:bg-[#F8F8F8]"
                         }`}
                       >
-                        <div className="flex items-center gap-3">
-                          <BuildingIcon className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+                        <div className="flex items-center gap-2.5">
+                          <BuildingIcon className="w-4 h-4 text-[#616061]" />
                           <span>Tenants Dashboard</span>
                         </div>
-                        <ChevronRightIcon className="w-4 h-4 text-gray-400" />
+                        <ChevronRightIcon className="w-4 h-4 text-[#616061]" />
                       </Link>
 
                       <Link
                         to="/create-first-tenant"
                         onClick={closeMenu}
-                        className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                        className={`flex items-center justify-between px-3 py-2 rounded-[8px] text-[14px] font-medium transition-colors ${
                           isCurrent("/create-first-tenant")
-                            ? "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400"
-                            : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+                            ? "bg-[#1164A3]/10 text-[#1164A3] font-bold"
+                            : "text-[#1D1C1D] hover:bg-[#F8F8F8]"
                         }`}
                       >
-                        <div className="flex items-center gap-3">
-                          <PlusIcon className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+                        <div className="flex items-center gap-2.5">
+                          <PlusIcon className="w-4 h-4 text-[#616061]" />
                           <span>Create Tenant</span>
                         </div>
-                        <ChevronRightIcon className="w-4 h-4 text-gray-400" />
+                        <ChevronRightIcon className="w-4 h-4 text-[#616061]" />
                       </Link>
 
-                      <div className="pt-4 px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                      <div className="pt-3 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-[#616061]">
                         Preferences & Account
                       </div>
 
                       <button
                         type="button"
                         onClick={handleOpenSettings}
-                        className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                        className="w-full flex items-center justify-between px-3 py-2 rounded-[8px] text-[14px] font-medium text-[#1D1C1D] hover:bg-[#F8F8F8] transition-colors"
                       >
-                        <div className="flex items-center gap-3">
-                          <SettingsIcon className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+                        <div className="flex items-center gap-2.5">
+                          <SettingsIcon className="w-4 h-4 text-[#616061]" />
                           <span>Account Settings</span>
                         </div>
-                        <ChevronRightIcon className="w-4 h-4 text-gray-400" />
+                        <ChevronRightIcon className="w-4 h-4 text-[#616061]" />
                       </button>
 
                       <button
                         type="button"
                         onClick={handleOpenSettings}
-                        className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                        className="w-full flex items-center justify-between px-3 py-2 rounded-[8px] text-[14px] font-medium text-[#1D1C1D] hover:bg-[#F8F8F8] transition-colors"
                       >
-                        <div className="flex items-center gap-3">
-                          <ShieldIcon className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+                        <div className="flex items-center gap-2.5">
+                          <ShieldIcon className="w-4 h-4 text-[#616061]" />
                           <span>Security & Sessions</span>
                         </div>
-                        <ChevronRightIcon className="w-4 h-4 text-gray-400" />
+                        <ChevronRightIcon className="w-4 h-4 text-[#616061]" />
                       </button>
                     </>
                   ) : (
                     <>
-                      <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                      <div className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-[#616061]">
                         Get Started
                       </div>
                       <Link
                         to="/login"
                         onClick={closeMenu}
-                        className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                        className="flex items-center justify-between px-3 py-2 rounded-[8px] text-[14px] font-medium text-[#1D1C1D] hover:bg-[#F8F8F8] transition-colors"
                       >
                         <span>Log in</span>
-                        <ChevronRightIcon className="w-4 h-4 text-gray-400" />
+                        <ChevronRightIcon className="w-4 h-4 text-[#616061]" />
                       </Link>
                       <Link
                         to="/register"
                         onClick={closeMenu}
-                        className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm transition-colors mt-2"
+                        className="flex items-center justify-between px-3 py-2 rounded-[8px] text-[14px] font-bold text-white bg-[#007A5A] hover:bg-[#00664B] shadow-sm transition-colors mt-2"
                       >
                         <span>Create an Account</span>
                         <ChevronRightIcon className="w-4 h-4 text-white" />
@@ -507,13 +507,13 @@ export function Header() {
 
               {/* Drawer Bottom / Logout */}
               {isAuthenticated && (
-                <div className="p-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50">
+                <div className="p-3 border-t border-[#DDDDDD] bg-[#F8F8F8]">
                   <button
                     type="button"
                     onClick={handleLogout}
-                    className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors group"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-[8px] text-[14px] font-semibold text-[#E01E5A] hover:bg-[#E01E5A]/10 transition-colors"
                   >
-                    <LogOutIcon className="w-5 h-5 transition-transform group-hover:-translate-x-0.5" />
+                    <LogOutIcon className="w-4 h-4 text-[#E01E5A]" />
                     <span>Log Out</span>
                   </button>
                 </div>

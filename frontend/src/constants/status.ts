@@ -1,11 +1,13 @@
 export const TENANT_STATUS = {
   ACTIVE: {
     label: 'Active',
-    colorClass: 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800',
+    colorClass: 'bg-[#2EB67D]/15 text-[#1b7a51] border-[#2EB67D]/40',
+    dotClass: 'bg-[#2EB67D]',
   },
   INACTIVE: {
     label: 'Inactive',
-    colorClass: 'bg-gray-50 dark:bg-gray-950/50 text-gray-700 dark:text-gray-400 border-gray-200 dark:border-gray-800',
+    colorClass: 'bg-[#F8F8F8] text-[#616061] border-[#DDDDDD]',
+    dotClass: 'bg-[#616061]',
   },
 } as const;
 

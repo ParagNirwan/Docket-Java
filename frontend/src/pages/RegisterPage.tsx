@@ -143,19 +143,19 @@ export function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-[calc(100svh-4rem)] flex-1 items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
+    <div className="flex min-h-[calc(100svh-4rem)] flex-1 items-center justify-center px-4 py-10 sm:px-6 lg:px-8 bg-white">
       <div className="w-full max-w-md">
         {/* Card */}
-        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white p-7 shadow-xs dark:border-gray-800 dark:bg-gray-900 sm:p-8">
+        <div className="overflow-hidden rounded-[8px] border border-[#DDDDDD] bg-white p-7 shadow-[0_4px_12px_rgba(0,0,0,0.1)] sm:p-8">
           {/* Header */}
           <div className="text-center mb-6">
-            <div className="mx-auto mb-3.5 flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
-              <UserPlus className="h-6 w-6" strokeWidth={1.8} />
+            <div className="mx-auto mb-3.5 flex h-11 w-11 items-center justify-center rounded-[8px] border border-[#DDDDDD] bg-[#F8F8F8] text-[#1D1C1D] shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+              <UserPlus className="h-5 w-5" strokeWidth={1.8} />
             </div>
-            <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
+            <h1 className="text-[22px] font-bold tracking-tight text-[#1D1C1D] leading-tight">
               Create an account
             </h1>
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            <p className="mt-1 text-[13px] text-[#616061]">
               {invitation
                 ? `Create your account to join ${invitation.tenantName}`
                 : "Join Docket to securely organize, stage, and review documents"}
@@ -319,7 +319,7 @@ export function RegisterPage() {
             <button
               type="submit"
               disabled={loading}
-              className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:focus:ring-offset-gray-900"
+              className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-[8px] bg-[#007A5A] px-4 py-2 text-[14px] font-bold text-white shadow-[0_1px_2px_rgba(0,0,0,0.1)] transition-colors hover:bg-[#00664B] focus:outline-none focus:ring-2 focus:ring-[#36C5F0] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <span>{loading ? "Creating account..." : "Create Account"}</span>
               <ArrowRight className="h-4 w-4" />
@@ -327,11 +327,11 @@ export function RegisterPage() {
           </form>
 
           {/* Footer Navigation */}
-          <div className="mt-6 border-t border-gray-100 pt-5 text-center text-xs text-gray-500 dark:border-gray-800 dark:text-gray-400">
+          <div className="mt-6 border-t border-[#DDDDDD] pt-4 text-center text-[12px] text-[#616061]">
             Already have an account?{" "}
             <Link
               to="/login"
-              className="font-semibold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors"
+              className="font-semibold text-[#1164A3] hover:underline transition-colors"
             >
               Sign in here
             </Link>

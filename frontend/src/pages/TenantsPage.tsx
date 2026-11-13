@@ -89,14 +89,14 @@ export function TenantsPage() {
   }
 
   return (
-    <div className="w-full px-4 py-8 sm:px-6 lg:px-8">
+    <div className="w-full px-4 py-8 sm:px-6 lg:px-8 bg-white text-[#1D1C1D]">
       {/* Top Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
+          <h1 className="text-[26px] font-bold tracking-tight text-[#1D1C1D]">
             Organizations & Tenants
           </h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          <p className="mt-1 text-[14px] text-[#616061]">
             Select a tenant workspace to review dockets and manage documents.
           </p>
         </div>
@@ -104,14 +104,14 @@ export function TenantsPage() {
           <button
             type="button"
             onClick={openSettingsModal}
-            className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-medium border border-gray-200 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full text-gray-700 dark:text-gray-200 transition-colors"
+            className="inline-flex items-center gap-2 px-3 py-1.5 text-[14px] font-medium border border-[#DDDDDD] hover:bg-[#F8F8F8] rounded-[8px] text-[#1D1C1D] transition-colors"
           >
-            <SettingsIcon className="w-4 h-4" />
+            <SettingsIcon className="w-4 h-4 text-[#616061]" />
             Account Settings
           </button>
           <Link
             to="/create-first-tenant"
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-full shadow-xs transition-colors"
+            className="inline-flex items-center gap-2 px-3.5 py-1.5 text-[14px] font-semibold text-white bg-[#007A5A] hover:bg-[#00664B] rounded-[8px] shadow-[0_1px_2px_rgba(0,0,0,0.1)] transition-colors"
           >
             <PlusIcon className="w-4 h-4" />
             New Tenant
@@ -121,15 +121,15 @@ export function TenantsPage() {
 
       {invitations.length > 0 && (
         <section aria-labelledby="pending-invitations-heading" className="mb-8">
-          <h2 id="pending-invitations-heading" className="mb-3 text-lg font-bold text-gray-900 dark:text-white">
+          <h2 id="pending-invitations-heading" className="mb-3 text-[16px] font-bold text-[#1D1C1D]">
             Pending invitations
           </h2>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {invitations.map((invitation) => (
-              <div key={invitation.id} className="flex items-center justify-between gap-4 rounded-2xl border border-indigo-200 bg-white p-5 shadow-xs dark:border-indigo-900 dark:bg-gray-900">
+              <div key={invitation.id} className="flex items-center justify-between gap-4 rounded-[8px] border border-[#DDDDDD] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
                 <div>
-                  <h3 className="font-semibold text-gray-900 dark:text-white">{invitation.tenantName}</h3>
-                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  <h3 className="font-bold text-[15px] text-[#1D1C1D]">{invitation.tenantName}</h3>
+                  <p className="mt-0.5 text-[12px] text-[#616061]">
                     {invitation.invitedByName ? `${invitation.invitedByName} invited you` : "You were invited"} as {ROLE_LABELS[invitation.role]}
                   </p>
                 </div>
@@ -137,7 +137,7 @@ export function TenantsPage() {
                   type="button"
                   onClick={() => void acceptInvitation(invitation)}
                   disabled={acceptingId !== null}
-                  className="shrink-0 rounded-full bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="shrink-0 rounded-[8px] bg-[#007A5A] px-3.5 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-[#00664B] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {acceptingId === invitation.id ? "Joining..." : "Accept"}
                 </button>
@@ -147,43 +147,43 @@ export function TenantsPage() {
         </section>
       )}
       {invitationError && (
-        <div role="alert" className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-400">
+        <div role="alert" className="mb-6 rounded-[4px] border border-[#E01E5A]/30 bg-[#E01E5A]/10 p-3.5 text-[12px] font-medium text-[#E01E5A]">
           {invitationError}
         </div>
       )}
 
       {/* Content */}
       {loading ? (
-        <div className="flex items-center justify-center p-16 text-sm text-gray-500 dark:text-gray-400">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mr-3" />
+        <div className="flex items-center justify-center p-16 text-sm text-[#616061]">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1164A3] mr-3" />
           Loading your workspaces...
         </div>
       ) : error ? (
-        <div className="p-4 rounded-xl border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 text-sm">
+        <div className="p-3.5 rounded-[4px] border border-[#E01E5A]/30 bg-[#E01E5A]/10 text-[#E01E5A] text-[12px] font-medium">
           {error}
         </div>
       ) : tenants.length === 0 ? (
-        <div className="text-center py-16 px-4 bg-white dark:bg-gray-900 border border-dashed border-gray-300 dark:border-gray-800 rounded-2xl">
-          <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto mb-4">
+        <div className="text-center py-16 px-4 bg-white border border-dashed border-[#DDDDDD] rounded-[8px]">
+          <div className="w-12 h-12 rounded-[8px] bg-[#4A154B] text-white flex items-center justify-center mx-auto mb-4">
             <BuildingIcon className="w-6 h-6" />
           </div>
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+          <h3 className="text-[18px] font-bold text-[#1D1C1D]">
             No tenants yet
           </h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400 max-w-sm mx-auto mt-1 mb-6">
+          <p className="text-[13px] text-[#616061] max-w-sm mx-auto mt-1 mb-6">
             You don't have any workspaces yet. Accept a pending invitation above
             or create your first tenant to start managing your legal dockets.
           </p>
           <Link
             to="/create-first-tenant"
-            className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-full shadow-sm transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 text-[14px] font-semibold text-white bg-[#007A5A] hover:bg-[#00664B] rounded-[8px] shadow-[0_1px_2px_rgba(0,0,0,0.1)] transition-colors"
           >
             <PlusIcon className="w-4 h-4" />
             Create Your First Tenant
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {tenants.map((t, index) => {
             const name =
               t.tenantName || t.name || `Tenant #${t.id || index + 1}`;
@@ -193,31 +193,31 @@ export function TenantsPage() {
                 key={t.id || index}
                 to={`/workspace/${encodeURIComponent(String(t.slug || t.tenantSlug ))}`}
                 state={{ tenantName: name }}
-                className="group relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5 shadow-xs hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-800 transition-all flex flex-col justify-between focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                className="group relative bg-white border border-[#DDDDDD] rounded-[8px] p-5 shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-[#F8F8F8] hover:border-[#C1C1C1] transition-all flex flex-col justify-between focus:outline-none focus-visible:ring-2 focus-visible:ring-[#36C5F0]"
               >
                 <div>
-                  <div className="flex items-start justify-between gap-3 mb-4">
-                    <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold">
-                      <BuildingIcon className="w-5 h-5" />
+                  <div className="flex items-start justify-between gap-3 mb-3.5">
+                    <div className="w-9 h-9 rounded-[8px] bg-[#4A154B] text-white flex items-center justify-center font-bold">
+                      <BuildingIcon className="w-4 h-4" />
                     </div>
                     <StatusBadge status={t.status || "Inactive"} />
                   </div>
-                  <h3 className="text-base font-bold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                  <h3 className="text-[16px] font-bold text-[#1D1C1D] group-hover:text-[#1164A3] transition-colors">
                     {name}
                   </h3>
                   {slug && (
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 font-mono">
+                    <p className="text-[12px] text-[#616061] mt-0.5 font-mono">
                       {slug}
                     </p>
                   )}
                 </div>
 
-                <div className="pt-5 mt-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                <div className="pt-4 mt-4 border-t border-[#DDDDDD] flex items-center justify-between text-[12px] text-[#616061]">
                   <span className="flex items-center gap-1">
                     <ShieldIcon className="w-3.5 h-3.5" />
                     {t.role || "Member"}
                   </span>
-                  <span className="flex items-center gap-1 text-indigo-600 dark:text-indigo-400 font-medium group-hover:translate-x-0.5 transition-transform">
+                  <span className="flex items-center gap-1 text-[#1164A3] font-semibold group-hover:translate-x-0.5 transition-transform">
                     Enter Workspace <ChevronRightIcon className="w-3.5 h-3.5" />
                   </span>
                 </div>

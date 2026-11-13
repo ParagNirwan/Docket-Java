@@ -1,5 +1,6 @@
 package com.docket.app.service;
 
+import com.docket.app.config.DocketAuthProperties;
 import com.docket.app.dto.AuthResponseDTO;
 import com.docket.app.dto.LoginRequestDTO;
 import com.docket.app.dto.RegisterRequestDTO;
@@ -29,10 +30,6 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class AuthService {
     private static final Duration ONE_MINUTE = Duration.ofMinutes(1);
-    private static final int LOGIN_LIMIT_PER_IP = 20;
-    private static final int LOGIN_LIMIT_PER_ACCOUNT = 5;
-    private static final int LOCKOUT_FAILURES = 10;
-    private static final Duration LOCKOUT_WINDOW = Duration.ofMinutes(15);
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -44,6 +41,7 @@ public class AuthService {
     private final AuditService auditService;
     private final AuthRateLimiter authRateLimiter;
     private final ClientRequestInfo clientRequestInfo;
+    private final DocketAuthProperties authProperties;
 
     @Value("${docket.email.verification.enabled:false}")
     private boolean emailVerificationEnabled;
@@ -111,9 +109,9 @@ public class AuthService {
         String email = normalizeEmail(loginRequestDTO.getEmail());
         String lockoutKey = lockoutKey(email);
 
-        authRateLimiter.check("login:ip:" + clientRequestInfo.ip(), LOGIN_LIMIT_PER_IP, ONE_MINUTE);
-        authRateLimiter.check("login:account:" + email, LOGIN_LIMIT_PER_ACCOUNT, ONE_MINUTE);
-        authRateLimiter.requireBelow(lockoutKey, LOCKOUT_FAILURES, LOCKOUT_WINDOW);
+        authRateLimiter.check("login:ip:" + clientRequestInfo.ip(), authProperties.getLoginLimitPerIp(), ONE_MINUTE);
+        authRateLimiter.check("login:account:" + email, authProperties.getLoginLimitPerAccount(), ONE_MINUTE);
+        authRateLimiter.requireBelow(lockoutKey, authProperties.getLockoutFailures(), authProperties.getLockoutWindow());
 
         Optional<User> found = userRepository.findByEmailIgnoreCase(email);
 
@@ -184,7 +182,7 @@ public class AuthService {
     private void recordFailedLogin(Optional<User> user, String email, String lockoutKey) {
         var actorId = user.map(User::getId).orElse(null);
         auditService.recordAccountEvent(actorId, AuditAction.LOGIN_FAILED, "USER", actorId, Map.of("email", email));
-        if (authRateLimiter.increment(lockoutKey, LOCKOUT_WINDOW) == LOCKOUT_FAILURES) {
+        if (authRateLimiter.increment(lockoutKey, authProperties.getLockoutWindow()) == authProperties.getLockoutFailures()) {
             auditService.recordAccountEvent(actorId, AuditAction.ACCOUNT_LOCKED, "USER", actorId, Map.of("email", email));
         }
     }

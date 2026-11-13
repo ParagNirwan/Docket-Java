@@ -1,5 +1,6 @@
 package com.docket.app.service;
 
+import com.docket.app.config.DocketPlatformProperties;
 import com.docket.app.entity.Document;
 import com.docket.app.enums.AuditAction;
 import com.docket.app.enums.LockMode;
@@ -30,10 +31,10 @@ public class RetentionGuard {
     }
 
     private static final Set<Action> BLOCKED_WHEN_ARCHIVED = Set.of(Action.MOVE, Action.RENAME, Action.OVERWRITE);
-    private static final int MAX_REASON_LENGTH = 500;
 
     private final TenantAuthorizationService tenantAuthorizationService;
     private final AuditService auditService;
+    private final DocketPlatformProperties platformProperties;
 
     // Returns true if this went ahead on an override, so callers moving or deleting
     // the document can drop the lock rather than leave it pointing at nothing.
@@ -56,8 +57,9 @@ public class RetentionGuard {
 
         tenantAuthorizationService.requirePermission(authentication, document.getTenantId(), Permission.RETENTION_OVERRIDE);
         String reason = override.reason() == null ? "" : override.reason().trim();
-        if (reason.isEmpty() || reason.length() > MAX_REASON_LENGTH) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A reason of up to 500 characters is required");
+        int maxLen = platformProperties.getRetention().getMaxReasonLength();
+        if (reason.isEmpty() || reason.length() > maxLen) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A reason of up to " + maxLen + " characters is required");
         }
         auditService.record(authentication, document.getTenantId(), AuditAction.LOCK_OVERRIDDEN, "DOCUMENT", document.getId(),
                 Map.of("action", action.name(), "reason", reason, "retainUntil", document.getRetainUntil().toString(),

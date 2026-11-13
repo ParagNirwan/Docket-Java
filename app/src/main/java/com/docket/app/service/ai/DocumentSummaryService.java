@@ -1,5 +1,6 @@
 package com.docket.app.service.ai;
 
+import com.docket.app.config.DocketAiProperties;
 import com.docket.app.entity.Document;
 import com.docket.app.entity.Tenant;
 import com.docket.app.repository.DocumentRepository;
@@ -30,15 +31,6 @@ public class DocumentSummaryService {
 
     private static final Logger log = LoggerFactory.getLogger(DocumentSummaryService.class);
 
-    // Below this the whole document goes to the model in one request. Above it, groups of
-    // chunks are condensed to notes first and the summary is written from the notes.
-    private static final int SINGLE_PASS_CHARS = 48_000;
-    private static final int MAP_GROUP_SIZE = 10;
-    private static final int MAX_CHUNKS = 200;
-    private static final int MAX_SUMMARY_LENGTH = 2_000;
-    private static final int MAX_KEY_POINTS = 7;
-    private static final int MAX_KEY_POINT_LENGTH = 300;
-
     private static final Schema SUMMARY_SCHEMA = Schema.newBuilder()
             .setType(Type.OBJECT)
             .putProperties("summary", Schema.newBuilder().setType(Type.STRING).build())
@@ -55,6 +47,16 @@ public class DocumentSummaryService {
     private final DocumentRepository documentRepository;
     private final TenantRepository tenantRepository;
     private final ObjectMapper objectMapper;
+    private final DocketAiProperties aiProperties;
+
+    public DocumentSummaryService(
+            GeminiClient geminiClient,
+            EmbeddingService embeddingService,
+            DocumentRepository documentRepository,
+            TenantRepository tenantRepository,
+            ObjectMapper objectMapper) {
+        this(geminiClient, embeddingService, documentRepository, tenantRepository, objectMapper, new DocketAiProperties());
+    }
 
     @Value("${docket.ai.gemini.model}")
     private String model;
@@ -93,14 +95,14 @@ public class DocumentSummaryService {
                     .setResponseSchema(SUMMARY_SCHEMA)
                     .build()));
 
-            String summary = truncate(result.path("summary").asText("").strip(), MAX_SUMMARY_LENGTH);
+            String summary = truncate(result.path("summary").asText("").strip(), aiProperties.getSummary().getMaxLength());
             if (summary.isEmpty()) {
                 throw new IllegalStateException("The model returned no summary");
             }
             List<String> keyPoints = new ArrayList<>();
             result.path("keyPoints").forEach(point -> {
-                String text = truncate(point.asText("").strip(), MAX_KEY_POINT_LENGTH);
-                if (!text.isEmpty() && keyPoints.size() < MAX_KEY_POINTS) {
+                String text = truncate(point.asText("").strip(), aiProperties.getSummary().getMaxKeyPointLength());
+                if (!text.isEmpty() && keyPoints.size() < aiProperties.getSummary().getMaxKeyPoints()) {
                     keyPoints.add(text);
                 }
             });
@@ -125,13 +127,14 @@ public class DocumentSummaryService {
     // The text the summary is written from: the document itself when it is short enough,
     // otherwise notes on each part of it.
     private String condense(List<TextChunk> chunks) throws Exception {
-        List<TextChunk> used = chunks.subList(0, Math.min(MAX_CHUNKS, chunks.size()));
+        int maxChunks = aiProperties.getSummary().getMaxChunks();
+        List<TextChunk> used = chunks.subList(0, Math.min(maxChunks, chunks.size()));
         if (used.size() < chunks.size()) {
             log.info("Summarizing the first {} of {} chunks", used.size(), chunks.size());
         }
 
         int totalChars = used.stream().mapToInt(chunk -> chunk.text().length()).sum();
-        if (totalChars <= SINGLE_PASS_CHARS) {
+        if (totalChars <= aiProperties.getSummary().getSinglePassChars()) {
             return join(used);
         }
 
@@ -140,8 +143,9 @@ public class DocumentSummaryService {
                 .setMaxOutputTokens(512)
                 .build();
         StringBuilder notes = new StringBuilder();
-        for (int start = 0; start < used.size(); start += MAP_GROUP_SIZE) {
-            List<TextChunk> group = used.subList(start, Math.min(start + MAP_GROUP_SIZE, used.size()));
+        int mapGroupSize = aiProperties.getSummary().getMapGroupSize();
+        for (int start = 0; start < used.size(); start += mapGroupSize) {
+            List<TextChunk> group = used.subList(start, Math.min(start + mapGroupSize, used.size()));
             notes.append(geminiClient.generate(model, """
                     List the important facts in this part of a document as short notes, at most 8.
                     Keep names, dates, amounts and identifiers exactly as written, and do not invent facts.

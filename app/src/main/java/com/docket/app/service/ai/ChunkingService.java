@@ -1,5 +1,7 @@
 package com.docket.app.service.ai;
 
+import com.docket.app.config.DocketAiProperties;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -9,13 +11,17 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Service
+@RequiredArgsConstructor
 public class ChunkingService {
 
-    private static final int TOKENS_PER_CHUNK = 500;
-    private static final int OVERLAP_TOKENS = 50;
-    private static final int MAX_ATOMIC_TABLE_TOKENS = TOKENS_PER_CHUNK * 2;
     private static final Pattern TOKEN = Pattern.compile("[\\p{L}\\p{N}]+(?:[-_/.][\\p{L}\\p{N}]+)*");
     private static final String SEGMENT_SEPARATOR = "\n\n";
+
+    private final DocketAiProperties aiProperties;
+
+    public ChunkingService() {
+        this(new DocketAiProperties());
+    }
 
     private record Span(TextSegment segment, int start, int end) {
     }
@@ -136,7 +142,7 @@ public class ChunkingService {
         matcher.region(start, sectionEnd);
         int count = 0;
         while (matcher.find()) {
-            if (++count == TOKENS_PER_CHUNK) {
+            if (++count == aiProperties.getChunking().getTokensPerChunk()) {
                 return matcher.end();
             }
         }
@@ -150,10 +156,10 @@ public class ChunkingService {
         while (matcher.find()) {
             tokenStarts.add(matcher.start());
         }
-        if (tokenStarts.size() <= OVERLAP_TOKENS) {
+        if (tokenStarts.size() <= aiProperties.getChunking().getOverlapTokens()) {
             return end;
         }
-        int nextStart = tokenStarts.get(tokenStarts.size() - OVERLAP_TOKENS);
+        int nextStart = tokenStarts.get(tokenStarts.size() - aiProperties.getChunking().getOverlapTokens());
         int lineStart = text.lastIndexOf('\n', nextStart);
         int lineEnd = text.indexOf('\n', nextStart);
         if (lineStart >= 0 && lineEnd > nextStart
@@ -196,7 +202,7 @@ public class ChunkingService {
             tableEnd = nextEnd;
         }
 
-        if (start <= tableStart && countTokens(text, tableStart, tableEnd) <= MAX_ATOMIC_TABLE_TOKENS) {
+        if (start <= tableStart && countTokens(text, tableStart, tableEnd) <= aiProperties.getChunking().getMaxAtomicTableTokens()) {
             return tableEnd;
         }
         if (lineStart > start) {

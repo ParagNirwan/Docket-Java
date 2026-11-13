@@ -1,5 +1,6 @@
 package com.docket.app.service.ai;
 
+import com.docket.app.config.DocketAiProperties;
 import com.docket.app.dto.AiQueryResponseDTO;
 import com.docket.app.dto.AiSourceChunkDTO;
 import com.docket.app.entity.Document;
@@ -72,6 +73,9 @@ class AiQueryServiceTest {
 
     @Mock
     private FolderAccessService folderAccessService;
+
+    @Spy
+    private DocketAiProperties aiProperties = new DocketAiProperties();
 
     @InjectMocks
     private AiQueryService aiQueryService;

@@ -1,5 +1,6 @@
 package com.docket.app.service;
 
+import com.docket.app.config.DocketPlatformProperties;
 import com.docket.app.dto.ExpiringDocumentDTO;
 import com.docket.app.dto.RetentionPolicyDTO;
 import com.docket.app.dto.RetentionPolicyRequestDTO;
@@ -38,7 +39,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class RetentionPolicyService {
     private static final Duration EXPIRING_SOON = Duration.ofDays(30);
-    private static final int EXPIRING_LIST_SIZE = 20;
 
     private final RetentionPolicyRepository policyRepository;
     private final FolderRepository folderRepository;
@@ -48,6 +48,7 @@ public class RetentionPolicyService {
     private final TenantAuthorizationService tenantAuthorizationService;
     private final RetentionService retentionService;
     private final AuditService auditService;
+    private final DocketPlatformProperties platformProperties;
 
     public List<RetentionPolicyDTO> list(String slug, Authentication authentication) {
         Tenant tenant = findTenant(slug);
@@ -79,7 +80,7 @@ public class RetentionPolicyService {
         Instant now = Instant.now();
         Instant horizon = now.plus(EXPIRING_SOON);
         List<ExpiringDocumentDTO> expiring = documentRepository
-                .findExpiringBetween(tenant.getId(), now, horizon, PageRequest.of(0, EXPIRING_LIST_SIZE)).stream()
+                .findExpiringBetween(tenant.getId(), now, horizon, PageRequest.of(0, platformProperties.getRetention().getExpiringListSize())).stream()
                 .map(document -> new ExpiringDocumentDTO(document.getId(), document.getOriginalFileName(),
                         document.getFolderId(), document.getRetainUntil(), document.getLockMode()))
                 .toList();

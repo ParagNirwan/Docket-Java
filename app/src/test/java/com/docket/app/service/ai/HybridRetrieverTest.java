@@ -1,10 +1,12 @@
 package com.docket.app.service.ai;
 
+import com.docket.app.config.DocketAiProperties;
 import com.docket.app.repository.ChunkSearchRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -26,6 +28,9 @@ class HybridRetrieverTest {
 
     @Mock
     private ChunkSearchRepository chunkSearchRepository;
+
+    @Spy
+    private DocketAiProperties aiProperties = new DocketAiProperties();
 
     @InjectMocks
     private HybridRetriever hybridRetriever;

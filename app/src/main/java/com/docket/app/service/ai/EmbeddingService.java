@@ -1,5 +1,6 @@
 package com.docket.app.service.ai;
 
+import com.docket.app.config.DocketAiProperties;
 import com.google.cloud.aiplatform.v1.EndpointName;
 import com.google.cloud.aiplatform.v1.PredictResponse;
 import com.google.cloud.aiplatform.v1.PredictionServiceClient;
@@ -18,13 +19,9 @@ import java.util.List;
 public class EmbeddingService {
 
     private static final Logger log = LoggerFactory.getLogger(EmbeddingService.class);
-    private static final int MAX_BATCH_SIZE = 250;
-    // A request over 20,000 tokens is rejected. A character is at most about one token,
-    // even in scripts like Chinese, so this stays under the limit for any language.
-    private static final int MAX_BATCH_CHARS = 15_000;
-    private static final int MAX_RETRIES = 3;
 
     private final PredictionServiceClient predictionClient;
+    private final DocketAiProperties aiProperties;
 
     @org.springframework.beans.factory.annotation.Value("${gcp.project-id}")
     private String projectId;
@@ -36,8 +33,13 @@ public class EmbeddingService {
     private String modelId;
 
     @Autowired
-    public EmbeddingService(PredictionServiceClient predictionClient) {
+    public EmbeddingService(PredictionServiceClient predictionClient, DocketAiProperties aiProperties) {
         this.predictionClient = predictionClient;
+        this.aiProperties = aiProperties;
+    }
+
+    public EmbeddingService(PredictionServiceClient predictionClient) {
+        this(predictionClient, new DocketAiProperties());
     }
 
     public List<float[]> embed(List<String> texts, EmbeddingTaskType taskType) {
@@ -47,7 +49,8 @@ public class EmbeddingService {
 
         for (int i = 0; i < texts.size(); i++) {
             int length = texts.get(i).length();
-            boolean batchFull = i - batchStart == MAX_BATCH_SIZE || batchChars + length > MAX_BATCH_CHARS;
+            boolean batchFull = i - batchStart == aiProperties.getEmbeddingBatch().getMaxBatchSize()
+                    || batchChars + length > aiProperties.getEmbeddingBatch().getMaxBatchChars();
             if (batchFull && i > batchStart) {
                 allEmbeddings.addAll(embedBatchWithRetry(texts.subList(batchStart, i), taskType));
                 batchStart = i;
@@ -69,8 +72,9 @@ public class EmbeddingService {
                 return embedBatch(texts, taskType);
             } catch (Exception e) {
                 attempt++;
-                if (attempt >= MAX_RETRIES) {
-                    throw new RuntimeException("Embedding failed after " + MAX_RETRIES + " retries", e);
+                int maxRetries = aiProperties.getEmbeddingBatch().getMaxRetries();
+                if (attempt >= maxRetries) {
+                    throw new RuntimeException("Embedding failed after " + maxRetries + " retries", e);
                 }
                 long backoff = (long) Math.pow(2, attempt) * 1000;
                 log.warn("Embedding attempt {} failed, retrying in {}ms: {}", attempt, backoff, e.getMessage());

@@ -1,5 +1,6 @@
 package com.docket.app.service.ai;
 
+import com.docket.app.config.DocketAiProperties;
 import com.google.cloud.vertexai.api.GenerationConfig;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -20,9 +21,13 @@ import java.util.stream.Collectors;
 public class QueryRewriteService {
 
     private static final Logger log = LoggerFactory.getLogger(QueryRewriteService.class);
-    private static final int MAX_REWRITE_LENGTH = 1000;
 
     private final GeminiClient geminiClient;
+    private final DocketAiProperties aiProperties;
+
+    public QueryRewriteService(GeminiClient geminiClient) {
+        this(geminiClient, new DocketAiProperties());
+    }
 
     @Value("${docket.ai.gemini.rewrite-model}")
     private String model;
@@ -60,7 +65,7 @@ public class QueryRewriteService {
                     .build();
 
             String rewritten = geminiClient.generate(model, prompt, config).strip();
-            if (rewritten.isEmpty() || rewritten.length() > MAX_REWRITE_LENGTH) {
+            if (rewritten.isEmpty() || rewritten.length() > aiProperties.getRewrite().getMaxRewriteLength()) {
                 log.warn("Ignoring unusable query rewrite of length {}", rewritten.length());
                 return question;
             }

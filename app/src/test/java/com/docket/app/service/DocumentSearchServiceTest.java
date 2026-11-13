@@ -1,5 +1,6 @@
 package com.docket.app.service;
 
+import com.docket.app.config.DocketPlatformProperties;
 import com.docket.app.entity.Tenant;
 import com.docket.app.enums.Permission;
 import com.docket.app.repository.DocumentSearchRepository;
@@ -12,6 +13,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
@@ -52,6 +54,9 @@ class DocumentSearchServiceTest {
     private FolderAccessService folderAccessService;
     @Mock
     private DocumentSearchRepository documentSearchRepository;
+
+    @Spy
+    private DocketPlatformProperties platformProperties = new DocketPlatformProperties();
 
     @InjectMocks
     private DocumentSearchService service;

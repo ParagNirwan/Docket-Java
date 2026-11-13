@@ -1,5 +1,6 @@
 package com.docket.app.service;
 
+import com.docket.app.config.DocketPlatformProperties;
 import com.docket.app.dto.ArchivePreviewDTO;
 import com.docket.app.entity.Document;
 import com.docket.app.entity.Folder;
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
@@ -54,6 +56,8 @@ class ArchiveServiceTest {
     @Mock private RetentionService retentionService;
     @Mock private DocumentService documentService;
     @Mock private AuditService auditService;
+
+    @Spy private DocketPlatformProperties platformProperties = new DocketPlatformProperties();
 
     @InjectMocks
     private ArchiveService archiveService;

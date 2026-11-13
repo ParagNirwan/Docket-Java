@@ -2,7 +2,19 @@ import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import type { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Bot, ChevronDown, ChevronUp, FileText, ThumbsDown, ThumbsUp } from "lucide-react";
+import {
+  Bot,
+  User,
+  ChevronDown,
+  ChevronUp,
+  FileText,
+  ThumbsDown,
+  ThumbsUp,
+  Smile,
+  MessageSquare,
+  Bookmark,
+  Check,
+} from "lucide-react";
 import type { AiSourceChunk } from "../services/aiService";
 
 interface AiMessageProps {
@@ -10,6 +22,8 @@ interface AiMessageProps {
   content: string;
   sources?: AiSourceChunk[];
   isLoading?: boolean;
+  timestamp?: string;
+  userName?: string;
   onFeedback?: (rating: -1 | 1, reason?: string) => Promise<void>;
   onCitationClick?: (source: AiSourceChunk) => void;
 }
@@ -28,19 +42,19 @@ function SourceChips({ sources }: { sources: AiSourceChunk[] }) {
   if (sources.length === 0) return null;
 
   return (
-    <div className="mt-2.5 space-y-1.5">
+    <div className="mt-2 space-y-1.5">
       <button
         type="button"
         onClick={() => setExpanded(expanded !== null ? null : 0)}
-        className="flex items-center gap-1 text-[10px] font-semibold text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+        className="inline-flex items-center gap-1.5 rounded-[4px] border border-[#DDDDDD] bg-white px-2 py-0.5 text-[11px] font-medium text-[#616061] hover:bg-[#F8F8F8] hover:text-[#1D1C1D] transition-colors"
       >
-        <FileText className="h-3 w-3" />
-        {sources.length} source{sources.length !== 1 ? "s" : ""}
+        <FileText className="h-3 w-3 text-[#36C5F0]" />
+        <span>{sources.length} source{sources.length !== 1 ? "s" : ""}</span>
         {expanded !== null ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
       </button>
 
       {expanded !== null && (
-        <div className="space-y-1 rounded-lg border border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 p-2">
+        <div className="space-y-1 rounded-[8px] border border-[#DDDDDD] bg-[#F8F8F8] p-2 mt-1">
           {sources.map((source, i) => (
             <button
               key={`${source.documentId}-${source.chunkIndex}`}
@@ -48,21 +62,21 @@ function SourceChips({ sources }: { sources: AiSourceChunk[] }) {
               onClick={() => setExpanded(expanded === i ? null : i)}
               className="w-full text-left"
             >
-              <div className="flex items-center gap-2 rounded-md px-2 py-1.5 text-[11px] hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-indigo-100 dark:bg-indigo-950/60 text-[9px] font-bold text-indigo-600 dark:text-indigo-400">
+              <div className="flex items-center gap-2 rounded-[4px] px-2 py-1.5 text-[11px] hover:bg-white transition-colors">
+                <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] bg-[#36C5F0]/20 text-[9px] font-bold text-[#1164A3]">
                   {i + 1}
                 </span>
-                <span className="truncate font-medium text-gray-700 dark:text-gray-300">
+                <span className="truncate font-semibold text-[#1D1C1D]">
                   {source.documentName}
                 </span>
                 {sourceLocation(source) && (
-                  <span className="ml-auto shrink-0 text-[10px] text-gray-400 dark:text-gray-500">
+                  <span className="ml-auto shrink-0 text-[10px] text-[#616061]">
                     {sourceLocation(source)}
                   </span>
                 )}
               </div>
               {expanded === i && (
-                <p className="mt-1 rounded-md bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 px-3 py-2 text-[11px] leading-relaxed text-gray-600 dark:text-gray-400">
+                <p className="mt-1 rounded-[4px] bg-white border border-[#DDDDDD] px-3 py-2 text-[11px] leading-relaxed text-[#616061]">
                   {source.chunkText.length > 300
                     ? source.chunkText.slice(0, 300) + "..."
                     : source.chunkText}
@@ -81,6 +95,8 @@ export function AiMessage({
   content,
   sources,
   isLoading,
+  timestamp,
+  userName,
   onFeedback,
   onCitationClick,
 }: AiMessageProps) {
@@ -88,12 +104,22 @@ export function AiMessage({
   const [reason, setReason] = useState("");
   const [feedbackError, setFeedbackError] = useState("");
   const [feedbackSaved, setFeedbackSaved] = useState(false);
+  const [bookmarked, setBookmarked] = useState(false);
+  const [reactions, setReactions] = useState<{ emoji: string; count: number }[]>([]);
+
+  const defaultTimestamp = timestamp || "Just now";
+  const displayName = userName || (role === "user" ? "You" : "Docket AI");
+
   const markdownComponents: Components = {
     a: ({ href, children }) => {
       const match = href?.match(/^#citation-(\d+)$/);
       const source = match && sources ? sources[Number(match[1]) - 1] : undefined;
       if (!source || !onCitationClick) {
-        return <a href={href}>{children}</a>;
+        return (
+          <a href={href} className="text-[#36C5F0] hover:underline font-medium">
+            {children}
+          </a>
+        );
       }
       const descriptionId = `citation-${source.documentId}-${source.chunkIndex}`;
       const location = sourceLocation(source);
@@ -104,7 +130,7 @@ export function AiMessage({
           title={[source.documentName, location, source.chunkText].filter(Boolean).join(" · ")}
           aria-label={`Open ${source.documentName}${location ? `, ${location}` : ""}`}
           aria-describedby={descriptionId}
-          className="inline-flex items-center rounded bg-indigo-100 px-1 text-[0.85em] font-semibold text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-950/70 dark:text-indigo-300"
+          className="inline-flex items-center rounded-[4px] bg-[#36C5F0]/20 px-1 text-[0.85em] font-semibold text-[#1164A3] hover:bg-[#36C5F0]/30 transition-colors"
         >
           {children}
           <span id={descriptionId} className="sr-only">
@@ -114,46 +140,121 @@ export function AiMessage({
       );
     },
   };
+
   const citationMarkdown = sources?.length && onCitationClick
     ? content.replace(/\[(\d+)\]/g, (marker, number: string) =>
         sources[Number(number) - 1] ? `[${number}](#citation-${number})` : marker)
     : content;
 
-  if (role === "user") {
-    return (
-      <div className="flex justify-end">
-        <div className="max-w-[85%] rounded-2xl rounded-br-md bg-indigo-600 px-4 py-2.5 text-sm text-white shadow-xs">
-          {content}
-        </div>
-      </div>
-    );
+  function handleAddReaction(emoji: string) {
+    setReactions((prev) => {
+      const existing = prev.find((r) => r.emoji === emoji);
+      if (existing) {
+        return prev.map((r) => (r.emoji === emoji ? { ...r, count: r.count + 1 } : r));
+      }
+      return [...prev, { emoji, count: 1 }];
+    });
   }
 
   return (
-    <div className="flex gap-2.5">
-      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 mt-0.5">
-        <Bot className="h-4 w-4" />
+    <div className="group relative flex gap-3 px-4 py-2 hover:bg-[#F8F8F8] rounded-[8px] transition-colors duration-150">
+      {/* Action Toolbar on Hover (Slack style: emoji, thread, bookmark) */}
+      <div className="absolute right-3 -top-3 hidden group-hover:flex items-center gap-0.5 rounded-[4px] border border-[#DDDDDD] bg-white px-1 py-0.5 shadow-[0_1px_2px_rgba(0,0,0,0.1)] z-10">
+        <button
+          type="button"
+          onClick={() => handleAddReaction("👍")}
+          title="React with 👍"
+          aria-label="React with thumbs up"
+          className="rounded-[4px] p-1 text-[#616061] hover:bg-[#F8F8F8] hover:text-[#1D1C1D] transition-colors"
+        >
+          <Smile className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => handleAddReaction("👀")}
+          title="Reply in thread"
+          aria-label="Reply in thread"
+          className="rounded-[4px] p-1 text-[#616061] hover:bg-[#F8F8F8] hover:text-[#1D1C1D] transition-colors"
+        >
+          <MessageSquare className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => setBookmarked((prev) => !prev)}
+          title={bookmarked ? "Remove bookmark" : "Add to bookmarks"}
+          aria-label="Bookmark message"
+          className={`rounded-[4px] p-1 transition-colors ${
+            bookmarked ? "text-[#ECB22E]" : "text-[#616061] hover:bg-[#F8F8F8] hover:text-[#1D1C1D]"
+          }`}
+        >
+          <Bookmark className="h-3.5 w-3.5" />
+        </button>
       </div>
+
+      {/* Left: 36px Avatar (Slack standard) */}
+      <div className="shrink-0 pt-0.5">
+        {role === "user" ? (
+          <div className="flex h-9 w-9 items-center justify-center rounded-[8px] bg-[#1164A3] text-white shadow-sm font-bold text-sm">
+            <User className="h-5 w-5" />
+          </div>
+        ) : (
+          <div className="flex h-9 w-9 items-center justify-center rounded-[8px] bg-[#ECB22E] text-[#1D1C1D] shadow-sm font-bold text-sm">
+            <Bot className="h-5 w-5" />
+          </div>
+        )}
+      </div>
+
+      {/* Right: Username (bold) + Timestamp (<=12px), Message body, Reactions */}
       <div className="min-w-0 flex-1">
-        <div className="rounded-2xl rounded-tl-md bg-gray-100 dark:bg-gray-800 px-4 py-2.5 shadow-xs">
-          {isLoading ? (
-            <div className="flex items-center gap-1.5 py-1">
-              <span className="h-2 w-2 rounded-full bg-gray-400 animate-bounce [animation-delay:0ms]" />
-              <span className="h-2 w-2 rounded-full bg-gray-400 animate-bounce [animation-delay:150ms]" />
-              <span className="h-2 w-2 rounded-full bg-gray-400 animate-bounce [animation-delay:300ms]" />
-            </div>
-          ) : (
-            <div className="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed [&_p]:my-1 [&_ul]:my-1.5 [&_ol]:my-1.5 [&_li]:my-0.5 [&_pre]:my-2 [&_pre]:rounded-lg [&_pre]:bg-gray-900 [&_pre]:p-3 [&_code]:rounded [&_code]:bg-gray-200 [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-xs dark:[&_code]:bg-gray-700 [&_pre_code]:bg-transparent [&_pre_code]:p-0">
-              <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-                {citationMarkdown}
-              </ReactMarkdown>
-            </div>
-          )}
+        {/* Username + Timestamp row */}
+        <div className="flex items-baseline gap-2 mb-1">
+          <span className="font-bold text-[15px] leading-tight text-[#1D1C1D]">
+            {displayName}
+          </span>
+          <span className="text-[12px] font-normal leading-[1.4] text-[#616061]">
+            {defaultTimestamp}
+          </span>
         </div>
+
+        {/* Message Body */}
+        {isLoading ? (
+          <div className="flex items-center gap-1.5 py-1 text-[#616061]">
+            <span className="h-2 w-2 rounded-full bg-[#616061] animate-bounce [animation-delay:0ms]" />
+            <span className="h-2 w-2 rounded-full bg-[#616061] animate-bounce [animation-delay:150ms]" />
+            <span className="h-2 w-2 rounded-full bg-[#616061] animate-bounce [animation-delay:300ms]" />
+          </div>
+        ) : (
+          <div className="text-[15px] leading-[1.46] text-[#1D1C1D] space-y-1 [&_p]:my-0.5 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0.5 [&_pre]:my-2 [&_pre]:rounded-[8px] [&_pre]:bg-[#1D1C1D] [&_pre]:text-white [&_pre]:p-3 [&_code]:rounded-[4px] [&_code]:bg-[#F8F8F8] [&_code]:border [&_code]:border-[#DDDDDD] [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-xs [&_pre_code]:bg-transparent [&_pre_code]:border-0 [&_pre_code]:p-0">
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+              {citationMarkdown}
+            </ReactMarkdown>
+          </div>
+        )}
+
+        {/* Sources Row */}
         {sources && sources.length > 0 && !isLoading && (
           <SourceChips sources={sources} />
         )}
-        {onFeedback && !isLoading && (
+
+        {/* Reactions row at bottom */}
+        {reactions.length > 0 && (
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            {reactions.map((r, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => handleAddReaction(r.emoji)}
+                className="inline-flex items-center gap-1 rounded-[4px] border border-[#DDDDDD] bg-white px-2 py-0.5 text-xs text-[#1D1C1D] hover:bg-[#F8F8F8] transition-colors"
+              >
+                <span>{r.emoji}</span>
+                <span className="text-[11px] font-bold text-[#616061]">{r.count}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Feedback Row (for AI responses) */}
+        {onFeedback && !isLoading && role === "ai" && (
           <div className="mt-2 flex items-center gap-2">
             <button
               type="button"
@@ -166,7 +267,7 @@ export function AiMessage({
                   setFeedbackSaved(true);
                 })
                 .catch(() => setFeedbackError("Feedback could not be saved."))}
-              className="rounded p-1 text-gray-400 hover:text-indigo-600 disabled:opacity-70"
+              className="rounded-[4px] p-1 text-[#616061] hover:text-[#2EB67D] hover:bg-white border border-transparent hover:border-[#DDDDDD] transition-colors disabled:opacity-70"
             >
               <ThumbsUp className="h-3.5 w-3.5" />
             </button>
@@ -176,7 +277,7 @@ export function AiMessage({
               aria-pressed={feedback === -1}
               disabled={feedback !== null}
               onClick={() => setFeedback(-1)}
-              className="rounded p-1 text-gray-400 hover:text-indigo-600 disabled:opacity-70"
+              className="rounded-[4px] p-1 text-[#616061] hover:text-[#E01E5A] hover:bg-white border border-transparent hover:border-[#DDDDDD] transition-colors disabled:opacity-70"
             >
               <ThumbsDown className="h-3.5 w-3.5" />
             </button>
@@ -186,7 +287,7 @@ export function AiMessage({
                   aria-label="Feedback reason"
                   value={reason}
                   onChange={(event) => setReason(event.target.value)}
-                  className="rounded border border-gray-200 bg-white px-1.5 py-1 text-[10px] text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                  className="rounded-[4px] border border-[#DDDDDD] bg-white px-2 py-1 text-[11px] text-[#1D1C1D] outline-none"
                 >
                   <option value="">Optional reason</option>
                   <option value="wrong source">Wrong source</option>
@@ -202,14 +303,19 @@ export function AiMessage({
                       setFeedbackSaved(true);
                     })
                     .catch(() => setFeedbackError("Feedback could not be saved."))}
-                  className="text-[10px] font-medium text-indigo-600 hover:text-indigo-700"
+                  className="rounded-[4px] px-2 py-0.5 text-[11px] font-semibold text-[#1164A3] hover:underline"
                 >
                   {feedbackSaved ? "Thanks" : "Send"}
                 </button>
               </>
             )}
-            {feedback === 1 && <span className="text-[10px] text-gray-400">Thanks for the feedback</span>}
-            {feedbackError && <span role="alert" className="text-[10px] text-red-500">{feedbackError}</span>}
+            {feedback === 1 && (
+              <span className="flex items-center gap-1 text-[11px] font-medium text-[#2EB67D]">
+                <Check className="h-3 w-3" />
+                Thanks for the feedback
+              </span>
+            )}
+            {feedbackError && <span role="alert" className="text-[11px] text-[#E01E5A]">{feedbackError}</span>}
           </div>
         )}
       </div>

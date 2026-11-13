@@ -1,5 +1,6 @@
 package com.docket.app.service;
 
+import com.docket.app.config.DocketPlatformProperties;
 import com.docket.app.entity.Document;
 import com.docket.app.entity.Folder;
 import com.docket.app.entity.Tenant;
@@ -16,6 +17,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
@@ -63,6 +65,8 @@ class TrashServiceTest {
     @Mock private AuditService auditService;
     @Mock private ApplicationEventPublisher eventPublisher;
     @Mock private StorageQuotaService storageQuotaService;
+
+    @Spy private DocketPlatformProperties platformProperties = new DocketPlatformProperties();
 
     @InjectMocks
     private TrashService trashService;

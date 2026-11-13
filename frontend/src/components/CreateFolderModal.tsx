@@ -81,29 +81,29 @@ export function CreateFolderModal({
         onClick={handleClose}
       />
 
-      <div className="relative w-full max-w-md bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-2xl z-10 overflow-hidden flex flex-col">
+      <div className="relative w-full max-w-md bg-white border border-[#DDDDDD] rounded-[8px] shadow-[0_8px_30px_rgba(0,0,0,0.2)] z-10 overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#DDDDDD]">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+            <div className="w-9 h-9 rounded-[8px] bg-[#4A154B] flex items-center justify-center text-white">
               <FolderPlus className="w-5 h-5" />
             </div>
             <div>
               <h2
                 id="create-folder-title"
-                className="text-lg font-bold text-gray-900 dark:text-white"
+                className="text-[18px] font-bold text-[#1D1C1D]"
               >
                 New Folder
               </h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Inside <span className="font-semibold text-gray-700 dark:text-gray-300">{parentName}</span>
+              <p className="text-[12px] text-[#616061]">
+                Inside <span className="font-semibold text-[#1D1C1D]">{parentName}</span>
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={handleClose}
-            className="p-1.5 rounded-full text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            className="p-1.5 rounded-[8px] text-[#616061] hover:text-[#1D1C1D] hover:bg-[#F8F8F8] transition-colors"
             aria-label="Close dialog"
           >
             <X className="w-5 h-5" />
@@ -113,7 +113,7 @@ export function CreateFolderModal({
         {/* Content Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
-            <div className="rounded-xl border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/30 p-3 text-xs text-red-600 dark:text-red-400">
+            <div className="rounded-[4px] border border-[#E01E5A]/30 bg-[#E01E5A]/10 p-3 text-[12px] font-medium text-[#E01E5A]">
               {error}
             </div>
           )}
@@ -121,9 +121,9 @@ export function CreateFolderModal({
           <div>
             <label
               htmlFor="folder-name-input"
-              className="block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1.5"
+              className="block text-[11px] font-bold uppercase tracking-wider text-[#616061] mb-1.5"
             >
-              Folder Name <span className="text-red-500">*</span>
+              Folder Name <span className="text-[#E01E5A]">*</span>
             </label>
             <input
               id="folder-name-input"
@@ -132,7 +132,7 @@ export function CreateFolderModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Q4 Invoices, Vendor Contracts"
-              className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 px-3.5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:border-indigo-500 focus:bg-white dark:focus:bg-gray-900 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all"
+              className="w-full rounded-[8px] border border-[#DDDDDD] bg-[#F8F8F8] px-3.5 py-2 text-[14px] text-[#1D1C1D] placeholder-[#616061] focus:border-[#36C5F0] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#36C5F0] transition-all"
               autoFocus
             />
           </div>
@@ -140,9 +140,9 @@ export function CreateFolderModal({
           <div>
             <label
               htmlFor="folder-desc-input"
-              className="block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1.5"
+              className="block text-[11px] font-bold uppercase tracking-wider text-[#616061] mb-1.5"
             >
-              Description <span className="text-gray-400 font-normal lowercase">(optional)</span>
+              Description <span className="text-[#616061] font-normal lowercase">(optional)</span>
             </label>
             <textarea
               id="folder-desc-input"
@@ -150,24 +150,24 @@ export function CreateFolderModal({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Optional notes or details about this folder"
-              className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 px-3.5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:border-indigo-500 focus:bg-white dark:focus:bg-gray-900 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all"
+              className="w-full rounded-[8px] border border-[#DDDDDD] bg-[#F8F8F8] px-3.5 py-2 text-[14px] text-[#1D1C1D] placeholder-[#616061] focus:border-[#36C5F0] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#36C5F0] transition-all"
             />
           </div>
 
           {/* Footer Actions */}
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-100 dark:border-gray-800">
+          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#DDDDDD]">
             <button
               type="button"
               onClick={handleClose}
               disabled={isSubmitting}
-              className="px-4 py-2 text-xs font-medium rounded-full border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              className="px-3.5 py-1.5 text-[13px] font-medium rounded-[8px] border border-[#DDDDDD] text-[#1D1C1D] hover:bg-[#F8F8F8] transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting || !name.trim()}
-              className="px-4 py-2 text-xs font-medium rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-1.5 text-[13px] font-bold rounded-[8px] bg-[#007A5A] hover:bg-[#00664B] text-white shadow-[0_1px_2px_rgba(0,0,0,0.1)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? "Creating..." : "Create Folder"}
             </button>

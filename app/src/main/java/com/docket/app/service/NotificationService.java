@@ -1,5 +1,6 @@
 package com.docket.app.service;
 
+import com.docket.app.config.DocketPlatformProperties;
 import com.docket.app.dto.NotificationDTO;
 import com.docket.app.dto.NotificationPreferencesDTO;
 import com.docket.app.entity.Notification;
@@ -40,13 +41,12 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class NotificationService {
-    private static final int DIGEST_LINES = 10;
-
     private final NotificationRepository notificationRepository;
     private final NotificationPreferenceRepository preferenceRepository;
     private final TenantMembershipRepository membershipRepository;
     private final UserRepository userRepository;
     private final EmailOutboxService emailOutboxService;
+    private final DocketPlatformProperties platformProperties;
 
     @Value("${docket.app.base-url}")
     private String baseUrl;
@@ -153,10 +153,10 @@ public class NotificationService {
         if (pending.isEmpty()) {
             return;
         }
-        List<String> lines = pending.stream().limit(DIGEST_LINES).map(Notification::getTitle).toList();
+        List<String> lines = pending.stream().limit(platformProperties.getNotification().getDigestLines()).map(Notification::getTitle).toList();
         String message = String.join("; ", lines);
-        if (pending.size() > DIGEST_LINES) {
-            message += "; and " + (pending.size() - DIGEST_LINES) + " more";
+        if (pending.size() > platformProperties.getNotification().getDigestLines()) {
+            message += "; and " + (pending.size() - platformProperties.getNotification().getDigestLines()) + " more";
         }
         sendEmail(userId, EmailTemplate.NOTIFICATION, pending.size() + " new notifications from Docket",
                 Map.of("message", message + ".", "link", absolute("/tenants")));

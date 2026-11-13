@@ -1,5 +1,6 @@
 package com.docket.app.service;
 
+import com.docket.app.config.DocketBulkProperties;
 import com.docket.app.dto.BulkInviteRequestDTO;
 import com.docket.app.dto.BulkInviteResultDTO;
 import com.docket.app.dto.BulkInviteRowDTO;
@@ -42,8 +43,6 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class BulkInviteService {
     private static final Logger log = LoggerFactory.getLogger(BulkInviteService.class);
-    static final int MAX_ROWS = 200;
-    private static final int MAX_CSV_LENGTH = 100_000;
     private static final Pattern EMAIL = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
 
     private final TenantRepository tenantRepository;
@@ -54,18 +53,19 @@ public class BulkInviteService {
     private final InvitationService invitationService;
     private final AuthRateLimiter authRateLimiter;
     private final AuditService auditService;
+    private final DocketBulkProperties bulkProperties;
 
     public List<BulkInviteRowDTO> preview(String slug, String csv, Authentication authentication) {
         Tenant tenant = requireInviter(slug, authentication);
         if (csv == null || csv.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The file is empty");
         }
-        if (csv.length() > MAX_CSV_LENGTH) {
+        if (csv.length() > bulkProperties.getMaxCsvLength()) {
             throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE, "The file is too large");
         }
         List<BulkInviteRequestDTO.Row> rows = parse(csv);
-        if (rows.size() > MAX_ROWS) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "At most " + MAX_ROWS + " people can be invited at once");
+        if (rows.size() > bulkProperties.getMaxRows()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "At most " + bulkProperties.getMaxRows() + " people can be invited at once");
         }
         return check(tenant, rows, authentication);
     }
@@ -74,7 +74,7 @@ public class BulkInviteService {
     // doesn't undo the ones before it. The emails go out through the outbox afterwards.
     public BulkInviteResultDTO send(String slug, BulkInviteRequestDTO request, Authentication authentication) {
         Tenant tenant = requireInviter(slug, authentication);
-        authRateLimiter.check("invite-bulk:tenant:" + tenant.getId(), 5, Duration.ofHours(1));
+        authRateLimiter.check("invite-bulk:tenant:" + tenant.getId(), bulkProperties.getInviteLimitPerHour(), bulkProperties.getInviteRateLimitWindow());
         User inviter = userRepository.findByEmailIgnoreCase(authentication.getName())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
 

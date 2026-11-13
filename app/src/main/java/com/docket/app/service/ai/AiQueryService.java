@@ -1,5 +1,6 @@
 package com.docket.app.service.ai;
 
+import com.docket.app.config.DocketAiProperties;
 import com.docket.app.dto.AiQueryResponseDTO;
 import com.docket.app.dto.AiSourceChunkDTO;
 import com.docket.app.enums.AiQueryMode;
@@ -36,11 +37,6 @@ import java.util.regex.Pattern;
 public class AiQueryService {
 
     private static final Logger log = LoggerFactory.getLogger(AiQueryService.class);
-    private static final int TOP_K_SPECIFIC = 5;
-    private static final int TOP_K_BROAD = 200;
-    private static final int SUMMARY_MAP_GROUP_SIZE = 10;
-    private static final int MAX_CHUNKS_PER_DOCUMENT = 3;
-    private static final int MAX_SUMMARY_SOURCES = 3;
     private static final String NOTHING_INDEXED =
             "No indexed documents found. Please upload and wait for documents to finish processing.";
     private static final Pattern WORD = Pattern.compile("[\\p{L}\\p{N}]+");
@@ -69,6 +65,19 @@ public class AiQueryService {
 
     private final DocumentRepository documentRepository;
     private final FolderAccessService folderAccessService;
+    private final DocketAiProperties aiProperties;
+
+    public AiQueryService(
+            EmbeddingService embeddingService,
+            HybridRetriever hybridRetriever,
+            RerankService rerankService,
+            GeminiClient geminiClient,
+            ObjectMapper objectMapper,
+            DocumentRepository documentRepository,
+            FolderAccessService folderAccessService) {
+        this(embeddingService, hybridRetriever, rerankService, geminiClient, objectMapper,
+                documentRepository, folderAccessService, new DocketAiProperties());
+    }
 
     @org.springframework.beans.factory.annotation.Value("${docket.ai.gemini.model}")
     private String geminiModel;
@@ -174,7 +183,7 @@ public class AiQueryService {
 
         if (documentId != null && isBroadQuery) {
             Timer.Sample retrievalTimer = Timer.start(Metrics.globalRegistry);
-            List<RetrievedChunk> chunks = hybridRetriever.firstChunks(tenantId, documentId, includeRestricted, TOP_K_BROAD);
+            List<RetrievedChunk> chunks = hybridRetriever.firstChunks(tenantId, documentId, includeRestricted, aiProperties.getQuery().getTopKBroad());
             retrievalTimer.stop(Metrics.timer("docket.ai.retrieval.latency"));
             return new Retrieval(chunks, NOTHING_INDEXED);
         }
@@ -197,7 +206,7 @@ public class AiQueryService {
         List<RetrievedChunk> relevant = dropIrrelevant(rerankService.rerank(searchQuery, candidates));
         Metrics.summary("docket.ai.retrieval.after_threshold").record(relevant.size());
         List<RetrievedChunk> chunks = relevant.stream()
-                .limit(isBroadQuery ? TOP_K_BROAD : TOP_K_SPECIFIC)
+                .limit(isBroadQuery ? aiProperties.getQuery().getTopKBroad() : aiProperties.getQuery().getTopKSpecific())
                 .toList();
 
         if (documentId != null) {
@@ -207,8 +216,8 @@ public class AiQueryService {
         // A question about the whole workspace ("which documents talk about X?") may match
         // what a document is about without matching any one passage in it.
         List<RetrievedChunk> summaries = hybridRetriever.summaries(
-                tenantId, queryEmbedding, includeRestricted, scope, maxDistance, MAX_SUMMARY_SOURCES * 2);
-        return new Retrieval(addSummaries(diversifyAndMerge(chunks), summaries), NOTHING_RELEVANT);
+                tenantId, queryEmbedding, includeRestricted, scope, maxDistance, aiProperties.getQuery().getMaxSummarySources() * 2);
+        return new Retrieval(addSummaries(diversifyAndMerge(chunks, aiProperties.getQuery().getMaxChunksPerDocument()), summaries, aiProperties.getQuery().getMaxSummarySources()), NOTHING_RELEVANT);
     }
 
     // Narrowing a search to a tray or folder the person can't open must look the same as
@@ -223,13 +232,17 @@ public class AiQueryService {
 
     // Only for documents that no chunk already speaks for, and only a few
     static List<RetrievedChunk> addSummaries(List<RetrievedChunk> chunks, List<RetrievedChunk> summaries) {
+        return addSummaries(chunks, summaries, DocketAiProperties.Query.DEFAULT_MAX_SUMMARY_SOURCES);
+    }
+
+    static List<RetrievedChunk> addSummaries(List<RetrievedChunk> chunks, List<RetrievedChunk> summaries, int maxSummarySources) {
         Set<UUID> covered = new HashSet<>();
         chunks.forEach(chunk -> covered.add(chunk.documentId()));
 
         List<RetrievedChunk> combined = new ArrayList<>(chunks);
         summaries.stream()
                 .filter(summary -> covered.add(summary.documentId()))
-                .limit(MAX_SUMMARY_SOURCES)
+                .limit(maxSummarySources)
                 .forEach(combined::add);
         return List.copyOf(combined);
     }
@@ -262,6 +275,10 @@ public class AiQueryService {
     }
 
     static List<RetrievedChunk> diversifyAndMerge(List<RetrievedChunk> candidates) {
+        return diversifyAndMerge(candidates, DocketAiProperties.Query.DEFAULT_MAX_CHUNKS_PER_DOCUMENT);
+    }
+
+    static List<RetrievedChunk> diversifyAndMerge(List<RetrievedChunk> candidates, int maxChunksPerDocument) {
         List<RetrievedChunk> diverse = new ArrayList<>();
         java.util.Map<UUID, Integer> documentCounts = new java.util.HashMap<>();
 
@@ -283,7 +300,7 @@ public class AiQueryService {
             }
 
             int count = documentCounts.getOrDefault(candidate.documentId(), 0);
-            if (count >= MAX_CHUNKS_PER_DOCUMENT) {
+            if (count >= maxChunksPerDocument) {
                 continue;
             }
             diverse.add(candidate);
@@ -388,7 +405,7 @@ public class AiQueryService {
                                                        List<ConversationTurn> history, AiQueryMode mode,
                                                        AiStreamListener listener) {
         try {
-            String context = mode == AiQueryMode.SUMMARIZE && chunks.size() > TOP_K_SPECIFIC
+            String context = mode == AiQueryMode.SUMMARIZE && chunks.size() > aiProperties.getQuery().getTopKSpecific()
                     ? mapReduceSummary(question, chunks)
                     : buildContext(chunks);
             String systemPrompt = """
@@ -464,8 +481,9 @@ public class AiQueryService {
                 .setMaxOutputTokens(1024)
                 .build();
 
-        for (int start = 0; start < chunks.size(); start += SUMMARY_MAP_GROUP_SIZE) {
-            int end = Math.min(start + SUMMARY_MAP_GROUP_SIZE, chunks.size());
+        int groupSize = aiProperties.getQuery().getSummaryMapGroupSize();
+        for (int start = 0; start < chunks.size(); start += groupSize) {
+            int end = Math.min(start + groupSize, chunks.size());
             String prompt = """
                     Summarize the following document excerpts as concise facts relevant to the user's request.
                     Preserve the original [Source N] markers exactly for every fact, and do not invent facts.

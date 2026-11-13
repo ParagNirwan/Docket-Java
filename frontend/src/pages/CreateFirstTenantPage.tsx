@@ -101,38 +101,38 @@ export function CreateFirstTenantPage() {
   }
 
   return (
-    <div className="flex min-h-[calc(100svh-4rem)] flex-1 items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
+    <div className="flex min-h-[calc(100svh-4rem)] flex-1 items-center justify-center px-4 py-10 sm:px-6 lg:px-8 bg-white">
       <div className="w-full max-w-lg">
         {/* Card */}
-        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white p-7 shadow-xs dark:border-gray-800 dark:bg-gray-900 sm:p-9">
+        <div className="overflow-hidden rounded-[8px] border border-[#DDDDDD] bg-white p-7 shadow-[0_4px_12px_rgba(0,0,0,0.1)] sm:p-9">
           {/* Header */}
-          <div className="text-center mb-7">
-            <div className="mx-auto mb-3.5 flex h-13 w-13 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
-              <Building2 className="h-7 w-7" strokeWidth={1.8} />
+          <div className="text-center mb-6">
+            <div className="mx-auto mb-3.5 flex h-11 w-11 items-center justify-center rounded-[8px] border border-[#DDDDDD] bg-[#F8F8F8] text-[#1D1C1D] shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+              <Building2 className="h-6 w-6" strokeWidth={1.8} />
             </div>
-            <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
+            <h1 className="text-[22px] font-bold tracking-tight text-[#1D1C1D] leading-tight">
               Create your organization
             </h1>
-            <p className="mt-1.5 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+            <p className="mt-1 text-[13px] text-[#616061]">
               Set up your workspace to manage documents, default trays, and team permissions
             </p>
           </div>
 
           {/* API Error Alert */}
           {apiError && (
-            <div className="mb-6 rounded-xl border border-red-200 bg-red-50/60 p-3.5 text-xs text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-400">
+            <div className="mb-5 rounded-[4px] border border-[#E01E5A]/30 bg-[#E01E5A]/10 p-3.5 text-[12px] font-medium text-[#E01E5A]">
               {apiError.message || "An error occurred while creating your organization."}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-4">
             {/* Organization Name */}
             <div>
               <label
                 htmlFor="org-name"
-                className="block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1.5"
+                className="block text-[11px] font-bold uppercase tracking-wider text-[#616061] mb-1.5"
               >
-                Organization / Tenant Name <span className="text-red-500">*</span>
+                Organization / Tenant Name <span className="text-[#E01E5A]">*</span>
               </label>
               <div className="relative">
                 <input
@@ -142,17 +142,17 @@ export function CreateFirstTenantPage() {
                   placeholder="e.g. Acme Corporation, Morrison Legal"
                   value={tenantName}
                   onChange={handleNameChange}
-                  className={`w-full rounded-xl border bg-gray-50/50 px-3.5 py-2.5 pl-10 text-sm text-gray-900 placeholder-gray-400 transition-all focus:bg-white focus:outline-none focus:ring-1 dark:bg-gray-800/50 dark:text-white dark:placeholder-gray-500 dark:focus:bg-gray-900 ${
+                  className={`w-full rounded-[8px] border bg-[#F8F8F8] px-3.5 py-2 pl-10 text-[14px] text-[#1D1C1D] placeholder-[#616061] transition-all focus:bg-white focus:outline-none focus:ring-1 ${
                     fieldErrors.tenantName
-                      ? "border-red-500 focus:border-red-500 focus:ring-red-500 dark:border-red-500"
-                      : "border-gray-200 focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-700"
+                      ? "border-[#E01E5A] focus:border-[#E01E5A] focus:ring-[#E01E5A]"
+                      : "border-[#DDDDDD] focus:border-[#36C5F0] focus:ring-[#36C5F0]"
                   }`}
                   autoFocus
                 />
-                <Building2 className="pointer-events-none absolute left-3.5 top-3 h-4 w-4 text-gray-400 dark:text-gray-500" />
+                <Building2 className="pointer-events-none absolute left-3.5 top-2.5 h-4 w-4 text-[#616061]" />
               </div>
               {fieldErrors.tenantName && (
-                <p className="text-xs text-red-600 dark:text-red-400 mt-1 font-medium">
+                <p className="text-[12px] text-[#E01E5A] mt-1 font-medium">
                   {fieldErrors.tenantName}
                 </p>
               )}
@@ -163,16 +163,16 @@ export function CreateFirstTenantPage() {
               <div className="flex items-center justify-between mb-1.5">
                 <label
                   htmlFor="org-slug"
-                  className="block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300"
+                  className="block text-[11px] font-bold uppercase tracking-wider text-[#616061]"
                 >
-                  Workspace URL Slug <span className="text-red-500">*</span>
+                  Workspace URL Slug <span className="text-[#E01E5A]">*</span>
                 </label>
-                <span className="text-[11px] text-gray-400 dark:text-gray-500">
+                <span className="text-[11px] text-[#616061]">
                   Unique identifier
                 </span>
               </div>
               <div className="relative flex items-center">
-                <div className="pointer-events-none absolute left-3.5 top-3 flex items-center gap-1.5 text-gray-400 dark:text-gray-500">
+                <div className="pointer-events-none absolute left-3.5 top-2.5 flex items-center gap-1.5 text-[#616061]">
                   <Globe className="h-4 w-4" />
                 </div>
                 <input
@@ -182,25 +182,25 @@ export function CreateFirstTenantPage() {
                   placeholder="acme-corp"
                   value={tenantSlug}
                   onChange={handleSlugChange}
-                  className={`w-full rounded-xl border bg-gray-50/50 px-3.5 py-2.5 pl-10 text-sm text-gray-900 placeholder-gray-400 transition-all focus:bg-white focus:outline-none focus:ring-1 dark:bg-gray-800/50 dark:text-white dark:placeholder-gray-500 dark:focus:bg-gray-900 ${
+                  className={`w-full rounded-[8px] border bg-[#F8F8F8] px-3.5 py-2 pl-10 text-[14px] text-[#1D1C1D] placeholder-[#616061] transition-all focus:bg-white focus:outline-none focus:ring-1 ${
                     fieldErrors.tenantSlug
-                      ? "border-red-500 focus:border-red-500 focus:ring-red-500 dark:border-red-500"
-                      : "border-gray-200 focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-700"
+                      ? "border-[#E01E5A] focus:border-[#E01E5A] focus:ring-[#E01E5A]"
+                      : "border-[#DDDDDD] focus:border-[#36C5F0] focus:ring-[#36C5F0]"
                   }`}
                 />
               </div>
 
               {/* URL Preview */}
-              <div className="mt-2 flex items-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400">
-                <Sparkles className="h-3 w-3 text-indigo-500" />
+              <div className="mt-2 flex items-center gap-1.5 text-[11px] text-[#616061]">
+                <Sparkles className="h-3 w-3 text-[#ECB22E]" />
                 <span>Workspace URL:</span>
-                <code className="rounded-md bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 font-mono text-[11px] text-indigo-600 dark:text-indigo-400">
+                <code className="rounded-[4px] bg-[#F8F8F8] border border-[#DDDDDD] px-1.5 py-0.5 font-mono text-[11px] text-[#1164A3]">
                   /workspace/{tenantSlug || "your-slug"}
                 </code>
               </div>
 
               {fieldErrors.tenantSlug && (
-                <p className="text-xs text-red-600 dark:text-red-400 mt-1 font-medium">
+                <p className="text-[12px] text-[#E01E5A] mt-1 font-medium">
                   {fieldErrors.tenantSlug}
                 </p>
               )}
@@ -210,7 +210,7 @@ export function CreateFirstTenantPage() {
             <button
               type="submit"
               disabled={loading || !tenantName.trim() || !tenantSlug.trim()}
-              className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:focus:ring-offset-gray-900"
+              className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-[8px] bg-[#007A5A] px-4 py-2 text-[14px] font-bold text-white shadow-[0_1px_2px_rgba(0,0,0,0.1)] transition-colors hover:bg-[#00664B] focus:outline-none focus:ring-2 focus:ring-[#36C5F0] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <span>{loading ? "Creating organization..." : "Create Organization"}</span>
               <ArrowRight className="h-4 w-4" />
@@ -218,11 +218,11 @@ export function CreateFirstTenantPage() {
           </form>
 
           {/* Footer Navigation */}
-          <div className="mt-6 border-t border-gray-100 pt-5 text-center text-xs text-gray-500 dark:border-gray-800 dark:text-gray-400">
+          <div className="mt-6 border-t border-[#DDDDDD] pt-4 text-center text-[12px] text-[#616061]">
             Part of someone else’s organization?{" "}
             <Link
               to="/tenants"
-              className="inline-flex items-center gap-1 font-semibold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors"
+              className="inline-flex items-center gap-1 font-semibold text-[#1164A3] hover:underline transition-colors"
             >
               <Mail className="h-3.5 w-3.5" />
               <span>View all workspaces & invites</span>

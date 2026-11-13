@@ -55,7 +55,7 @@ export function ResetPasswordPage() {
       {token && (
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="reset-password" className="block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1.5">New Password</label>
+            <label htmlFor="reset-password" className="block text-[11px] font-bold uppercase tracking-wider text-[#616061] mb-1.5">New Password</label>
             <input
               id="reset-password"
               type="password"
@@ -63,12 +63,12 @@ export function ResetPasswordPage() {
               autoComplete="new-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-xl border border-gray-200 bg-gray-50/50 px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400 transition-all focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-800/50 dark:text-white dark:placeholder-gray-500 dark:focus:bg-gray-900"
+              className="w-full rounded-[8px] border border-[#DDDDDD] bg-[#F8F8F8] px-3.5 py-2 text-[14px] text-[#1D1C1D] placeholder-[#616061] transition-all focus:border-[#36C5F0] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#36C5F0]"
             />
-            <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">At least 8 characters, with a letter and a number.</p>
+            <p className="mt-1 text-[12px] text-[#616061]">At least 8 characters, with a letter and a number.</p>
           </div>
           <div>
-            <label htmlFor="reset-confirm" className="block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1.5">Confirm Password</label>
+            <label htmlFor="reset-confirm" className="block text-[11px] font-bold uppercase tracking-wider text-[#616061] mb-1.5">Confirm Password</label>
             <input
               id="reset-confirm"
               type="password"
@@ -76,16 +76,16 @@ export function ResetPasswordPage() {
               autoComplete="new-password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full rounded-xl border border-gray-200 bg-gray-50/50 px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400 transition-all focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-800/50 dark:text-white dark:placeholder-gray-500 dark:focus:bg-gray-900"
+              className="w-full rounded-[8px] border border-[#DDDDDD] bg-[#F8F8F8] px-3.5 py-2 text-[14px] text-[#1D1C1D] placeholder-[#616061] transition-all focus:border-[#36C5F0] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#36C5F0]"
             />
           </div>
-          <button type="submit" disabled={loading} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:focus:ring-offset-gray-900">
+          <button type="submit" disabled={loading} className="inline-flex w-full items-center justify-center gap-2 rounded-[8px] bg-[#007A5A] px-4 py-2 text-[14px] font-bold text-white shadow-[0_1px_2px_rgba(0,0,0,0.1)] transition-colors hover:bg-[#00664B] focus:outline-none focus:ring-2 focus:ring-[#36C5F0] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
             {loading ? "Saving..." : "Change password"}
           </button>
         </form>
       )}
-      <div className="mt-6 border-t border-gray-100 pt-5 text-center text-xs text-gray-500 dark:border-gray-800 dark:text-gray-400">
-        <Link to="/forgot-password" className="font-semibold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors">Request a new link</Link>
+      <div className="mt-6 border-t border-[#DDDDDD] pt-4 text-center text-[12px] text-[#616061]">
+        <Link to="/forgot-password" className="font-semibold text-[#1164A3] hover:underline transition-colors">Request a new link</Link>
       </div>
     </AuthCard>
   );

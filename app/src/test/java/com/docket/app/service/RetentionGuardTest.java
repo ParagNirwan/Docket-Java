@@ -1,5 +1,6 @@
 package com.docket.app.service;
 
+import com.docket.app.config.DocketPlatformProperties;
 import com.docket.app.entity.Document;
 import com.docket.app.enums.AuditAction;
 import com.docket.app.enums.LockMode;
@@ -11,6 +12,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -44,6 +46,9 @@ class RetentionGuardTest {
 
     @Mock
     private AuditService auditService;
+
+    @Spy
+    private DocketPlatformProperties platformProperties = new DocketPlatformProperties();
 
     @InjectMocks
     private RetentionGuard guard;

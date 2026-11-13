@@ -1,5 +1,6 @@
 package com.docket.app.service.email;
 
+import com.docket.app.config.DocketPlatformProperties;
 import com.docket.app.entity.EmailOutbox;
 import com.docket.app.enums.EmailStatus;
 import com.docket.app.repository.EmailOutboxRepository;
@@ -7,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Duration;
@@ -27,6 +29,9 @@ class EmailDispatcherTest {
 
     @Mock
     private EmailService emailService;
+
+    @Spy
+    private DocketPlatformProperties platformProperties = new DocketPlatformProperties();
 
     @InjectMocks
     private EmailDispatcher dispatcher;

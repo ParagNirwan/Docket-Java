@@ -1,5 +1,6 @@
 package com.docket.app.service;
 
+import com.docket.app.config.DocketPlatformProperties;
 import com.docket.app.dto.DocumentResponseDTO;
 import com.docket.app.dto.LegalHoldDTO;
 import com.docket.app.dto.LegalHoldRequestDTO;
@@ -38,8 +39,6 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class LegalHoldService {
-    private static final int SEARCH_PAGE_SIZE = 200;
-    private static final int MAX_SEARCH_DOCUMENTS = 10_000;
 
     private final LegalHoldRepository legalHoldRepository;
     private final TenantRepository tenantRepository;
@@ -50,6 +49,7 @@ public class LegalHoldService {
     private final NotificationService notificationService;
     private final AuditService auditService;
     private final JdbcTemplate jdbcTemplate;
+    private final DocketPlatformProperties platformProperties;
 
     public List<LegalHoldDTO> list(String slug, Authentication authentication) {
         Tenant tenant = findTenant(slug);
@@ -160,13 +160,15 @@ public class LegalHoldService {
     private List<UUID> searchMatches(UUID tenantId, String query) {
         DocumentSearchRepository.Criteria criteria =
                 new DocumentSearchRepository.Criteria(tenantId, query, true, null, null, null, null, null);
-        Page<SearchResultDTO> first = documentSearchRepository.search(criteria, 0, SEARCH_PAGE_SIZE);
-        if (first.getTotalElements() > MAX_SEARCH_DOCUMENTS) {
+        int pageSize = platformProperties.getLegalHold().getSearchPageSize();
+        int maxDocs = platformProperties.getLegalHold().getMaxSearchDocuments();
+        Page<SearchResultDTO> first = documentSearchRepository.search(criteria, 0, pageSize);
+        if (first.getTotalElements() > maxDocs) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "That search matches too many documents. Narrow it down");
         }
         List<UUID> ids = new ArrayList<>(first.map(SearchResultDTO::documentId).getContent());
         for (int page = 1; page < first.getTotalPages(); page++) {
-            documentSearchRepository.search(criteria, page, SEARCH_PAGE_SIZE).forEach(result -> ids.add(result.documentId()));
+            documentSearchRepository.search(criteria, page, pageSize).forEach(result -> ids.add(result.documentId()));
         }
         return ids;
     }

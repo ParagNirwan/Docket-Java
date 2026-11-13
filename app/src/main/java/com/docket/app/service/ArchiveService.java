@@ -1,5 +1,6 @@
 package com.docket.app.service;
 
+import com.docket.app.config.DocketPlatformProperties;
 import com.docket.app.dto.ArchivePreviewDTO;
 import com.docket.app.dto.DocumentResponseDTO;
 import com.docket.app.entity.Document;
@@ -27,7 +28,6 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class ArchiveService {
-    private static final int MAX_BULK = 100;
 
     private final DocumentRepository documentRepository;
     private final FolderRepository folderRepository;
@@ -38,6 +38,7 @@ public class ArchiveService {
     private final RetentionService retentionService;
     private final DocumentService documentService;
     private final AuditService auditService;
+    private final DocketPlatformProperties platformProperties;
 
     // What archiving would do, for the confirmation. Works on a stand-in, so nothing is saved.
     public ArchivePreviewDTO preview(String slug, UUID docId, UUID folderId, Authentication authentication) {
@@ -65,8 +66,8 @@ public class ArchiveService {
     // All or nothing: one locked document stops the batch, and the error says why.
     @Transactional
     public List<DocumentResponseDTO> archiveAll(String slug, List<UUID> docIds, UUID folderId, Authentication authentication) {
-        if (docIds.size() > MAX_BULK) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Up to 100 documents can be archived at once");
+        if (docIds.size() > platformProperties.getArchive().getMaxBulk()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Up to " + platformProperties.getArchive().getMaxBulk() + " documents can be archived at once");
         }
         Tenant tenant = findTenant(slug);
         tenantAuthorizationService.requirePermission(authentication, tenant.getId(), Permission.DOCUMENTS_UPDATE);

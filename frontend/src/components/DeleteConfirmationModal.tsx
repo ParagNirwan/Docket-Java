@@ -82,14 +82,14 @@ export function DeleteConfirmationModal({
       />
 
       {/* Modal Card */}
-      <div className="relative w-full max-w-md bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-2xl z-10 overflow-hidden flex flex-col">
+      <div className="relative w-full max-w-md bg-white border border-[#DDDDDD] rounded-[8px] shadow-[0_8px_30px_rgba(0,0,0,0.2)] z-10 overflow-hidden flex flex-col">
         {/* Close button */}
         <div className="absolute right-4 top-4">
           <button
             type="button"
             onClick={handleClose}
             disabled={isDeleting}
-            className="p-1.5 rounded-full text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors disabled:opacity-50"
+            className="p-1.5 rounded-[8px] text-[#616061] hover:text-[#1D1C1D] hover:bg-[#F8F8F8] transition-colors disabled:opacity-50"
             aria-label="Close dialog"
           >
             <X className="w-5 h-5" />
@@ -99,23 +99,23 @@ export function DeleteConfirmationModal({
         {/* Modal Content */}
         <div className="p-6 sm:p-7 text-center">
           {/* Warning Icon Badge */}
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 text-red-600 dark:bg-red-950/60 dark:text-red-400">
-            <AlertTriangle className="h-7 w-7" strokeWidth={1.8} />
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-[8px] bg-[#E01E5A]/10 text-[#E01E5A]">
+            <AlertTriangle className="h-6 w-6" strokeWidth={1.8} />
           </div>
 
           <h2
             id="delete-confirm-title"
-            className="text-lg font-bold text-gray-900 dark:text-white"
+            className="text-[18px] font-bold text-[#1D1C1D]"
           >
             {defaultTitle}
           </h2>
 
-          <p className="mt-2 text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+          <p className="mt-1.5 text-[13px] text-[#616061] leading-relaxed">
             {defaultDesc}
           </p>
 
           {error && (
-            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-600 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-400">
+            <div className="mt-4 rounded-[4px] border border-[#E01E5A]/30 bg-[#E01E5A]/10 p-3 text-[12px] font-medium text-[#E01E5A]">
               {error}
             </div>
           )}
@@ -126,7 +126,7 @@ export function DeleteConfirmationModal({
               type="button"
               onClick={handleClose}
               disabled={isDeleting}
-              className="inline-flex w-full sm:w-auto items-center justify-center rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-2.5 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors disabled:opacity-50"
+              className="inline-flex w-full sm:w-auto items-center justify-center rounded-[8px] border border-[#DDDDDD] bg-white px-3.5 py-1.5 text-[13px] font-medium text-[#1D1C1D] hover:bg-[#F8F8F8] transition-colors disabled:opacity-50"
             >
               Cancel
             </button>
@@ -134,7 +134,7 @@ export function DeleteConfirmationModal({
               type="button"
               onClick={handleConfirm}
               disabled={isDeleting}
-              className="inline-flex w-full sm:w-auto items-center justify-center gap-1.5 rounded-xl bg-red-600 px-4 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 transition-colors disabled:opacity-50"
+              className="inline-flex w-full sm:w-auto items-center justify-center gap-1.5 rounded-[8px] bg-[#E01E5A] px-4 py-1.5 text-[13px] font-bold text-white shadow-[0_1px_2px_rgba(0,0,0,0.1)] hover:bg-[#c0184b] focus:outline-none focus:ring-2 focus:ring-[#E01E5A] focus:ring-offset-2 transition-colors disabled:opacity-50"
             >
               <Trash2 className="h-4 w-4" />
               <span>{isDeleting ? "Working..." : confirmLabel || `Delete ${typeLabel}`}</span>

@@ -76,22 +76,22 @@ export function TraysOverview({
   return (
     <div className="space-y-6">
       {/* ── Top Header Card ──────────────────────────────────── */}
-      <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-xs dark:border-gray-800 dark:bg-gray-900">
+      <section className="overflow-hidden rounded-[8px] border border-[#DDDDDD] bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
-              <Layers className="h-6 w-6" />
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[8px] bg-[#4A154B] text-white">
+              <Layers className="h-5 w-5" />
             </div>
             <div>
               <div className="flex items-center gap-2.5">
-                <h1 className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">
+                <h1 className="text-[20px] font-bold tracking-tight text-[#1D1C1D]">
                   Document Trays
                 </h1>
-                <span className="rounded-full bg-indigo-50 dark:bg-indigo-950/50 px-2 py-0.5 text-[10px] font-semibold text-indigo-600 dark:text-indigo-300">
+                <span className="rounded-[4px] border border-[#DDDDDD] bg-[#F8F8F8] px-2 py-0.5 text-[11px] font-bold text-[#616061]">
                   {trays.length} {trays.length === 1 ? "tray" : "trays"}
                 </span>
               </div>
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              <p className="mt-1 text-[13px] text-[#616061]">
                 Top-level organizational containers with independent visibility controls.
               </p>
             </div>
@@ -101,7 +101,7 @@ export function TraysOverview({
             <button
               type="button"
               onClick={onCreateTrayClick}
-              className="inline-flex items-center gap-2 rounded-full bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-indigo-700 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 self-start sm:self-auto"
+              className="inline-flex items-center gap-2 rounded-[8px] bg-[#007A5A] px-3.5 py-1.5 text-[13px] font-bold text-white shadow-[0_1px_2px_rgba(0,0,0,0.1)] hover:bg-[#00664B] transition-colors focus:outline-none focus:ring-2 focus:ring-[#36C5F0] focus:ring-offset-2 self-start sm:self-auto"
             >
               <Plus className="h-4 w-4" />
               <span>Create Tray</span>
@@ -112,14 +112,14 @@ export function TraysOverview({
         {/* ── Search & View Mode Switcher Row ────────────────── */}
         <div className="mt-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           {/* Search bar */}
-          <div className="flex-1 flex items-center gap-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-800/40 px-3 py-2 text-xs text-gray-500 dark:text-gray-400">
-            <Search className="h-4 w-4 text-gray-400 shrink-0" />
+          <div className="flex-1 flex items-center gap-2 rounded-[8px] border border-[#DDDDDD] bg-[#F8F8F8] px-3 py-1.5 text-[13px] text-[#1D1C1D]">
+            <Search className="h-4 w-4 text-[#616061] shrink-0" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search trays..."
-              className="w-full bg-transparent border-none outline-none text-xs text-gray-900 dark:text-white placeholder-gray-400"
+              className="w-full bg-transparent border-none outline-none text-[13px] text-[#1D1C1D] placeholder-[#616061]"
             />
             {searchQuery && (
               <button

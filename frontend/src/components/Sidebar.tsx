@@ -44,17 +44,18 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
     <aside 
       className={`
         fixed left-0 top-0 h-full z-50 transition-all duration-150 ease-in-out
-        border-r border-[var(--color-line)] bg-[var(--color-paper)]
+        border-r border-[#3F1041] bg-[#4A154B] text-white shadow-xl
         ${isOpen ? "w-64" : "w-0 -translate-x-full"}
       `}
+      aria-label="Sidebar navigation"
     >
       <div className={`h-full flex flex-col ${!isOpen && "invisible"}`}>
         {/* Sidebar Header */}
-        <div className="h-16 flex items-center justify-between px-4 border-b border-[var(--color-line)]">
-          <span className="heading font-semibold text-[var(--color-ink)] text-lg">Registry</span>
+        <div className="h-16 flex items-center justify-between px-4 border-b border-[#3F1041]">
+          <span className="font-bold text-white text-lg tracking-tight">Registry</span>
           <button 
             onClick={() => setIsOpen(false)}
-            className="p-1.5 rounded-full hover:bg-[var(--color-line)] text-[var(--color-muted)] transition-colors"
+            className="p-1.5 rounded-lg hover:bg-white/10 text-[#D1D2D3] hover:text-white transition-colors"
             aria-label="Close sidebar"
           >
             <CloseIcon className="w-5 h-5" />
@@ -62,26 +63,32 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
         </div>
 
         {/* Sidebar Content */}
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto p-3">
           {options.length > 0 ? (
             <nav className="space-y-1">
-              {options.map((item) => (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`
-                    block px-4 py-2.5 rounded-lg text-sm font-medium transition-colors
-                    ${location.pathname === item.path
-                      ? "bg-[var(--color-line)] text-[var(--color-ink)] font-semibold"
-                      : "text-[var(--color-muted)] hover:bg-[var(--color-line)] hover:text-[var(--color-ink)]"}
-                  `}
-                >
-                  {item.label}
-                </Link>
-              ))}
+              <div className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-[#D1D2D3]/70">
+                Navigation
+              </div>
+              {options.map((item) => {
+                const isActive = location.pathname === item.path;
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={`
+                      block px-3 py-2 rounded-[12px] text-sm font-medium transition-colors
+                      ${isActive
+                        ? "bg-[#1164A3] text-white font-bold"
+                        : "text-[#D1D2D3] hover:bg-white/10 hover:text-white"}
+                    `}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
             </nav>
           ) : (
-            <div className="text-sm text-[var(--color-muted)] italic px-3">
+            <div className="text-xs text-[#D1D2D3] italic px-3 py-2">
               No registry options available for this section.
             </div>
           )}

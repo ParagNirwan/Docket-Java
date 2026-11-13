@@ -1,5 +1,6 @@
 package com.docket.app.service;
 
+import com.docket.app.config.DocketPlatformProperties;
 import com.docket.app.dto.LegalHoldRequestDTO;
 import com.docket.app.dto.LegalHoldTargetsDTO;
 import com.docket.app.dto.SearchResultDTO;
@@ -18,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
@@ -60,6 +62,8 @@ class LegalHoldServiceTest {
     @Mock private NotificationService notificationService;
     @Mock private AuditService auditService;
     @Mock private JdbcTemplate jdbcTemplate;
+
+    @Spy private DocketPlatformProperties platformProperties = new DocketPlatformProperties();
 
     @InjectMocks
     private LegalHoldService service;

@@ -193,6 +193,9 @@ export function FolderBrowser({
   // Loading state while we fetch folder contents
   const [loading, setLoading] = useState<boolean>(true);
 
+  // Error state for load failures
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   // Search bar text
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -309,16 +312,17 @@ export function FolderBrowser({
     async function loadContents() {
       try {
         setLoading(true);
+        setLoadError(null);
 
         const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(currentFolderId);
 
-        // Load sub-folders and breadcrumbs
+        // Load sub-folders and breadcrumbs in parallel
         const [childrenResult, breadcrumbsResult] = await Promise.all([
           getFolderChildren(slug, currentFolderId, token),
           getBreadcrumbs(slug, currentFolderId, token),
         ]);
 
-        // Load documents from the document API (if UUID)
+        // Load documents from the document API (UUID-only endpoint)
         let loadedDocuments: DocumentDTO[] = [];
         let totalCount = 0;
         let pagesCount = 1;
@@ -334,31 +338,6 @@ export function FolderBrowser({
           }
         }
 
-        // Fallback for mock/offline items
-        if (loadedDocuments.length === 0 && childrenResult.files && childrenResult.files.length > 0) {
-          const allMockDocs: DocumentDTO[] = childrenResult.files.map((f) => ({
-            id: f.id,
-            originalFileName: f.name,
-            contentType: f.detail?.toLowerCase().includes("pdf")
-              ? "application/pdf"
-              : f.detail?.toLowerCase().includes("doc")
-              ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-              : "application/octet-stream",
-            uploadedBy: "Admin",
-            uploadedByName: "Admin",
-            fileSize: f.size?.includes("MB")
-              ? Math.round(parseFloat(f.size) * 1024 * 1024)
-              : Math.round(parseFloat(f.size || "500") * 1024),
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          }));
-
-          totalCount = allMockDocs.length;
-          pagesCount = Math.max(1, Math.ceil(totalCount / pageSize));
-          const start = currentPage * pageSize;
-          loadedDocuments = allMockDocs.slice(start, start + pageSize);
-        }
-
         if (!isCancelled) {
           setFolders(childrenResult.folders);
           setDocuments(loadedDocuments);
@@ -367,7 +346,11 @@ export function FolderBrowser({
           setTotalPages(pagesCount);
         }
       } catch (err) {
-        console.error("Failed to load folder children", err);
+        if (!isCancelled) {
+          const message = err instanceof Error ? err.message : "Failed to load folder contents";
+          setLoadError(message);
+          console.error("Failed to load folder contents", err);
+        }
       } finally {
         if (!isCancelled) {
           setLoading(false);
@@ -994,6 +977,17 @@ export function FolderBrowser({
         <div className="flex min-h-[200px] items-center justify-center rounded-2xl border border-gray-200 bg-white p-8 text-sm text-gray-500 dark:border-gray-800 dark:bg-gray-900">
           <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600 mr-3" />
           Loading contents...
+        </div>
+      ) : loadError ? (
+        <div className="flex min-h-[200px] flex-col items-center justify-center rounded-2xl border border-red-200 bg-red-50 p-8 text-center dark:border-red-900/50 dark:bg-red-950/20">
+          <p className="text-sm font-medium text-red-700 dark:text-red-400">{loadError}</p>
+          <button
+            type="button"
+            onClick={() => setCurrentFolderId(currentFolderId)}
+            className="mt-3 rounded-lg bg-red-100 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-200 dark:bg-red-900/40 dark:text-red-300 dark:hover:bg-red-900/60"
+          >
+            Try again
+          </button>
         </div>
       ) : filteredFolders.length === 0 && filteredDocuments.length === 0 ? (
         <section className="flex min-h-[300px] flex-col items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-white p-8 text-center dark:border-gray-700 dark:bg-gray-900">

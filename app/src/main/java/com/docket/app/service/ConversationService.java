@@ -1,5 +1,6 @@
 package com.docket.app.service;
 
+import com.docket.app.config.DocketAiProperties;
 import com.docket.app.dto.*;
 import com.docket.app.entity.AiFeedback;
 import com.docket.app.entity.Conversation;
@@ -40,8 +41,6 @@ import java.util.regex.Pattern;
 public class ConversationService {
 
     private static final Logger log = LoggerFactory.getLogger(ConversationService.class);
-    private static final int HISTORY_MESSAGES = 6;
-    private static final int MAX_HISTORY_MESSAGE_LENGTH = 1000;
     private static final Pattern CITATION_MARKER = Pattern.compile("\\s*\\[\\d+]");
 
     private final ConversationRepository conversationRepository;
@@ -53,6 +52,22 @@ public class ConversationService {
     private final DocumentRepository documentRepository;
     private final TenantAuthorizationService tenantAuthorizationService;
     private final ObjectMapper objectMapper;
+    private final DocketAiProperties aiProperties;
+
+    public ConversationService(
+            ConversationRepository conversationRepository,
+            ConversationMessageRepository conversationMessageRepository,
+            AiFeedbackRepository aiFeedbackRepository,
+            AiQueryService aiQueryService,
+            QueryRewriteService queryRewriteService,
+            FolderAccessService folderAccessService,
+            DocumentRepository documentRepository,
+            TenantAuthorizationService tenantAuthorizationService,
+            ObjectMapper objectMapper) {
+        this(conversationRepository, conversationMessageRepository, aiFeedbackRepository, aiQueryService,
+                queryRewriteService, folderAccessService, documentRepository, tenantAuthorizationService,
+                objectMapper, new DocketAiProperties());
+    }
 
     public List<ConversationDTO> listConversations(UUID tenantId, UUID userId) {
         return conversationRepository.findByTenantIdAndUserIdOrderByUpdatedAtDesc(tenantId, userId)
@@ -359,11 +374,13 @@ public class ConversationService {
     // Old citation markers are removed, because their numbers would clash with the new sources.
     private List<ConversationTurn> recentHistory(Conversation conversation) {
         List<ConversationMessage> messages = conversation.getMessages();
-        return messages.subList(Math.max(0, messages.size() - HISTORY_MESSAGES), messages.size()).stream()
+        int historyLimit = aiProperties.getConversation().getHistoryMessages();
+        int maxMsgLen = aiProperties.getConversation().getMaxHistoryMessageLength();
+        return messages.subList(Math.max(0, messages.size() - historyLimit), messages.size()).stream()
                 .map(msg -> {
                     String content = CITATION_MARKER.matcher(msg.getContent()).replaceAll("");
-                    return new ConversationTurn(msg.getRole(), content.length() > MAX_HISTORY_MESSAGE_LENGTH
-                            ? content.substring(0, MAX_HISTORY_MESSAGE_LENGTH) + "..."
+                    return new ConversationTurn(msg.getRole(), content.length() > maxMsgLen
+                            ? content.substring(0, maxMsgLen) + "..."
                             : content);
                 })
                 .toList();

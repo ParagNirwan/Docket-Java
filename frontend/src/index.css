@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 @theme {
   --font-sans: 'Lato', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-display: 'Lato', sans-serif;
@@ -15,6 +17,12 @@
   --color-slack-red: #E01E5A;
 
   --color-canvas: #FFFFFF;
+  --color-ink: #1D1C1D;
+  --color-paper: #FFFFFF;
+  --color-line: #DDDDDD;
+  --color-muted: #616061;
+  --color-action: #1D1C1D;
+  --color-action-hover: #353435;
   --color-hover: #F8F8F8;
   --color-border: #DDDDDD;
   --color-text-secondary: #616061;
@@ -58,6 +66,8 @@
   --color-paper: #FFFFFF;
   --color-line: #DDDDDD;
   --color-muted: #616061;
+  --color-action: #1D1C1D;
+  --color-action-hover: #353435;
   --color-success: #2EB67D;
   --color-danger: #E01E5A;
   --color-warning: #ECB22E;
@@ -187,7 +197,7 @@ button, a {
 }
 
 .slack-sidebar-item.active {
-  background-color: #1164A3;
+  background-color: rgba(255, 255, 255, 0.15);
   color: #FFFFFF;
   font-weight: 700;
 }
@@ -201,12 +211,12 @@ button, a {
   width: 400px;
   background-color: #FFFFFF;
   border-left: 1px solid #DDDDDD;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
 }
 
 .slack-message-bubble {
   position: relative;
-  padding: 8px 16px;
+  padding: 16px;
   transition: background-color 100ms ease;
 }
 
@@ -236,4 +246,119 @@ button, a {
 .slack-reaction-pill:hover {
   background-color: #F8F8F8;
   border-color: #C1C1C1;
+}
+
+/* Keep the existing utility-based components on the shared design palette. */
+[class~="bg-[#007A5A]"] {
+  background-color: var(--color-action);
+}
+
+[class*="hover:bg-[#00664B]"]:hover {
+  background-color: var(--color-action-hover);
+}
+
+[class~="text-[#1164A3]"] {
+  color: var(--color-blue);
+}
+
+[class*="hover:text-[#1164A3]"]:hover {
+  color: var(--color-blue);
+}
+
+[data-theme="dark"] {
+  --color-canvas: #1D1C1D;
+  --color-paper: #252528;
+  --color-hover: #303034;
+  --color-border: #424247;
+  --color-text-secondary: #B5B5B8;
+  --color-sidebar-text: #D1D2D3;
+  --color-ink: #F4F4F5;
+  --color-line: #424247;
+  --color-muted: #B5B5B8;
+  --color-action: #1D1C1D;
+  --color-action-hover: #353435;
+  color-scheme: dark;
+}
+
+[data-theme="dark"] body {
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+}
+
+[data-theme="dark"] .bg-white,
+[data-theme="dark"] [class~="bg-[#FFFFFF]"],
+[data-theme="dark"] [class~="hover:bg-white"]:hover,
+[data-theme="dark"] [class*="hover:bg-[#FFFFFF]"]:hover {
+  background-color: var(--color-paper);
+}
+
+[data-theme="dark"] .bg-gray-50,
+[data-theme="dark"] .bg-slate-50,
+[data-theme="dark"] [class~="bg-[#F8F8F8]"],
+[data-theme="dark"] [class*="hover:bg-[#F8F8F8]"]:hover {
+  background-color: var(--color-hover);
+}
+
+[data-theme="dark"] .bg-gray-100,
+[data-theme="dark"] .bg-slate-100 {
+  background-color: #38383D;
+}
+
+[data-theme="dark"] .text-gray-900,
+[data-theme="dark"] .text-gray-800,
+[data-theme="dark"] .text-gray-700,
+[data-theme="dark"] .text-slate-900,
+[data-theme="dark"] .text-slate-800,
+[data-theme="dark"] .text-slate-700,
+[data-theme="dark"] [class~="text-[#1D1C1D]"],
+[data-theme="dark"] [class*="hover:text-[#1D1C1D]"]:hover {
+  color: var(--color-ink);
+}
+
+[data-theme="dark"] .text-gray-600,
+[data-theme="dark"] .text-gray-500,
+[data-theme="dark"] .text-slate-600,
+[data-theme="dark"] .text-slate-500,
+[data-theme="dark"] [class~="text-[#616061]"],
+[data-theme="dark"] [class*="hover:text-[#616061]"]:hover {
+  color: var(--color-text-secondary);
+}
+
+[data-theme="dark"] .border-gray-100,
+[data-theme="dark"] .border-gray-200,
+[data-theme="dark"] .border-gray-300,
+[data-theme="dark"] .border-slate-100,
+[data-theme="dark"] .border-slate-200,
+[data-theme="dark"] .border-slate-300,
+[data-theme="dark"] [class~="border-[#DDDDDD]"],
+[data-theme="dark"] [class~="border-[#C1C1C1]"] {
+  border-color: var(--color-border);
+}
+
+[data-theme="dark"] [class~="bg-[#007A5A]"] {
+  background-color: var(--color-action);
+}
+
+[data-theme="dark"] [class*="hover:bg-[#00664B]"]:hover {
+  background-color: var(--color-action-hover);
+}
+
+[data-theme="dark"] .slack-thread-panel,
+[data-theme="dark"] .slack-action-toolbar {
+  background-color: var(--color-paper);
+  border-color: var(--color-border);
+}
+
+[data-theme="dark"] .slack-reaction-pill {
+  background-color: var(--color-paper);
+  border-color: var(--color-border);
+}
+
+[data-theme="dark"] .slack-message-bubble:hover {
+  background-color: var(--color-hover);
+}
+
+[data-theme="dark"] .slack-reaction-pill:hover {
+  background-color: var(--color-hover);
+  border-color: #5B5B61;
 }

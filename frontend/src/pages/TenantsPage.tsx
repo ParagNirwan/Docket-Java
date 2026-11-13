@@ -164,7 +164,7 @@ export function TenantsPage() {
         </div>
       ) : tenants.length === 0 ? (
         <div className="text-center py-16 px-4 bg-white border border-dashed border-[#DDDDDD] rounded-[8px]">
-          <div className="w-12 h-12 rounded-[8px] bg-[#4A154B] text-white flex items-center justify-center mx-auto mb-4">
+          <div className="w-12 h-12 rounded-[8px] bg-[#1D1C1D] text-white flex items-center justify-center mx-auto mb-4">
             <BuildingIcon className="w-6 h-6" />
           </div>
           <h3 className="text-[18px] font-bold text-[#1D1C1D]">
@@ -197,7 +197,7 @@ export function TenantsPage() {
               >
                 <div>
                   <div className="flex items-start justify-between gap-3 mb-3.5">
-                    <div className="w-9 h-9 rounded-[8px] bg-[#4A154B] text-white flex items-center justify-center font-bold">
+                    <div className="w-9 h-9 rounded-[8px] bg-[#1D1C1D] text-white flex items-center justify-center font-bold">
                       <BuildingIcon className="w-4 h-4" />
                     </div>
                     <StatusBadge status={t.status || "Inactive"} />

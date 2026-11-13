@@ -84,7 +84,7 @@ export function CreateTrayModal({ isOpen, onClose, onSubmit }: CreateTrayModalPr
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#DDDDDD]">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-[8px] bg-[#4A154B] flex items-center justify-center text-white">
+            <div className="w-9 h-9 rounded-[8px] bg-[#1D1C1D] flex items-center justify-center text-white">
               <FolderPlus className="w-5 h-5" />
             </div>
             <div>

@@ -15,7 +15,8 @@ import {
   ShieldIcon,
   ChevronRightIcon,
 } from "./icons";
-import { Check, ChevronDown, Search } from "lucide-react";
+import { Check, ChevronDown, Monitor, Moon, Search, Sun } from "lucide-react";
+import { useTheme } from "../context/ThemeContext";
 import "./Header.css";
 
 interface TenantItem {
@@ -28,6 +29,7 @@ interface TenantItem {
 
 export function Header() {
   const { isAuthenticated, user, token, logout, openSettingsModal } = useAuth();
+  const { preference, resolvedTheme, cycleTheme } = useTheme();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMenuMounted, setIsMenuMounted] = useState(false);
   const [tenantMenuPath, setTenantMenuPath] = useState<string | null>(null);
@@ -174,7 +176,7 @@ export function Header() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 w-full bg-white border-b border-[#DDDDDD]">
+      <header className="sticky top-0 z-40 w-full bg-canvas border-b border-border">
         <div className="w-full px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
           {/* Left: Brand / Logo */}
           <div className="flex items-center gap-6">
@@ -242,7 +244,7 @@ export function Header() {
                               }}
                               className="flex w-full items-center gap-2.5 rounded-[6px] px-3 py-2 text-left transition-colors hover:bg-[#F8F8F8]"
                             >
-                              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] bg-[#4A154B] text-white">
+                              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] bg-[#1D1C1D] text-white">
                                 <BuildingIcon className="h-3.5 w-3.5" />
                               </span>
                               <span className="min-w-0 flex-1">
@@ -274,6 +276,25 @@ export function Header() {
 
           {/* Right: Actions / Auth States / Hamburger Button */}
           <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={cycleTheme}
+              className="rounded-[8px] border border-[#DDDDDD] p-2 text-[#616061] transition-colors hover:bg-[#F8F8F8] hover:text-[#1D1C1D]"
+              aria-label={`Theme: ${preference}. Switch to ${
+                preference === "system"
+                  ? resolvedTheme === "light" ? "dark" : "light"
+                  : preference === "light" ? "dark" : "system"
+              } theme`}
+              title={`Theme: ${preference}`}
+            >
+              {preference === "system" ? (
+                <Monitor className="h-4 w-4" aria-hidden="true" />
+              ) : resolvedTheme === "dark" ? (
+                <Moon className="h-4 w-4" aria-hidden="true" />
+              ) : (
+                <Sun className="h-4 w-4" aria-hidden="true" />
+              )}
+            </button>
             {isAuthenticated ? (
               <>
                 {routeSlug && (
@@ -393,7 +414,7 @@ export function Header() {
                 {isAuthenticated && (
                   <div className="p-5 border-b border-[#DDDDDD] bg-[#F8F8F8]">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-[8px] bg-[#1164A3] flex items-center justify-center text-white text-base font-bold shadow-sm">
+                      <div className="w-10 h-10 rounded-[8px] bg-[#1D1C1D] flex items-center justify-center text-white text-base font-bold shadow-sm">
                         {initial}
                       </div>
                       <div className="min-w-0 flex-1">
@@ -424,7 +445,7 @@ export function Header() {
                         onClick={closeMenu}
                         className={`flex items-center justify-between px-3 py-2 rounded-[8px] text-[14px] font-medium transition-colors ${
                           isCurrent("/tenants")
-                            ? "bg-[#1164A3]/10 text-[#1164A3] font-bold"
+                            ? "bg-[#36C5F0]/20 text-[#1D1C1D] font-bold"
                             : "text-[#1D1C1D] hover:bg-[#F8F8F8]"
                         }`}
                       >
@@ -440,7 +461,7 @@ export function Header() {
                         onClick={closeMenu}
                         className={`flex items-center justify-between px-3 py-2 rounded-[8px] text-[14px] font-medium transition-colors ${
                           isCurrent("/create-first-tenant")
-                            ? "bg-[#1164A3]/10 text-[#1164A3] font-bold"
+                            ? "bg-[#36C5F0]/20 text-[#1D1C1D] font-bold"
                             : "text-[#1D1C1D] hover:bg-[#F8F8F8]"
                         }`}
                       >

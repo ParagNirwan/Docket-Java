@@ -97,15 +97,11 @@ function NavItem({
   collapsed,
   active,
   onClick,
-  isChannel,
-  isDM,
 }: {
   item: WorkspaceNavItem;
   collapsed: boolean;
   active: boolean;
   onClick: () => void;
-  isChannel?: boolean;
-  isDM?: boolean;
 }) {
   const Icon = item.icon;
 
@@ -118,23 +114,13 @@ function NavItem({
       aria-current={active ? "page" : undefined}
       className={`group flex w-full items-center gap-2.5 rounded-[12px] px-3 py-1.5 text-left text-[15px] font-normal transition-colors duration-150 ${
         active
-          ? "bg-[#1164A3] text-white font-bold"
+          ? "bg-white/15 text-white font-bold"
           : item.count
             ? "text-white font-bold hover:bg-white/10"
             : "text-[#D1D2D3] hover:bg-white/10 hover:text-white"
       } ${collapsed ? "justify-center px-0 max-md:w-10" : "max-md:w-auto max-md:shrink-0 max-md:px-3"}`}
     >
-      {isChannel ? (
-        <span className={`text-[15px] font-bold w-4 text-center shrink-0 ${active ? "text-white" : "text-[#D1D2D3]/70"}`}>
-          #
-        </span>
-      ) : isDM ? (
-        <span className="relative flex h-2 w-2 shrink-0 items-center justify-center">
-          <span className="h-2 w-2 rounded-full bg-[#2EB67D]" />
-        </span>
-      ) : (
-        <Icon className={`h-[18px] w-[18px] shrink-0 ${active ? "text-white" : "text-[#D1D2D3]"}`} strokeWidth={1.8} />
-      )}
+      <Icon className={`h-[18px] w-[18px] shrink-0 ${active ? "text-white" : "text-[#D1D2D3]"}`} strokeWidth={1.8} />
       {!collapsed && (
         <>
           <span className="min-w-0 flex-1 truncate">{item.label}</span>
@@ -406,7 +392,7 @@ export function TenantWorkspace() {
   }
 
   return (
-    <div className="flex min-h-[calc(100svh-4rem)] flex-1 flex-col bg-white text-[#1D1C1D] md:flex-row">
+    <div className="flex min-h-[calc(100svh-4rem)] flex-1 flex-col bg-canvas text-ink md:flex-row">
       {/* Sidebar: Aubergine background, Slack brand anchor */}
       <aside
         className={`flex shrink-0 flex-col border-r border-[#3F1041] bg-[#4A154B] text-white transition-[width] duration-200 ease-in-out ${
@@ -442,7 +428,7 @@ export function TenantWorkspace() {
           </button>
         </div>
 
-        {/* Navigation Items (Sections: Channels, DMs, Apps) */}
+        {/* Workspace navigation */}
         <nav className={`flex-1 space-y-4 overflow-y-auto py-3 max-md:flex max-md:items-center max-md:gap-2 max-md:overflow-x-auto max-md:space-y-0 max-md:px-3 max-md:py-2 ${collapsed ? "px-2" : "px-3"}`}>
           {permissionsLoading ? (
             <p className="px-3 py-2 text-xs text-[#D1D2D3]" role="status">
@@ -450,7 +436,7 @@ export function TenantWorkspace() {
             </p>
           ) : (
             <>
-              {/* Section 1: Channels (Trays) */}
+              {/* Trays */}
               {visibleTrays.length > 0 && (
                 <div className="space-y-0.5 max-md:flex max-md:shrink-0 max-md:items-center max-md:gap-1 max-md:space-y-0">
                   {!collapsed && (
@@ -466,9 +452,9 @@ export function TenantWorkspace() {
                         title="View all trays"
                         aria-label="All trays overview"
                       >
-                        Channels
+                        Trays
                       </button>
-                      {/* + Button on the right of Channels header */}
+                      {/* Add tray action */}
                       {canCreateTray && (
                         <button
                           type="button"
@@ -501,7 +487,6 @@ export function TenantWorkspace() {
                         item={item}
                         collapsed={collapsed}
                         active={isActive}
-                        isChannel={!isTrash}
                         onClick={() => setActiveSection(tray.id)}
                       />
                     );
@@ -509,48 +494,41 @@ export function TenantWorkspace() {
                 </div>
               )}
 
-              {/* Section 2: Direct Messages (Partners) */}
-              {visibleMainNavItems.some((item) => item.id === "partners") && (
+              {/* Review and search */}
+              {visibleMainNavItems
+                .filter((item) => item.id === "review" || item.id === "ai-search")
+                .map((item) => (
+                  <div key={item.id} className="space-y-0.5 max-md:flex max-md:shrink-0 max-md:items-center max-md:gap-1 max-md:space-y-0">
+                    <NavItem
+                      item={item}
+                      collapsed={collapsed}
+                      active={currentSection === item.id}
+                      onClick={() => setActiveSection(item.id)}
+                    />
+                  </div>
+                ))}
+
+              {/* Workspace sections */}
+              {visibleMainNavItems.some((item) => item.id !== "review" && item.id !== "ai-search") && (
                 <div className="space-y-0.5 max-md:flex max-md:shrink-0 max-md:items-center max-md:gap-1 max-md:space-y-0">
                   {!collapsed && (
                     <p className="px-3 py-1.5 text-[12px] font-bold uppercase tracking-wider text-[#D1D2D3]/80 max-md:hidden">
-                      Direct messages
+                      Workspace
                     </p>
                   )}
                   {visibleMainNavItems
-                    .filter((item) => item.id === "partners")
+                    .filter((item) => item.id !== "review" && item.id !== "ai-search")
                     .map((item) => (
                       <NavItem
                         key={item.id}
                         item={item}
                         collapsed={collapsed}
                         active={currentSection === item.id}
-                        isDM={true}
                         onClick={() => setActiveSection(item.id)}
                       />
                     ))}
                 </div>
               )}
-
-              {/* Section 3: Apps & Tools (Review, AI Search, Connected Emails, Activity Log, Settings) */}
-              <div className="space-y-0.5 max-md:flex max-md:shrink-0 max-md:items-center max-md:gap-1 max-md:space-y-0">
-                {!collapsed && (
-                  <p className="px-3 py-1.5 text-[12px] font-bold uppercase tracking-wider text-[#D1D2D3]/80 max-md:hidden">
-                    Apps
-                  </p>
-                )}
-                {visibleMainNavItems
-                  .filter((item) => item.id !== "partners")
-                  .map((item) => (
-                    <NavItem
-                      key={item.id}
-                      item={item}
-                      collapsed={collapsed}
-                      active={currentSection === item.id}
-                      onClick={() => setActiveSection(item.id)}
-                    />
-                  ))}
-              </div>
             </>
           )}
         </nav>
@@ -774,7 +752,7 @@ function PartnersContent({ canInvite }: { canInvite: boolean }) {
       {partners.map((partner) => (
         <article key={partner.name} className="rounded-[8px] border border-[#DDDDDD] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition-all duration-150 hover:bg-[#F8F8F8]">
           <div className="flex items-start justify-between">
-            <div className={`flex h-10 w-10 items-center justify-center rounded-[8px] text-[13px] font-bold bg-[#1164A3] text-white`}>
+            <div className={`flex h-10 w-10 items-center justify-center rounded-[8px] text-[13px] font-bold bg-[#1D1C1D] text-white`}>
               {partner.initials}
             </div>
             <span className="flex items-center gap-1 rounded-[4px] bg-[#2EB67D]/15 border border-[#2EB67D]/30 px-2 py-0.5 text-[11px] font-bold text-[#1b7a51]">

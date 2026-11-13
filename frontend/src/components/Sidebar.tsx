@@ -78,7 +78,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                     className={`
                       block px-3 py-2 rounded-[12px] text-sm font-medium transition-colors
                       ${isActive
-                        ? "bg-[#1164A3] text-white font-bold"
+                        ? "bg-white/15 text-white font-bold"
                         : "text-[#D1D2D3] hover:bg-white/10 hover:text-white"}
                     `}
                   >

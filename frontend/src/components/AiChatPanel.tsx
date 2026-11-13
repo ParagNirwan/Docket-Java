@@ -329,7 +329,7 @@ export function AiChatPanel({
                   <button
                     type="button"
                     onClick={handleStop}
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[4px] bg-[#E01E5A] text-white hover:bg-[#c0184b] transition-colors shadow-[0_1px_2px_rgba(0,0,0,0.1)]"
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[4px] bg-[#1D1C1D] text-white hover:bg-[#353435] transition-colors shadow-[0_1px_2px_rgba(0,0,0,0.1)]"
                     aria-label="Stop answering"
                     title="Stop"
                   >
@@ -340,7 +340,7 @@ export function AiChatPanel({
                     type="button"
                     onClick={handleSend}
                     disabled={!input.trim()}
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[4px] bg-[#2EB67D] text-white hover:bg-[#259b69] disabled:opacity-30 disabled:cursor-not-allowed transition-colors shadow-[0_1px_2px_rgba(0,0,0,0.1)]"
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[4px] bg-[#1D1C1D] text-white hover:bg-[#353435] disabled:opacity-30 disabled:cursor-not-allowed transition-colors shadow-[0_1px_2px_rgba(0,0,0,0.1)]"
                     aria-label="Send message"
                   >
                     <Send className="h-3.5 w-3.5" />

@@ -18,6 +18,18 @@ public class DocketAiProperties {
     private RateLimit rateLimit = new RateLimit();
     private Rewrite rewrite = new Rewrite();
 
+    // Legacy/pre-refactor sub-namespaces still read via @Value in AI services.
+    // Mapped here so @ConfigurationPropertiesScan doesn't throw on unknown properties.
+    private Embedding embedding = new Embedding();
+    private Chunk chunk = new Chunk();
+    private Gemini gemini = new Gemini();
+    private Reindex reindex = new Reindex();
+    private Retrieval retrieval = new Retrieval();
+    private Extraction extraction = new Extraction();
+    private Ocr ocr = new Ocr();
+    private Enrichment enrichment = new Enrichment();
+    private Rerank rerank = new Rerank();
+
     @Data
     public static class Conversation {
         public static final int DEFAULT_HISTORY_MESSAGES = 6;
@@ -75,6 +87,7 @@ public class DocketAiProperties {
         public static final int DEFAULT_MAX_KEY_POINTS = 7;
         public static final int DEFAULT_MAX_KEY_POINT_LENGTH = 300;
 
+        private boolean enabled = true;
         private int singlePassChars = DEFAULT_SINGLE_PASS_CHARS;
         private int mapGroupSize = DEFAULT_MAP_GROUP_SIZE;
         private int maxChunks = DEFAULT_MAX_CHUNKS;
@@ -108,5 +121,76 @@ public class DocketAiProperties {
         public static final int DEFAULT_MAX_REWRITE_LENGTH = 1000;
 
         private int maxRewriteLength = DEFAULT_MAX_REWRITE_LENGTH;
+    }
+
+    // ── Legacy sub-namespaces (still used via @Value) ──────────────────────────
+
+    @Data
+    public static class Embedding {
+        private String model = "text-embedding-005";
+        private int dimensions = 768;
+        private int version = 1;
+    }
+
+    @Data
+    public static class Chunk {
+        private int size = 2000;
+        private int overlap = 200;
+    }
+
+    @Data
+    public static class Gemini {
+        private String model = "gemini-3.5-flash-lite";
+        private String rewriteModel = "gemini-3.5-flash-lite";
+    }
+
+    @Data
+    public static class Reindex {
+        private boolean enabled = true;
+        private int batchSize = 10;
+        private long intervalMs = 60_000L;
+        private int maxAttempts = 3;
+    }
+
+    @Data
+    public static class Retrieval {
+        private double maxDistance = 0.45;
+        private double fallbackMaxDistance = 0.6;
+        private int minResults = 1;
+        private boolean hybrid = true;
+    }
+
+    @Data
+    public static class Extraction {
+        private int maxChars = 2_000_000;
+    }
+
+    @Data
+    public static class Ocr {
+        private String endpoint = "vision.googleapis.com:443";
+        private int maxPages = 200;
+        private int minCharsPerPage = 50;
+        private int timeoutMinutes = 10;
+    }
+
+    @Data
+    public static class Enrichment {
+        private LlmContext llmContext = new LlmContext();
+
+        @Data
+        public static class LlmContext {
+            private boolean enabled = false;
+            private int maxDocumentChars = 40_000;
+        }
+    }
+
+    @Data
+    public static class Rerank {
+        private boolean enabled = false;
+        private String model = "semantic-ranker-default@latest";
+        private String location = "global";
+        private int timeoutMs = 500;
+        private int maxCandidates = 30;
+        private double minScore = 0.3;
     }
 }

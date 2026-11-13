@@ -752,7 +752,7 @@ export function FolderBrowser({
 
   return (
     <div
-      className="space-y-6 pb-2 sm:pb-3 flex-1 flex flex-col"
+      className="space-y-6 pb-20 flex-1 flex flex-col"
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
@@ -1675,7 +1675,7 @@ export function FolderBrowser({
               </div>
 
               {/* ── Document Pagination & Page Size Footer ── */}
-              <div className="sticky bottom-3 sm:bottom-4 z-30 mt-auto flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 rounded-2xl border border-gray-200/90 dark:border-gray-800/90 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md px-5 py-3 sm:py-3.5 shadow-lg dark:shadow-gray-950/40">
+              <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-40 w-[90vw] max-w-3xl flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 rounded-2xl border border-gray-200/90 dark:border-gray-800/90 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md px-5 py-3 sm:py-3.5 shadow-lg dark:shadow-gray-950/40">
                 {/* Left: Files to load option (50-200) & Status */}
                 <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
                   <label className="flex items-center gap-2">

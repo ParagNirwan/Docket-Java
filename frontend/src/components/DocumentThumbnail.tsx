@@ -89,11 +89,11 @@ export function DocumentThumbnail({
       )}
 
       {typeInfo.category === "image" && (
-        <div className="relative w-20 h-24 bg-gradient-to-br from-purple-100 to-indigo-50 dark:from-purple-950/50 dark:to-indigo-950/40 rounded-sm shadow-xs border border-purple-200 dark:border-purple-900/60 p-2 flex flex-col items-center justify-center overflow-hidden">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-200/60 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300 mb-1">
+        <div className="relative w-20 h-24 bg-indigo-50 dark:bg-indigo-950/40 rounded-sm shadow-xs border border-indigo-200 dark:border-indigo-900/60 p-2 flex flex-col items-center justify-center overflow-hidden">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100/80 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 mb-1">
             <Icon className="h-6 w-6" />
           </div>
-          <span className="text-[9px] font-bold tracking-wider text-purple-700 dark:text-purple-300">
+          <span className="text-[9px] font-bold tracking-wider text-indigo-600 dark:text-indigo-400">
             {typeInfo.extension}
           </span>
         </div>

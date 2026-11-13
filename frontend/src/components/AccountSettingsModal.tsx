@@ -91,7 +91,7 @@ export function AccountSettingsModal() {
         <div className="p-6 space-y-6 overflow-y-auto">
           {/* User Profile Badge */}
           <div className="flex items-center gap-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
-            <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-indigo-600 via-indigo-500 to-amber-400 flex items-center justify-center text-white font-bold text-xl shadow-md shrink-0">
+            <div className="w-14 h-14 rounded-full bg-[#1D1C1D] flex items-center justify-center text-white font-bold text-xl shadow-md shrink-0">
               {initial}
             </div>
             <div className="min-w-0 flex-1">

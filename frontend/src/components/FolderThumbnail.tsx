@@ -17,7 +17,7 @@ export function FolderThumbnail({
     <div
       title={name}
       aria-label={name}
-      className={`relative group overflow-hidden rounded-xl border border-amber-200/80 dark:border-amber-900/50 bg-gradient-to-br from-amber-50 to-orange-50/50 dark:from-amber-950/40 dark:to-orange-950/20 p-4 flex flex-col items-center justify-center select-none transition-all duration-200 ${className}`}
+      className={`relative group overflow-hidden rounded-xl border border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-950/40 p-4 flex flex-col items-center justify-center select-none transition-all duration-200 ${className}`}
     >
       {/* Folder illustration */}
       <div className="relative flex items-center justify-center">

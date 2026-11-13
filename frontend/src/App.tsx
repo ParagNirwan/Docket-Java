@@ -20,26 +20,32 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { GuestRoute } from "./components/GuestRoute";
 import { Toaster } from "sonner";
+import { ThemeProvider } from "./context/ThemeProvider";
+import { useTheme } from "./context/ThemeContext";
 
 function App() {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
+  );
+}
+
+function AppContent() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const { resolvedTheme } = useTheme();
 
   return (
     <AuthProvider>
       <BrowserRouter>
-        <Toaster richColors position="top-right" closeButton />
-        <div className="min-h-screen flex flex-col bg-white text-[#1D1C1D]">
-          {/* Header is always visible across all pages */}
+        <Toaster theme={resolvedTheme} richColors position="top-right" closeButton />
+        <div className="min-h-screen flex flex-col bg-canvas text-ink">
           <Header />
           <EmailVerificationBanner />
-
-          {/* Sidebar */}
           <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
 
-          {/* Main Page Area */}
           <main className={`flex-1 flex flex-col transition-all duration-150 ${isSidebarOpen ? "ml-64" : "ml-0"}`}>
             <Routes>
-              {/* Public Routes */}
               <Route
                 path="/register"
                 element={
@@ -64,13 +70,10 @@ function App() {
                   </GuestRoute>
                 }
               />
-              {/* These open from an email link, so they work whether or not someone is signed in */}
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/verify-email" element={<VerifyEmailPage />} />
               <Route path="/invite" element={<AcceptInvitePage />} />
               <Route path="/share/:token" element={<PublicSharePage />} />
-
-              {/* Protected Routes */}
               <Route
                 path="/create-first-tenant"
                 element={
@@ -111,13 +114,9 @@ function App() {
                   </ProtectedRoute>
                 }
               />
-
-              {/* Catch-all redirect */}
               <Route path="*" element={<Navigate to="/register" replace />} />
             </Routes>
           </main>
-
-          {/* Global Interactive Account Settings Modal */}
           <AccountSettingsModal />
         </div>
       </BrowserRouter>

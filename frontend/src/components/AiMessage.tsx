@@ -194,7 +194,7 @@ export function AiMessage({
       {/* Left: 36px Avatar (Slack standard) */}
       <div className="shrink-0 pt-0.5">
         {role === "user" ? (
-          <div className="flex h-9 w-9 items-center justify-center rounded-[8px] bg-[#1164A3] text-white shadow-sm font-bold text-sm">
+          <div className="flex h-9 w-9 items-center justify-center rounded-[8px] bg-[#1D1C1D] text-white shadow-sm font-bold text-sm">
             <User className="h-5 w-5" />
           </div>
         ) : (

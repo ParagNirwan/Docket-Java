@@ -197,7 +197,7 @@ export function AiChatPanel({
           <div className="border-b border-[#DDDDDD] pb-4">
             <div className="group relative flex gap-3 px-4 py-2 hover:bg-[#F8F8F8] rounded-[8px] transition-colors">
               <div className="shrink-0 pt-0.5">
-                <div className="flex h-9 w-9 items-center justify-center rounded-[8px] bg-[#4A154B] text-white shadow-sm font-bold text-sm">
+                <div className="flex h-9 w-9 items-center justify-center rounded-[8px] bg-[#1D1C1D] text-white shadow-sm font-bold text-sm">
                   <Sparkles className="h-5 w-5 text-[#ECB22E]" />
                 </div>
               </div>

@@ -79,7 +79,7 @@ export function TraysOverview({
       <section className="overflow-hidden rounded-[8px] border border-[#DDDDDD] bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-4">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[8px] bg-[#4A154B] text-white">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[8px] bg-[#1D1C1D] text-white">
               <Layers className="h-5 w-5" />
             </div>
             <div>

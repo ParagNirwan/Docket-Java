@@ -79,7 +79,7 @@ vi.mock("../services/documentService", async (importOriginal) => {
 });
 
 const mockTray: Tray = {
-  id: "general",
+  id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   name: "General",
   description: "General documents and records",
   isTray: true,
@@ -139,8 +139,8 @@ describe("FolderBrowser - View Mode Switcher (List, Thumbnail, Cards)", () => {
     expect(screen.getByText("3 items")).toBeTruthy();
 
     // Verify document details
-    expect(await screen.findByText("Board resolution — Q3 approval.pdf")).toBeTruthy();
-    expect(screen.getByText(/PDF Document/i)).toBeTruthy();
+    expect(await screen.findByText("Financial_Report_2026.xlsx")).toBeTruthy();
+    expect(screen.getByText(/Excel Spreadsheet/i)).toBeTruthy();
   });
 
   it("switches to List view and renders table headers and columns", async () => {
@@ -187,7 +187,7 @@ describe("FolderBrowser - View Mode Switcher (List, Thumbnail, Cards)", () => {
     fireEvent.click(thumbBtn);
 
     expect(await screen.findByText("Contracts & Agreements")).toBeTruthy();
-    expect(await screen.findByText("Board resolution — Q3 approval.pdf")).toBeTruthy();
+    expect(await screen.findByText("Financial_Report_2026.xlsx")).toBeTruthy();
   });
 
   it("renders pagination footer with 50-200 files to load options when files are displayed", async () => {
@@ -204,7 +204,7 @@ describe("FolderBrowser - View Mode Switcher (List, Thumbnail, Cards)", () => {
     );
 
     // Wait for documents to load
-    expect(await screen.findByText("Board resolution — Q3 approval.pdf")).toBeTruthy();
+    expect(await screen.findByText("Financial_Report_2026.xlsx")).toBeTruthy();
 
     // Verify pagination footer
     expect(screen.getByText(/files to load:/i)).toBeTruthy();

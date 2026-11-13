@@ -51,12 +51,6 @@ export function CreateFolderModal({
     try {
       setIsSubmitting(true);
       setError(null);
-      /**
-       * 💡 LEARNING NOTE:
-       * When connecting to your Spring Boot backend, this calls:
-       * createSubFolder(slug, parentFolderId, { name, description }, token)
-       * which hits POST /api/tenants/{slug}/folders/{folderId}/children
-       */
       await onSubmit({
         name: trimmedName,
         description: description.trim() || undefined,

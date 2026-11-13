@@ -270,20 +270,16 @@ export function TenantWorkspace() {
     async function loadTrays() {
       if (!slug) return;
       try {
-        /**
-         * 💡 LEARNING NOTE: API Call to load Trays
-         * Backend: GET /api/tenants/{slug}/trays
-         * Controller: TenantController.java -> getTenantTrays()
-         * Permission: TENANT_READ ("tenant.read")
-         * 
-         * When connecting to real backend, see getTenantTrays() in trayService.ts!
-         */
         const loadedTrays = await getTenantTrays(slug, token);
-        if (!isCancelled && loadedTrays.length > 0) {
-          setTrays(loadedTrays);
-        }
+        if (!isCancelled) setTrays(loadedTrays);
       } catch (err) {
         console.error("Failed to load workspace trays:", err);
+        if (!isCancelled) {
+          notify.error(
+            "Could not load trays",
+            err instanceof Error ? err.message : "An unexpected error occurred",
+          );
+        }
       }
     }
 

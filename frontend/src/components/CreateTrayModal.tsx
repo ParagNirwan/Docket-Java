@@ -48,11 +48,6 @@ export function CreateTrayModal({ isOpen, onClose, onSubmit }: CreateTrayModalPr
     try {
       setIsSubmitting(true);
       setError(null);
-      /**
-       * 💡 LEARNING NOTE:
-       * When you connect the API, this form calls onSubmit which triggers
-       * createTray(slug, { name, description, visibility }, token).
-       */
       await onSubmit({
         name: trimmedName,
         description: description.trim() || undefined,

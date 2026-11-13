@@ -16,7 +16,6 @@ import java.util.stream.Collectors;
 // question that stands alone, using the recent conversation. The result is only used to
 // search, and the search still applies the user's permissions, whatever the text says.
 @Service
-@RequiredArgsConstructor
 @Profile("gcp")
 public class QueryRewriteService {
 
@@ -24,6 +23,12 @@ public class QueryRewriteService {
 
     private final GeminiClient geminiClient;
     private final DocketAiProperties aiProperties;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public QueryRewriteService(GeminiClient geminiClient, DocketAiProperties aiProperties) {
+        this.geminiClient = geminiClient;
+        this.aiProperties = aiProperties;
+    }
 
     public QueryRewriteService(GeminiClient geminiClient) {
         this(geminiClient, new DocketAiProperties());

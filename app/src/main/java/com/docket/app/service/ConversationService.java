@@ -36,7 +36,6 @@ import java.util.*;
 import java.util.regex.Pattern;
 
 @Service
-@RequiredArgsConstructor
 @org.springframework.context.annotation.Profile("gcp")
 public class ConversationService {
 
@@ -53,6 +52,30 @@ public class ConversationService {
     private final TenantAuthorizationService tenantAuthorizationService;
     private final ObjectMapper objectMapper;
     private final DocketAiProperties aiProperties;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public ConversationService(
+            ConversationRepository conversationRepository,
+            ConversationMessageRepository conversationMessageRepository,
+            AiFeedbackRepository aiFeedbackRepository,
+            AiQueryService aiQueryService,
+            QueryRewriteService queryRewriteService,
+            FolderAccessService folderAccessService,
+            DocumentRepository documentRepository,
+            TenantAuthorizationService tenantAuthorizationService,
+            ObjectMapper objectMapper,
+            DocketAiProperties aiProperties) {
+        this.conversationRepository = conversationRepository;
+        this.conversationMessageRepository = conversationMessageRepository;
+        this.aiFeedbackRepository = aiFeedbackRepository;
+        this.aiQueryService = aiQueryService;
+        this.queryRewriteService = queryRewriteService;
+        this.folderAccessService = folderAccessService;
+        this.documentRepository = documentRepository;
+        this.tenantAuthorizationService = tenantAuthorizationService;
+        this.objectMapper = objectMapper;
+        this.aiProperties = aiProperties;
+    }
 
     public ConversationService(
             ConversationRepository conversationRepository,

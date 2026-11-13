@@ -19,7 +19,6 @@ import java.util.List;
 // commits, and the regular poll catches retries and anything left over from a restart.
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class EmailDispatcher {
     public static final int MAX_ATTEMPTS = DocketPlatformProperties.Email.DEFAULT_MAX_ATTEMPTS;
     private static final List<Duration> BACKOFF = List.of(
@@ -32,6 +31,16 @@ public class EmailDispatcher {
     private final EmailOutboxRepository emailOutboxRepository;
     private final EmailService emailService;
     private final DocketPlatformProperties platformProperties;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public EmailDispatcher(
+            EmailOutboxRepository emailOutboxRepository,
+            EmailService emailService,
+            DocketPlatformProperties platformProperties) {
+        this.emailOutboxRepository = emailOutboxRepository;
+        this.emailService = emailService;
+        this.platformProperties = platformProperties;
+    }
 
     public EmailDispatcher(EmailOutboxRepository emailOutboxRepository, EmailService emailService) {
         this(emailOutboxRepository, emailService, new DocketPlatformProperties());

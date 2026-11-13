@@ -11,13 +11,17 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Service
-@RequiredArgsConstructor
 public class ChunkingService {
 
     private static final Pattern TOKEN = Pattern.compile("[\\p{L}\\p{N}]+(?:[-_/.][\\p{L}\\p{N}]+)*");
     private static final String SEGMENT_SEPARATOR = "\n\n";
 
     private final DocketAiProperties aiProperties;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public ChunkingService(DocketAiProperties aiProperties) {
+        this.aiProperties = aiProperties;
+    }
 
     public ChunkingService() {
         this(new DocketAiProperties());

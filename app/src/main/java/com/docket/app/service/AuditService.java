@@ -40,7 +40,6 @@ import java.util.stream.Collectors;
 // if the action rolls back the event does too, so the log never claims something
 // happened that didn't.
 @Service
-@RequiredArgsConstructor
 public class AuditService {
     private static final Sort NEWEST_FIRST = Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id"));
 
@@ -50,6 +49,22 @@ public class AuditService {
     private final TenantAuthorizationService tenantAuthorizationService;
     private final ClientRequestInfo clientRequestInfo;
     private final DocketPlatformProperties platformProperties;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public AuditService(
+            AuditEventRepository auditEventRepository,
+            UserRepository userRepository,
+            TenantRepository tenantRepository,
+            TenantAuthorizationService tenantAuthorizationService,
+            ClientRequestInfo clientRequestInfo,
+            DocketPlatformProperties platformProperties) {
+        this.auditEventRepository = auditEventRepository;
+        this.userRepository = userRepository;
+        this.tenantRepository = tenantRepository;
+        this.tenantAuthorizationService = tenantAuthorizationService;
+        this.clientRequestInfo = clientRequestInfo;
+        this.platformProperties = platformProperties;
+    }
 
     public AuditService(
             AuditEventRepository auditEventRepository,

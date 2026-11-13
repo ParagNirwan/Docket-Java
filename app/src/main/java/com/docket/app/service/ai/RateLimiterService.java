@@ -10,11 +10,15 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 
 @Service
-@RequiredArgsConstructor
 public class RateLimiterService {
 
     private final DocketAiProperties aiProperties;
     private final ConcurrentHashMap<UUID, Deque<Long>> requestLog = new ConcurrentHashMap<>();
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public RateLimiterService(DocketAiProperties aiProperties) {
+        this.aiProperties = aiProperties;
+    }
 
     public RateLimiterService() {
         this(new DocketAiProperties());

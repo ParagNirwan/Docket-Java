@@ -20,7 +20,6 @@ import java.util.regex.Pattern;
 // and keyword search is the opposite. This runs both and merges the two rankings with
 // Reciprocal Rank Fusion, which only compares ranks, because the scores aren't comparable.
 @Service
-@RequiredArgsConstructor
 @Profile("gcp")
 public class HybridRetriever {
 
@@ -28,6 +27,12 @@ public class HybridRetriever {
 
     private final ChunkSearchRepository chunkSearchRepository;
     private final DocketAiProperties aiProperties;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public HybridRetriever(ChunkSearchRepository chunkSearchRepository, DocketAiProperties aiProperties) {
+        this.chunkSearchRepository = chunkSearchRepository;
+        this.aiProperties = aiProperties;
+    }
 
     public HybridRetriever(ChunkSearchRepository chunkSearchRepository) {
         this(chunkSearchRepository, new DocketAiProperties());

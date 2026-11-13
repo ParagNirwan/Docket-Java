@@ -17,6 +17,7 @@ import io.micrometer.core.instrument.Timer;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -32,7 +33,6 @@ import java.util.UUID;
 import java.util.regex.Pattern;
 
 @Service
-@RequiredArgsConstructor
 @org.springframework.context.annotation.Profile("gcp")
 public class AiQueryService {
 
@@ -66,6 +66,26 @@ public class AiQueryService {
     private final DocumentRepository documentRepository;
     private final FolderAccessService folderAccessService;
     private final DocketAiProperties aiProperties;
+
+    @Autowired
+    public AiQueryService(
+            EmbeddingService embeddingService,
+            HybridRetriever hybridRetriever,
+            RerankService rerankService,
+            GeminiClient geminiClient,
+            ObjectMapper objectMapper,
+            DocumentRepository documentRepository,
+            FolderAccessService folderAccessService,
+            DocketAiProperties aiProperties) {
+        this.embeddingService = embeddingService;
+        this.hybridRetriever = hybridRetriever;
+        this.rerankService = rerankService;
+        this.geminiClient = geminiClient;
+        this.objectMapper = objectMapper;
+        this.documentRepository = documentRepository;
+        this.folderAccessService = folderAccessService;
+        this.aiProperties = aiProperties;
+    }
 
     public AiQueryService(
             EmbeddingService embeddingService,

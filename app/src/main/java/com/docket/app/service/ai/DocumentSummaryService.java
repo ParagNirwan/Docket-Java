@@ -25,7 +25,6 @@ import java.util.List;
 // Writes a short summary and key points for a document once it has been indexed. People see
 // it next to the document, and its embedding lets a broad question find the document as a whole.
 @Service
-@RequiredArgsConstructor
 @Profile("gcp")
 public class DocumentSummaryService {
 
@@ -48,6 +47,22 @@ public class DocumentSummaryService {
     private final TenantRepository tenantRepository;
     private final ObjectMapper objectMapper;
     private final DocketAiProperties aiProperties;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public DocumentSummaryService(
+            GeminiClient geminiClient,
+            EmbeddingService embeddingService,
+            DocumentRepository documentRepository,
+            TenantRepository tenantRepository,
+            ObjectMapper objectMapper,
+            DocketAiProperties aiProperties) {
+        this.geminiClient = geminiClient;
+        this.embeddingService = embeddingService;
+        this.documentRepository = documentRepository;
+        this.tenantRepository = tenantRepository;
+        this.objectMapper = objectMapper;
+        this.aiProperties = aiProperties;
+    }
 
     public DocumentSummaryService(
             GeminiClient geminiClient,

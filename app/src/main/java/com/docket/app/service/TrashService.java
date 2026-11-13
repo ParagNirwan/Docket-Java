@@ -1,5 +1,6 @@
 package com.docket.app.service;
 
+import com.docket.app.config.DocketPlatformProperties;
 import com.docket.app.dto.TrashDocumentDTO;
 import com.docket.app.dto.TrashSettingsDTO;
 import com.docket.app.entity.Document;
@@ -41,8 +42,6 @@ import java.util.stream.Collectors;
 public class TrashService {
     static final String TRASH_TRAY = "Trash";
     static final String INBOX_TRAY = "Inbox";
-    private static final int MAX_PAGE_SIZE = 100;
-    private static final int EMPTY_TRASH_BATCH = 1000;
 
     private final DocumentRepository documentRepository;
     private final FolderRepository folderRepository;
@@ -55,13 +54,14 @@ public class TrashService {
     private final AuditService auditService;
     private final ApplicationEventPublisher eventPublisher;
     private final StorageQuotaService storageQuotaService;
+    private final DocketPlatformProperties platformProperties;
 
     public Page<TrashDocumentDTO> list(String slug, int page, int size, Authentication authentication) {
         Tenant tenant = findTenant(slug);
         tenantAuthorizationService.requirePermission(authentication, tenant.getId(), Permission.DOCUMENTS_DELETE);
 
         Page<Document> documents = documentRepository.findByTenantIdAndFileStatus(tenant.getId(), FileStatus.SOFT_DELETED,
-                PageRequest.of(Math.max(page, 0), Math.clamp(size, 1, MAX_PAGE_SIZE), Sort.by(Sort.Direction.DESC, "deletedAt")));
+                PageRequest.of(Math.max(page, 0), Math.clamp(size, 1, platformProperties.getTrash().getMaxPageSize()), Sort.by(Sort.Direction.DESC, "deletedAt")));
 
         Set<UUID> userIds = documents.stream().map(Document::getDeletedBy).filter(Objects::nonNull).collect(Collectors.toSet());
         // Either key can be null below, which Map.of() refuses to look up.
@@ -153,7 +153,7 @@ public class TrashService {
 
         Instant now = Instant.now();
         List<Document> documents = documentRepository
-                .findByTenantIdAndFileStatus(tenant.getId(), FileStatus.SOFT_DELETED, PageRequest.of(0, EMPTY_TRASH_BATCH))
+                .findByTenantIdAndFileStatus(tenant.getId(), FileStatus.SOFT_DELETED, PageRequest.of(0, platformProperties.getTrash().getEmptyBatchSize()))
                 .getContent();
         int purged = 0;
         for (Document document : documents) {

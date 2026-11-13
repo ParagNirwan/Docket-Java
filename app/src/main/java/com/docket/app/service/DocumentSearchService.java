@@ -1,5 +1,6 @@
 package com.docket.app.service;
 
+import com.docket.app.config.DocketPlatformProperties;
 import com.docket.app.dto.SearchResultDTO;
 import com.docket.app.entity.Tenant;
 import com.docket.app.enums.Permission;
@@ -20,9 +21,6 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class DocumentSearchService {
-    private static final int MIN_QUERY_LENGTH = 2;
-    private static final int MAX_QUERY_LENGTH = 200;
-    private static final int MAX_PAGE_SIZE = 50;
 
     // The file types a person can filter by, as patterns for the end of a file name.
     private static final Map<String, String> TYPE_PATTERNS = Map.of(
@@ -38,6 +36,7 @@ public class DocumentSearchService {
     private final TenantAuthorizationService tenantAuthorizationService;
     private final FolderAccessService folderAccessService;
     private final DocumentSearchRepository documentSearchRepository;
+    private final DocketPlatformProperties platformProperties;
 
     public Page<SearchResultDTO> search(String slug, Filter filter, int page, int size, Authentication authentication) {
         Tenant tenant = tenantRepository.findBySlug(slug)
@@ -45,8 +44,10 @@ public class DocumentSearchService {
         tenantAuthorizationService.requirePermission(authentication, tenant.getId(), Permission.DOCUMENTS_READ);
 
         String query = filter.query() == null ? "" : filter.query().trim();
-        if (query.length() < MIN_QUERY_LENGTH || query.length() > MAX_QUERY_LENGTH) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Search for between 2 and 200 characters");
+        int minLen = platformProperties.getSearch().getMinQueryLength();
+        int maxLen = platformProperties.getSearch().getMaxQueryLength();
+        if (query.length() < minLen || query.length() > maxLen) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Search for between " + minLen + " and " + maxLen + " characters");
         }
 
         String fileNamePattern = null;
@@ -66,7 +67,7 @@ public class DocumentSearchService {
                 filter.tagId(),
                 filter.from(),
                 filter.to());
-        return documentSearchRepository.search(criteria, Math.max(page, 0), Math.clamp(size, 1, MAX_PAGE_SIZE));
+        return documentSearchRepository.search(criteria, Math.max(page, 0), Math.clamp(size, 1, platformProperties.getSearch().getMaxPageSize()));
     }
 
     public record Filter(String query, String type, UUID trayId, UUID tagId, Instant from, Instant to) {

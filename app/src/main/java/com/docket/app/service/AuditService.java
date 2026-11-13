@@ -1,5 +1,6 @@
 package com.docket.app.service;
 
+import com.docket.app.config.DocketPlatformProperties;
 import com.docket.app.dto.AuditEventDTO;
 import com.docket.app.entity.AuditEvent;
 import com.docket.app.entity.Tenant;
@@ -41,8 +42,6 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class AuditService {
-    private static final int MAX_PAGE_SIZE = 100;
-    private static final int EXPORT_BATCH_SIZE = 1000;
     private static final Sort NEWEST_FIRST = Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id"));
 
     private final AuditEventRepository auditEventRepository;
@@ -50,6 +49,17 @@ public class AuditService {
     private final TenantRepository tenantRepository;
     private final TenantAuthorizationService tenantAuthorizationService;
     private final ClientRequestInfo clientRequestInfo;
+    private final DocketPlatformProperties platformProperties;
+
+    public AuditService(
+            AuditEventRepository auditEventRepository,
+            UserRepository userRepository,
+            TenantRepository tenantRepository,
+            TenantAuthorizationService tenantAuthorizationService,
+            ClientRequestInfo clientRequestInfo) {
+        this(auditEventRepository, userRepository, tenantRepository, tenantAuthorizationService,
+                clientRequestInfo, new DocketPlatformProperties());
+    }
 
     // Records an action taken by the logged-in user inside an organization.
     @Transactional
@@ -117,7 +127,7 @@ public class AuditService {
 
     public Page<AuditEventDTO> search(String slug, Filter filter, int page, int size, Authentication authentication) {
         Tenant tenant = requireAuditAccess(slug, authentication);
-        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.clamp(size, 1, MAX_PAGE_SIZE), NEWEST_FIRST);
+        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.clamp(size, 1, platformProperties.getAudit().getMaxPageSize()), NEWEST_FIRST);
         Page<AuditEvent> events = auditEventRepository.findAll(matching(tenant.getId(), filter), pageable);
         Map<UUID, User> actors = loadActors(events.getContent());
         return events.map(event -> toDTO(event, actors));
@@ -145,7 +155,7 @@ public class AuditService {
         Page<AuditEvent> page;
         int pageNumber = 0;
         do {
-            page = auditEventRepository.findAll(matching, PageRequest.of(pageNumber++, EXPORT_BATCH_SIZE, NEWEST_FIRST));
+            page = auditEventRepository.findAll(matching, PageRequest.of(pageNumber++, platformProperties.getAudit().getExportBatchSize(), NEWEST_FIRST));
             Map<UUID, User> actors = loadActors(page.getContent());
             for (AuditEvent event : page.getContent()) {
                 User actor = actors.get(event.getActorUserId());

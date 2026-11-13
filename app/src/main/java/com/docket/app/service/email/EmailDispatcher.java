@@ -1,5 +1,6 @@
 package com.docket.app.service.email;
 
+import com.docket.app.config.DocketPlatformProperties;
 import com.docket.app.entity.EmailOutbox;
 import com.docket.app.enums.EmailStatus;
 import com.docket.app.repository.EmailOutboxRepository;
@@ -20,9 +21,7 @@ import java.util.List;
 @Component
 @RequiredArgsConstructor
 public class EmailDispatcher {
-    static final int MAX_ATTEMPTS = 6;
-    private static final int BATCH_SIZE = 20;
-    private static final Duration LEASE = Duration.ofMinutes(5);
+    public static final int MAX_ATTEMPTS = DocketPlatformProperties.Email.DEFAULT_MAX_ATTEMPTS;
     private static final List<Duration> BACKOFF = List.of(
             Duration.ofMinutes(1),
             Duration.ofMinutes(5),
@@ -32,6 +31,11 @@ public class EmailDispatcher {
 
     private final EmailOutboxRepository emailOutboxRepository;
     private final EmailService emailService;
+    private final DocketPlatformProperties platformProperties;
+
+    public EmailDispatcher(EmailOutboxRepository emailOutboxRepository, EmailService emailService) {
+        this(emailOutboxRepository, emailService, new DocketPlatformProperties());
+    }
 
     @Async
     @TransactionalEventListener(fallbackExecution = true)
@@ -41,11 +45,13 @@ public class EmailDispatcher {
 
     @Scheduled(fixedDelay = 10_000)
     public void dispatchDue() {
+        int batchSize = platformProperties.getEmail().getBatchSize();
+        Duration lease = platformProperties.getEmail().getLeaseDuration();
         List<EmailOutbox> batch;
         do {
-            batch = emailOutboxRepository.claimDue(Instant.now().plus(LEASE), BATCH_SIZE);
+            batch = emailOutboxRepository.claimDue(Instant.now().plus(lease), batchSize);
             batch.forEach(this::deliver);
-        } while (batch.size() == BATCH_SIZE);
+        } while (batch.size() == batchSize);
     }
 
     // No transaction is held while talking to the provider: that could take seconds,
@@ -58,7 +64,7 @@ public class EmailDispatcher {
         } catch (RuntimeException e) {
             boolean permanent = e instanceof EmailSendException sendException && sendException.isPermanent();
             log.warn("Email {} failed on attempt {}: {}", email.getId(), email.getAttempts(), e.getMessage());
-            if (permanent || email.getAttempts() >= MAX_ATTEMPTS) {
+            if (permanent || email.getAttempts() >= platformProperties.getEmail().getMaxAttempts()) {
                 finish(email, EmailStatus.FAILED, e.getMessage());
             } else {
                 email.setLastError(truncate(e.getMessage()));

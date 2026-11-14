@@ -1,13 +1,9 @@
 package com.docket.app.service;
 
 import com.docket.app.config.DocketSsoProperties;
-import com.docket.app.dto.LoginRequestDTO;
 import com.docket.app.entity.User;
-import com.docket.app.entity.UserIdentity;
-import com.docket.app.enums.AuditAction;
 import com.docket.app.repository.UserIdentityRepository;
 import com.docket.app.repository.UserRepository;
-import com.docket.app.security.TokenHasher;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
@@ -27,7 +23,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -35,12 +30,8 @@ import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
-import java.time.Instant;
 import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;

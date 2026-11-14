@@ -1,11 +1,17 @@
 package com.docket.app.service;
 
 import com.docket.app.config.DocketAiProperties;
-import com.docket.app.dto.*;
+
+import com.docket.app.dto.AiQueryResponseDTO;
+import com.docket.app.dto.AiSourceChunkDTO;
+import com.docket.app.dto.ConversationDTO;
+import com.docket.app.dto.ConversationMessageDTO;
+
+import com.docket.app.dto.SavedAnswerDTO;
+
 import com.docket.app.entity.AiFeedback;
 import com.docket.app.entity.Conversation;
 import com.docket.app.entity.ConversationMessage;
-import com.docket.app.entity.Document;
 import com.docket.app.enums.AiQueryMode;
 import com.docket.app.enums.ConversationVisibility;
 import com.docket.app.enums.FileStatus;
@@ -22,7 +28,6 @@ import com.docket.app.service.ai.QueryRewriteService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;

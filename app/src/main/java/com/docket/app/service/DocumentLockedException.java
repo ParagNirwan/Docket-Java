@@ -6,11 +6,14 @@ import lombok.Getter;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.io.Serial;
 import java.time.Instant;
 
 // A 423 that says what's protecting the document. See RetentionExceptionHandler.
 @Getter
 public class DocumentLockedException extends ResponseStatusException {
+    @Serial
+    private static final long serialVersionUID = 1L;
     private final Instant retainUntil;
     private final LockMode lockMode;
     private final boolean legalHold;

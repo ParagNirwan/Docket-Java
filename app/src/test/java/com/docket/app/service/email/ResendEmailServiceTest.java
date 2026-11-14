@@ -47,7 +47,7 @@ class ResendEmailServiceTest {
 
     @Test
     void rejectedRequestIsPermanent() {
-        server.expect(requestTo("https://api.resend.com/emails")).andRespond(withStatus(HttpStatus.UNPROCESSABLE_ENTITY));
+        server.expect(requestTo("https://api.resend.com/emails")).andRespond(withStatus(HttpStatus.UNPROCESSABLE_CONTENT));
 
         assertTrue(assertThrows(EmailSendException.class, () -> service.send(MESSAGE)).isPermanent());
     }

@@ -80,7 +80,7 @@ class StorageQuotaServiceTest {
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> storageQuotaService.assertQuota(tenantId, 10L * 1024 * 1024)); // total 105 MB > 100 MB
 
-        assertEquals(HttpStatus.PAYLOAD_TOO_LARGE, ex.getStatusCode());
+        assertEquals(HttpStatus.CONTENT_TOO_LARGE, ex.getStatusCode());
         verify(notificationService).notifyPermissionHolders(eq(tenantId), eq(Permission.TENANT_UPDATE),
                 eq(NotificationType.STORAGE_QUOTA_EXCEEDED), any(), any(), any());
     }

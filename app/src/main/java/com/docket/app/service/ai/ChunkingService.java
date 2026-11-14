@@ -1,7 +1,6 @@
 package com.docket.app.service.ai;
 
 import com.docket.app.config.DocketAiProperties;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;

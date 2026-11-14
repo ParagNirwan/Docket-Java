@@ -71,8 +71,25 @@ export function RetentionPanel({ slug, token, trays, permissions }: RetentionPan
   }, [slug, token]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const [loadedPolicies, loadedSummary] = await Promise.all([listPolicies(slug, token), getRetentionSummary(slug, token)]);
+        if (!cancelled) {
+          setPolicies(loadedPolicies);
+          setSummary(loadedSummary);
+          setError("");
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Could not load retention settings");
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [slug, token]);
 
   const coveredIds = new Set(policies.map((policy) => policy.folderId));
   const availableTrays = trays.filter((tray) => !coveredIds.has(tray.id) && !(tray.isDefault && tray.name === "Trash"));

@@ -20,28 +20,33 @@ export function StorageQuotaPanel({ slug, token, canManageQuota }: StorageQuotaP
   const [quotaInputMb, setQuotaInputMb] = useState("");
   const [isUnlimited, setIsUnlimited] = useState(false);
 
-  async function loadUsage() {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await getTenantUsage(slug, token);
-      setUsage(data);
-      if (data.storageQuotaBytes === null) {
-        setIsUnlimited(true);
-        setQuotaInputMb("");
-      } else {
-        setIsUnlimited(false);
-        setQuotaInputMb(String(Math.round(data.storageQuotaBytes / (1024 * 1024))));
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load storage usage");
-    } finally {
-      setLoading(false);
-    }
-  }
-
   useEffect(() => {
-    void loadUsage();
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await getTenantUsage(slug, token);
+        if (cancelled) return;
+        setUsage(data);
+        if (data.storageQuotaBytes === null) {
+          setIsUnlimited(true);
+          setQuotaInputMb("");
+        } else {
+          setIsUnlimited(false);
+          setQuotaInputMb(String(Math.round(data.storageQuotaBytes / (1024 * 1024))));
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Failed to load storage usage");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [slug, token]);
 
   async function handleSaveQuota(e: React.FormEvent) {

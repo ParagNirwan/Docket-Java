@@ -5,7 +5,6 @@ import com.docket.app.dto.BulkInviteRequestDTO;
 import com.docket.app.dto.BulkInviteResultDTO;
 import com.docket.app.dto.BulkInviteRowDTO;
 import com.docket.app.entity.Tenant;
-import com.docket.app.entity.TenantMembership;
 import com.docket.app.entity.User;
 import com.docket.app.enums.AuditAction;
 import com.docket.app.enums.InvitationStatus;
@@ -25,7 +24,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -61,7 +59,7 @@ public class BulkInviteService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The file is empty");
         }
         if (csv.length() > bulkProperties.getMaxCsvLength()) {
-            throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE, "The file is too large");
+            throw new ResponseStatusException(HttpStatus.valueOf(413), "The file is too large");
         }
         List<BulkInviteRequestDTO.Row> rows = parse(csv);
         if (rows.size() > bulkProperties.getMaxRows()) {

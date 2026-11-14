@@ -519,7 +519,7 @@ public class DocumentService {
         }
         String name = sanitizeFilename(requestedName.trim());
         if (!getExtension(name).equalsIgnoreCase(getExtension(currentName))) {
-            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "The file extension can't be changed");
+            throw new ResponseStatusException(HttpStatus.valueOf(422), "The file extension can't be changed");
         }
         return name;
     }
@@ -563,7 +563,7 @@ public class DocumentService {
 
         String extension = getExtension(file.getOriginalFilename());
         if (!ALLOWED_EXTENSIONS.contains(extension.toLowerCase())) {
-            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+            throw new ResponseStatusException(HttpStatus.valueOf(422),
                     "File type '" + extension + "' is not allowed");
         }
     }

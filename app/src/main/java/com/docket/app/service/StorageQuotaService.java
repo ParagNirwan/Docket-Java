@@ -50,7 +50,7 @@ public class StorageQuotaService {
                     "Storage quota exceeded",
                     "Your organization has exceeded its storage quota of " + (quota / (1024 * 1024)) + " MB.",
                     NotificationService.workspaceLink(tenant.getSlug(), "settings", "general"));
-            throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE, "Storage quota exceeded (" + (quota / (1024 * 1024)) + " MB limit)");
+            throw new ResponseStatusException(HttpStatus.valueOf(413), "Storage quota exceeded (" + (quota / (1024 * 1024)) + " MB limit)");
         }
 
         // 80% warning

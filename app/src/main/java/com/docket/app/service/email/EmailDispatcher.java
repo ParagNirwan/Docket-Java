@@ -4,7 +4,6 @@ import com.docket.app.config.DocketPlatformProperties;
 import com.docket.app.entity.EmailOutbox;
 import com.docket.app.enums.EmailStatus;
 import com.docket.app.repository.EmailOutboxRepository;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;

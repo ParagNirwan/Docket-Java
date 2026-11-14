@@ -1,12 +1,10 @@
 package com.docket.app.service;
 
-import com.docket.app.dto.TwoFactorEnableResponseDTO;
 import com.docket.app.dto.TwoFactorSetupResponseDTO;
 import com.docket.app.dto.TwoFactorStatusResponseDTO;
 import com.docket.app.entity.User;
 import com.docket.app.enums.AuditAction;
 import com.docket.app.repository.UserRepository;
-import com.docket.app.security.TotpUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

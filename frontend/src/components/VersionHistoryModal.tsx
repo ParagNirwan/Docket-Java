@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { X, History, Upload, Eye, RotateCcw, AlertCircle, Loader2 } from "lucide-react";
 import {
   getDocumentVersions,
@@ -47,7 +47,7 @@ export function VersionHistoryModal({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose, previewVersion]);
 
-  async function loadVersions() {
+  const loadVersions = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -58,10 +58,29 @@ export function VersionHistoryModal({
     } finally {
       setLoading(false);
     }
-  }
+  }, [slug, document.id, token]);
 
   useEffect(() => {
-    void loadVersions();
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await getDocumentVersions(slug, document.id, token);
+        if (!cancelled) {
+          setVersions(data);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Failed to load version history");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [slug, document.id, token]);
 
   async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {

@@ -16,7 +16,6 @@ import com.docket.app.enums.UserType;
 import com.docket.app.repository.TenantDomainRepository;
 import com.docket.app.repository.TenantMembershipRepository;
 import com.docket.app.repository.TenantRepository;
-import com.docket.app.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -38,7 +37,6 @@ public class TenantDomainService {
     private final TenantRepository tenantRepository;
     private final TenantMembershipRepository membershipRepository;
     private final TenantAuthorizationService tenantAuthorizationService;
-    private final UserRepository userRepository;
     private final AuditService auditService;
 
     public List<TenantDomainDTO> list(String slug, Authentication authentication) {

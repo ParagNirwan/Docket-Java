@@ -13,7 +13,6 @@ import com.docket.app.repository.TenantRepository;
 import com.docket.app.repository.UserRepository;
 import com.docket.app.security.ClientRequestInfo;
 import jakarta.persistence.criteria.Predicate;
-import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;

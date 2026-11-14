@@ -36,19 +36,46 @@ export function MembersPanel({ slug, token, permissions }: MembersPanelProps) {
   const [pendingRevoke, setPendingRevoke] = useState<Invitation | null>(null);
 
   const load = useCallback(async () => {
-    const [loadedMembers, loadedInvitations] = await Promise.all([
-      listMembers(slug, token),
-      listInvitations(slug, token),
-    ]);
-    setMembers(loadedMembers);
-    setInvitations(loadedInvitations);
+    try {
+      const [loadedMembers, loadedInvitations] = await Promise.all([
+        listMembers(slug, token),
+        listInvitations(slug, token),
+      ]);
+      setMembers(loadedMembers);
+      setInvitations(loadedInvitations);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Could not load members");
+    } finally {
+      setLoading(false);
+    }
   }, [slug, token]);
 
   useEffect(() => {
-    load()
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : "Could not load members"))
-      .finally(() => setLoading(false));
-  }, [load]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const [loadedMembers, loadedInvitations] = await Promise.all([
+          listMembers(slug, token),
+          listInvitations(slug, token),
+        ]);
+        if (!cancelled) {
+          setMembers(loadedMembers);
+          setInvitations(loadedInvitations);
+        }
+      } catch (err: unknown) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Could not load members");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [slug, token]);
 
   const myRole = members.find((member) => member.currentUser)?.role;
   const reachableRoles = assignableRoles(myRole);

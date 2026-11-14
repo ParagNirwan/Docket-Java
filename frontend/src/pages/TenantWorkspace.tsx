@@ -155,9 +155,11 @@ export function TenantWorkspace() {
   const [activeSection, setActiveSection] = useState<WorkspaceSection>(routeState?.openTrayId ?? linkedSection ?? "review");
 
   // The workspace is already open when a link is followed from the bell.
-  useEffect(() => {
+  const [prevLocationKey, setPrevLocationKey] = useState(location.key);
+  if (location.key !== prevLocationKey) {
+    setPrevLocationKey(location.key);
     if (linkedSection) setActiveSection(linkedSection);
-  }, [linkedSection, location.key]);
+  }
   // Bumped to load permissions again after they change, such as giving away ownership.
   const [permissionsVersion, setPermissionsVersion] = useState(0);
   const [trays, setTrays] = useState<Tray[]>(INITIAL_TRAYS);

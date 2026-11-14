@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { X, Tag as TagIcon, Plus, Trash2, Check, AlertCircle, Loader2 } from "lucide-react";
 import {
   getTags,
@@ -37,7 +37,12 @@ export function ManageTagsModal({
   onTagsUpdated,
 }: ManageTagsModalProps) {
   const [allTags, setAllTags] = useState<TagDTO[]>([]);
-  const [selectedTagIds, setSelectedTagIds] = useState<Set<string>>(new Set());
+  const [selectedTagIds, setSelectedTagIds] = useState<Set<string>>(() => new Set(document?.tags?.map((t) => t.id) ?? []));
+  const [prevDoc, setPrevDoc] = useState(document);
+  if (document !== prevDoc) {
+    setPrevDoc(document);
+    setSelectedTagIds(new Set(document?.tags?.map((t) => t.id) ?? []));
+  }
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,15 +60,7 @@ export function ManageTagsModal({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
 
-  useEffect(() => {
-    if (document?.tags) {
-      setSelectedTagIds(new Set(document.tags.map((t) => t.id)));
-    } else {
-      setSelectedTagIds(new Set());
-    }
-  }, [document]);
-
-  async function loadWorkspaceTags() {
+  const loadWorkspaceTags = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -74,10 +71,29 @@ export function ManageTagsModal({
     } finally {
       setLoading(false);
     }
-  }
+  }, [slug, token]);
 
   useEffect(() => {
-    void loadWorkspaceTags();
+    let cancelled = false;
+    (async () => {
+      try {
+        const tags = await getTags(slug, token);
+        if (!cancelled) {
+          setAllTags(tags);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Failed to load tags");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [slug, token]);
 
   async function handleCreateTag(e: React.FormEvent) {

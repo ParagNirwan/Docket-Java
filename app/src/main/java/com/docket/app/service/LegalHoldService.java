@@ -82,7 +82,7 @@ public class LegalHoldService {
 
         int added = addTargets(hold, request.targets());
         if (added == 0) {
-            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "No documents matched");
+            throw new ResponseStatusException(HttpStatus.valueOf(422), "No documents matched");
         }
         legalHoldRepository.markDocumentsHeld(hold.getId());
 

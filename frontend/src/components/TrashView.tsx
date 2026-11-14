@@ -38,8 +38,30 @@ export function TrashView({ slug, token }: TrashViewProps) {
   }, [slug, token, page]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const loaded = await listTrash(slug, page, token);
+        if (!cancelled) {
+          setItems(loaded.content);
+          setTotalPages(Math.max(1, loaded.totalPages));
+          setTotal(loaded.totalElements);
+          setError("");
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Could not load the Trash");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [slug, page, token]);
 
   async function handleRestore(item: TrashDocument) {
     setBusyId(item.id);

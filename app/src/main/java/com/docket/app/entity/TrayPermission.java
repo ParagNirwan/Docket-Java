@@ -1,6 +1,10 @@
 package com.docket.app.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.IdClass;
+import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -41,6 +45,7 @@ public class TrayPermission {
     @AllArgsConstructor
     @EqualsAndHashCode
     public static class TrayPermissionId implements Serializable {
+        private static final long serialVersionUID = 1L;
         private UUID trayId;
         private UUID userId;
     }

@@ -7,7 +7,6 @@ import com.docket.app.repository.UserRepository;
 import com.docket.app.security.TokenHasher;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.jwk.JWKSet;
-import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.JWSKeySelector;
@@ -16,7 +15,6 @@ import com.nimbusds.jose.proc.SecurityContext;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.proc.ConfigurableJWTProcessor;
 import com.nimbusds.jwt.proc.DefaultJWTProcessor;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
@@ -32,12 +30,9 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.Base64;
 import java.util.Date;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
@@ -45,7 +40,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -56,7 +50,6 @@ public class SsoService {
     private final SessionService sessionService;
     private final PasswordEncoder passwordEncoder;
     private final AuditService auditService;
-    private final ObjectMapper objectMapper;
     private final DocketSsoProperties ssoProperties;
 
     private RestClient restClient;
@@ -139,8 +132,9 @@ public class SsoService {
     }
 
     private JWKSet fetchJwks(String jwksUrl) throws Exception {
-        URL url = new URL(jwksUrl);
-        return JWKSet.load(url);
+        try (java.io.InputStream is = java.net.URI.create(jwksUrl).toURL().openStream()) {
+            return JWKSet.load(is);
+        }
     }
 
     private void scheduleJwksRefresh() {

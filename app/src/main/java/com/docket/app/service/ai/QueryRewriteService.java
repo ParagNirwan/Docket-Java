@@ -2,7 +2,6 @@ package com.docket.app.service.ai;
 
 import com.docket.app.config.DocketAiProperties;
 import com.google.cloud.vertexai.api.GenerationConfig;
-import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;

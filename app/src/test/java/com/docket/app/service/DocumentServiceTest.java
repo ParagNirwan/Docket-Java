@@ -220,7 +220,7 @@ class DocumentServiceTest {
     void updateDocument_changingTheExtension_isRejected() {
         renamableDocument();
 
-        assertStatus(HttpStatus.UNPROCESSABLE_ENTITY, () -> documentService.updateDocument(SLUG, document.getId(),
+        assertStatus(HttpStatus.UNPROCESSABLE_CONTENT, () -> documentService.updateDocument(SLUG, document.getId(),
                 new UpdateDocumentRequestDTO("report.exe", null), authentication));
     }
 

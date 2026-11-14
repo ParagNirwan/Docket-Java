@@ -61,18 +61,23 @@ export function SearchPage() {
   useEffect(() => {
     if (!canSearch || !token) return;
     let cancelled = false;
-    setLoading(true);
-    setError("");
-    searchDocuments(slug, { q, type, tray, from, to }, page, token)
-      .then((loaded) => {
-        if (!cancelled) setResults(loaded);
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Could not run the search");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    (async () => {
+      try {
+        const loaded = await searchDocuments(slug, { q, type, tray, from, to }, page, token);
+        if (!cancelled) {
+          setResults(loaded);
+          setError("");
+        }
+      } catch (err: unknown) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Could not run the search");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    })();
     return () => {
       cancelled = true;
     };

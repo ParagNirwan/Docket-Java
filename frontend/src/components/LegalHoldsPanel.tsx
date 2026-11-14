@@ -47,8 +47,24 @@ export function LegalHoldsPanel({ slug, token, trays, permissions }: LegalHoldsP
   }, [slug, token]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const loaded = await listLegalHolds(slug, token);
+        if (!cancelled) {
+          setHolds(loaded);
+          setError("");
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Could not load legal holds");
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [slug, token]);
 
   const holdableTrays = trays.filter((tray) => !(tray.isDefault && tray.name === "Trash"));
   const selectedTray = holdableTrays.find((tray) => tray.id === trayId);

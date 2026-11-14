@@ -135,7 +135,7 @@ class LegalHoldServiceTest {
         ResponseStatusException e = assertThrows(ResponseStatusException.class,
                 () -> service.create(SLUG, request(new LegalHoldTargetsDTO(List.of(UUID.randomUUID()), null, null)), authentication));
 
-        assertEquals(HttpStatus.UNPROCESSABLE_ENTITY, e.getStatusCode());
+        assertEquals(HttpStatus.UNPROCESSABLE_CONTENT, e.getStatusCode());
         verify(legalHoldRepository, never()).markDocumentsHeld(any());
     }
 

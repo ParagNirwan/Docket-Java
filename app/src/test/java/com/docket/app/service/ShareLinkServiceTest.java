@@ -8,7 +8,6 @@ import com.docket.app.entity.ExternalShareLink;
 import com.docket.app.entity.Tenant;
 import com.docket.app.enums.AuditAction;
 import com.docket.app.enums.FileStatus;
-import com.docket.app.enums.Permission;
 import com.docket.app.enums.ScanStatus;
 import com.docket.app.repository.DocumentRepository;
 import com.docket.app.repository.ExternalShareLinkRepository;
@@ -24,7 +23,6 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 import java.util.List;

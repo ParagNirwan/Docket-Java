@@ -1,5 +1,6 @@
 package com.docket.app.service;
 
+import com.docket.app.config.DocketWebhookProperties;
 import com.docket.app.dto.CreateWebhookRequestDTO;
 import com.docket.app.dto.WebhookEndpointDTO;
 import com.docket.app.entity.Tenant;
@@ -10,29 +11,50 @@ import com.docket.app.enums.Permission;
 import com.docket.app.repository.TenantRepository;
 import com.docket.app.repository.WebhookDeliveryRepository;
 import com.docket.app.repository.WebhookEndpointRepository;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestClient;
 import org.springframework.web.server.ResponseStatusException;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class WebhookService {
     private final TenantRepository tenantRepository;
     private final WebhookEndpointRepository webhookEndpointRepository;
     private final WebhookDeliveryRepository webhookDeliveryRepository;
     private final TenantAuthorizationService tenantAuthorizationService;
     private final AuditService auditService;
-    private final org.springframework.web.client.RestClient restClient = org.springframework.web.client.RestClient.builder().build();
+    private final DocketWebhookProperties webhookProperties;
+
+    private RestClient restClient;
+
+    @PostConstruct
+    void init() {
+        var factory = new org.springframework.http.client.SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout((int) webhookProperties.getHttpTimeout().toMillis());
+        factory.setReadTimeout((int) webhookProperties.getHttpTimeout().toMillis());
+        this.restClient = RestClient.builder()
+                .requestFactory(factory)
+                .build();
+    }
 
     public List<WebhookEndpointDTO> list(String slug, Authentication authentication) {
         Tenant tenant = findTenant(slug);
@@ -93,39 +115,132 @@ public class WebhookService {
         delivery.setEndpoint(endpoint);
         delivery.setEventType(eventType);
         delivery.setPayload(payload);
-        delivery.setStatus("PENDING");
+        delivery.setStatus(WebhookDelivery.Status.PENDING.name());
         delivery.setAttempts(0);
         delivery.setNextAttemptAt(Instant.now());
         webhookDeliveryRepository.save(delivery);
     }
 
     @Scheduled(fixedDelayString = "${docket.webhooks.retry-delay-ms:60000}")
-    @Transactional
     public void processPendingDeliveries() {
-        for (WebhookDelivery delivery : webhookDeliveryRepository.findByStatusOrderByCreatedAtAsc("PENDING")) {
-            if (delivery.getNextAttemptAt() != null && delivery.getNextAttemptAt().isAfter(Instant.now())) {
-                continue;
-            }
-            try {
-                var response = restClient.post()
-                        .uri(delivery.getEndpoint().getUrl())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .header("X-Docket-Event", delivery.getEventType())
-                        .header("X-Docket-Signature", "sha256=" + Integer.toHexString(delivery.getPayload().hashCode()))
-                        .body(delivery.getPayload())
-                        .retrieve()
-                        .toBodilessEntity();
-                delivery.setStatus("DELIVERED");
-                delivery.setDeliveredAt(Instant.now());
-                delivery.setResponseStatus(response.getStatusCode().value());
-            } catch (Exception ex) {
-                delivery.setStatus("PENDING");
-                delivery.setAttempts(delivery.getAttempts() + 1);
-                delivery.setNextAttemptAt(Instant.now().plusSeconds(Math.min(60L * (long) Math.pow(2, delivery.getAttempts()), 3600L)));
-                delivery.setLastError(ex.getMessage());
-            }
+        int batchSize = webhookProperties.getBatchSize();
+        int maxRetries = webhookProperties.getMaxRetries();
+
+        // Use a separate transaction just to fetch and lock the batch
+        List<WebhookDelivery> pendingDeliveries = fetchAndLockBatch(batchSize);
+
+        if (pendingDeliveries.isEmpty()) {
+            return;
+        }
+
+        // Process each delivery WITHOUT holding a DB transaction
+        for (WebhookDelivery delivery : pendingDeliveries) {
+            processSingleDelivery(delivery, maxRetries);
+        }
+    }
+
+    @Transactional
+    protected List<WebhookDelivery> fetchAndLockBatch(int batchSize) {
+        // Fetch pending deliveries that are due for retry
+        List<WebhookDelivery> deliveries = webhookDeliveryRepository
+                .findByStatusAndNextAttemptAtBeforeOrderByCreatedAtAsc(
+                        WebhookDelivery.Status.PENDING.name(),
+                        Instant.now()
+                )
+                .stream()
+                .limit(batchSize)
+                .collect(Collectors.toList());
+
+        // Mark as "IN_PROGRESS" to prevent other workers from picking them up
+        // (optional: could use SELECT FOR UPDATE SKIP LOCKED if supported)
+        for (WebhookDelivery delivery : deliveries) {
+            delivery.setStatus("IN_PROGRESS");
             webhookDeliveryRepository.save(delivery);
         }
+
+        return deliveries;
+    }
+
+    protected void processSingleDelivery(WebhookDelivery delivery, int maxRetries) {
+        WebhookEndpoint endpoint = delivery.getEndpoint();
+        String payload = delivery.getPayload();
+        String eventType = delivery.getEventType();
+
+        String signature;
+        try {
+            signature = computeHmacSha256(endpoint.getSecret(), payload);
+        } catch (Exception e) {
+            log.error("Failed to compute webhook signature for delivery {}: {}", delivery.getId(), e.getMessage());
+            handleDeliveryFailure(delivery, maxRetries, "Signature computation failed: " + e.getMessage());
+            return;
+        }
+
+        try {
+            var response = restClient.post()
+                    .uri(endpoint.getUrl())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header("X-Docket-Event", eventType)
+                    .header("X-Docket-Signature", "sha256=" + signature)
+                    .body(payload)
+                    .retrieve()
+                    .toBodilessEntity();
+
+            // Success - update in a new short transaction
+            markDelivered(delivery, response.getStatusCode().value());
+
+        } catch (Exception ex) {
+            handleDeliveryFailure(delivery, maxRetries, ex.getMessage());
+        }
+    }
+
+    @Transactional
+    protected void markDelivered(WebhookDelivery delivery, int responseStatus) {
+        WebhookDelivery managed = webhookDeliveryRepository.findById(delivery.getId()).orElse(null);
+        if (managed != null) {
+            managed.setStatus(WebhookDelivery.Status.DELIVERED.name());
+            managed.setDeliveredAt(Instant.now());
+            managed.setResponseStatus(responseStatus);
+            webhookDeliveryRepository.save(managed);
+        }
+    }
+
+    @Transactional
+    protected void handleDeliveryFailure(WebhookDelivery delivery, int maxRetries, String errorMessage) {
+        WebhookDelivery managed = webhookDeliveryRepository.findById(delivery.getId()).orElse(null);
+        if (managed == null) {
+            return;
+        }
+
+        int nextAttempt = managed.getAttempts() + 1;
+
+        if (nextAttempt >= maxRetries) {
+            // Max retries reached - move to FAILED (DLQ)
+            managed.setStatus(WebhookDelivery.Status.FAILED.name());
+            managed.setLastError("Max retries (" + maxRetries + ") exceeded. Last error: " + errorMessage);
+            managed.setAttempts(nextAttempt);
+            log.warn("Webhook delivery {} moved to FAILED after {} attempts: {}", delivery.getId(), maxRetries, errorMessage);
+        } else {
+            // Schedule retry with exponential backoff
+            managed.setAttempts(nextAttempt);
+            long delayMs = Math.min(
+                    webhookProperties.getRetryDelayMs() * (long) Math.pow(2, nextAttempt - 1),
+                    webhookProperties.getMaxRetryDelayMs()
+            );
+            managed.setNextAttemptAt(Instant.now().plusMillis(delayMs));
+            managed.setLastError(errorMessage);
+            managed.setStatus(WebhookDelivery.Status.PENDING.name());
+            log.debug("Webhook delivery {} scheduled for retry {}/{}, next attempt at {}",
+                    delivery.getId(), nextAttempt, maxRetries, managed.getNextAttemptAt());
+        }
+        webhookDeliveryRepository.save(managed);
+    }
+
+    private String computeHmacSha256(String secret, String payload) throws Exception {
+        Mac mac = Mac.getInstance("HmacSHA256");
+        SecretKeySpec secretKeySpec = new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
+        mac.init(secretKeySpec);
+        byte[] hash = mac.doFinal(payload.getBytes(StandardCharsets.UTF_8));
+        return Base64.getEncoder().encodeToString(hash);
     }
 
     private Tenant findTenant(String slug) {

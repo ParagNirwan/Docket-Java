@@ -53,4 +53,10 @@ public class WebhookDelivery {
             nextAttemptAt = createdAt;
         }
     }
+
+    public enum Status {
+        PENDING,
+        DELIVERED,
+        FAILED
+    }
 }

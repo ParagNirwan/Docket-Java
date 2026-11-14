@@ -90,7 +90,7 @@ class SsoServiceTest {
 
         ssoService = new SsoService(
                 userRepository, userIdentityService, sessionService,
-                passwordEncoder, auditService, new com.fasterxml.jackson.databind.ObjectMapper(),
+                passwordEncoder, auditService,
                 ssoProperties
         );
 
@@ -176,7 +176,7 @@ class SsoServiceTest {
 
         SsoService service = new SsoService(
                 userRepository, userIdentityService, sessionService,
-                passwordEncoder, auditService, new com.fasterxml.jackson.databind.ObjectMapper(),
+                passwordEncoder, auditService,
                 emptyProps
         );
 

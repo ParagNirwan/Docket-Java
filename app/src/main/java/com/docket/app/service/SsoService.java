@@ -1,15 +1,25 @@
 package com.docket.app.service;
 
+import com.docket.app.config.DocketSsoProperties;
 import com.docket.app.entity.User;
 import com.docket.app.enums.AuditAction;
 import com.docket.app.repository.UserRepository;
 import com.docket.app.security.TokenHasher;
-import com.fasterxml.jackson.core.type.TypeReference;
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.jwk.JWKSet;
+import com.nimbusds.jose.jwk.RSAKey;
+import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
+import com.nimbusds.jose.jwk.source.JWKSource;
+import com.nimbusds.jose.proc.JWSKeySelector;
+import com.nimbusds.jose.proc.JWSVerificationKeySelector;
+import com.nimbusds.jose.proc.SecurityContext;
+import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.proc.ConfigurableJWTProcessor;
+import com.nimbusds.jwt.proc.DefaultJWTProcessor;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.core.ParameterizedTypeReference;
-import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -20,15 +30,26 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class SsoService {
     private final UserRepository userRepository;
     private final UserIdentityService userIdentityService;
@@ -36,25 +57,119 @@ public class SsoService {
     private final PasswordEncoder passwordEncoder;
     private final AuditService auditService;
     private final ObjectMapper objectMapper;
-
-    @Value("${docket.sso.google.client-id:}")
-    private String googleClientId;
-    @Value("${docket.sso.google.client-secret:}")
-    private String googleClientSecret;
-    @Value("${docket.sso.google.redirect-uri:http://localhost:5173/auth/sso/callback}")
-    private String googleRedirectUri;
-    @Value("${docket.sso.microsoft.client-id:}")
-    private String microsoftClientId;
-    @Value("${docket.sso.microsoft.client-secret:}")
-    private String microsoftClientSecret;
-    @Value("${docket.sso.microsoft.redirect-uri:http://localhost:5173/auth/sso/callback}")
-    private String microsoftRedirectUri;
+    private final DocketSsoProperties ssoProperties;
 
     private RestClient restClient;
+    private final Map<String, ConfigurableJWTProcessor<SecurityContext>> jwtProcessors = new ConcurrentHashMap<>();
+    private final Map<String, JWKSet> jwksCache = new ConcurrentHashMap<>();
+    private final ScheduledExecutorService jwksRefreshExecutor = Executors.newSingleThreadScheduledExecutor(r -> {
+        Thread t = new Thread(r, "sso-jwks-refresh");
+        t.setDaemon(true);
+        return t;
+    });
 
     @PostConstruct
     void init() {
         restClient = RestClient.builder().build();
+        initializeJwtProcessors();
+        scheduleJwksRefresh();
+    }
+
+    @PreDestroy
+    void destroy() {
+        jwksRefreshExecutor.shutdown();
+        try {
+            if (!jwksRefreshExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                jwksRefreshExecutor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            jwksRefreshExecutor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    private void initializeJwtProcessors() {
+        // Google JWKS
+        if (ssoProperties.getGoogle().isConfigured()) {
+            setupProvider("google", "https://www.googleapis.com/oauth2/v3/certs",
+                    "https://accounts.google.com", ssoProperties.getGoogle().getClientId());
+        }
+
+        // Microsoft JWKS
+        if (ssoProperties.getMicrosoft().isConfigured()) {
+            setupProvider("microsoft", "https://login.microsoftonline.com/common/discovery/v2.0/keys",
+                    "https://login.microsoftonline.com/common/v2.0", ssoProperties.getMicrosoft().getClientId());
+        }
+    }
+
+    private void setupProvider(String provider, String jwksUrl, String expectedIssuer, String expectedAudience) {
+        try {
+            JWKSet jwkSet = fetchJwks(jwksUrl);
+            jwksCache.put(provider, jwkSet);
+
+            JWKSource<SecurityContext> keySource = new ImmutableJWKSet<>(jwkSet);
+            JWSKeySelector<SecurityContext> keySelector = new JWSVerificationKeySelector<>(JWSAlgorithm.RS256, keySource);
+
+            ConfigurableJWTProcessor<SecurityContext> processor = new DefaultJWTProcessor<>();
+            processor.setJWSKeySelector(keySelector);
+            processor.setJWTClaimsSetVerifier((claims, context) -> {
+                // Verify issuer
+                if (!expectedIssuer.equals(claims.getIssuer())) {
+                    throw new com.nimbusds.jwt.proc.BadJWTException("Invalid issuer: " + claims.getIssuer());
+                }
+                // Verify audience
+                if (claims.getAudience() == null || !claims.getAudience().contains(expectedAudience)) {
+                    throw new com.nimbusds.jwt.proc.BadJWTException("Invalid audience: " + claims.getAudience());
+                }
+                // Verify expiration
+                if (claims.getExpirationTime() != null && claims.getExpirationTime().before(new Date())) {
+                    throw new com.nimbusds.jwt.proc.BadJWTException("Token expired");
+                }
+                // Verify not-before
+                if (claims.getNotBeforeTime() != null && claims.getNotBeforeTime().after(new Date())) {
+                    throw new com.nimbusds.jwt.proc.BadJWTException("Token not yet valid");
+                }
+            });
+
+            jwtProcessors.put(provider, processor);
+            log.info("Initialized SSO JWT processor for provider: {}", provider);
+        } catch (Exception e) {
+            log.error("Failed to initialize SSO JWT processor for provider {}: {}", provider, e.getMessage());
+        }
+    }
+
+    private JWKSet fetchJwks(String jwksUrl) throws Exception {
+        URL url = new URL(jwksUrl);
+        return JWKSet.load(url);
+    }
+
+    private void scheduleJwksRefresh() {
+        // Refresh JWKS every 12 hours
+        jwksRefreshExecutor.scheduleAtFixedRate(this::refreshAllJwks, 12, 12, TimeUnit.HOURS);
+    }
+
+    private void refreshAllJwks() {
+        log.debug("Refreshing JWKS cache for all providers");
+        jwtProcessors.forEach((provider, processor) -> {
+            try {
+                String jwksUrl = switch (provider) {
+                    case "google" -> "https://www.googleapis.com/oauth2/v3/certs";
+                    case "microsoft" -> "https://login.microsoftonline.com/common/discovery/v2.0/keys";
+                    default -> null;
+                };
+                if (jwksUrl != null) {
+                    JWKSet newJwkSet = fetchJwks(jwksUrl);
+                    jwksCache.put(provider, newJwkSet);
+                    // Re-create processor with new keys
+                    JWKSource<SecurityContext> keySource = new ImmutableJWKSet<>(newJwkSet);
+                    JWSKeySelector<SecurityContext> keySelector = new JWSVerificationKeySelector<>(JWSAlgorithm.RS256, keySource);
+                    processor.setJWSKeySelector(keySelector);
+                    log.info("Refreshed JWKS for provider: {}", provider);
+                }
+            } catch (Exception e) {
+                log.warn("Failed to refresh JWKS for provider {}: {}", provider, e.getMessage());
+            }
+        });
     }
 
     public String buildAuthUrl(String provider, String redirectUri, String state) {
@@ -89,12 +204,14 @@ public class SsoService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The provider did not return an identity token");
         }
 
-        Map<String, Object> claims = decodeJwtPayload(idToken);
-        String subject = requireString(claims, "sub");
+        // Validate and decode ID token using JWKS
+        JWTClaimsSet claims = validateIdToken(provider, idToken, config);
+
+        String subject = claims.getSubject();
         String email = firstNonBlank(
-                stringValue(claims.get("email")),
-                stringValue(claims.get("preferred_username")),
-                stringValue(claims.get("upn"))
+                getStringClaimSafe(claims, "email"),
+                getStringClaimSafe(claims, "preferred_username"),
+                getStringClaimSafe(claims, "upn")
         );
         if (email == null || email.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The identity provider did not return an email address");
@@ -118,15 +235,32 @@ public class SsoService {
         return sessionService.start(user);
     }
 
-    public boolean isConfigured(String provider) {
-        return providerConfig(provider, null) != null;
+    private JWTClaimsSet validateIdToken(String provider, String idToken, ProviderConfig config) {
+        ConfigurableJWTProcessor<SecurityContext> processor = jwtProcessors.get(provider);
+        if (processor == null) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "SSO provider not initialized: " + provider);
+        }
+
+        try {
+            return processor.process(idToken, null);
+        } catch (com.nimbusds.jwt.proc.BadJWTException e) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid ID token: " + e.getMessage(), e);
+        } catch (Exception e) {
+            log.error("JWT validation failed for provider {}: {}", provider, e.getMessage());
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token validation failed", e);
+        }
     }
 
-    private User createNewUser(String email, Map<String, Object> claims, String provider, String subject) {
+    public boolean isConfigured(String provider) {
+        ProviderConfig config = providerConfig(provider, null);
+        return config != null && config.configured();
+    }
+
+    private User createNewUser(String email, JWTClaimsSet claims, String provider, String subject) {
         String fullName = firstNonBlank(
-                stringValue(claims.get("name")),
-                stringValue(claims.get("given_name")),
-                stringValue(claims.get("family_name"))
+                getStringClaimSafe(claims, "name"),
+                getStringClaimSafe(claims, "given_name"),
+                getStringClaimSafe(claims, "family_name")
         );
         if (fullName == null || fullName.isBlank()) {
             fullName = email.substring(0, email.indexOf('@'));
@@ -157,36 +291,23 @@ public class SsoService {
                 .body(new ParameterizedTypeReference<Map<String, Object>>() {});
     }
 
-    private Map<String, Object> decodeJwtPayload(String jwt) {
-        String[] parts = jwt.split("\\.");
-        if (parts.length < 2) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Malformed identity token");
-        }
-        try {
-            byte[] decoded = Base64.getUrlDecoder().decode(parts[1]);
-            return objectMapper.readValue(decoded, new TypeReference<Map<String, Object>>() {});
-        } catch (Exception e) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Could not decode provider identity token", e);
-        }
-    }
-
     private ProviderConfig providerConfig(String provider, String redirectUri) {
         String normalized = provider == null ? "" : provider.trim().toLowerCase(Locale.ROOT);
         ProviderConfig config = switch (normalized) {
             case "google" -> new ProviderConfig(
                     "google",
-                    googleClientId,
-                    googleClientSecret,
-                    redirectUri == null || redirectUri.isBlank() ? googleRedirectUri : redirectUri,
+                    ssoProperties.getGoogle().getClientId(),
+                    ssoProperties.getGoogle().getClientSecret(),
+                    redirectUri == null || redirectUri.isBlank() ? ssoProperties.getGoogle().getRedirectUri() : redirectUri,
                     "https://accounts.google.com/o/oauth2/v2/auth",
                     "https://oauth2.googleapis.com/token",
                     "openid email profile",
                     null);
             case "microsoft", "azure", "azure-ad", "microsoft-entra" -> new ProviderConfig(
                     "microsoft",
-                    microsoftClientId,
-                    microsoftClientSecret,
-                    redirectUri == null || redirectUri.isBlank() ? microsoftRedirectUri : redirectUri,
+                    ssoProperties.getMicrosoft().getClientId(),
+                    ssoProperties.getMicrosoft().getClientSecret(),
+                    redirectUri == null || redirectUri.isBlank() ? ssoProperties.getMicrosoft().getRedirectUri() : redirectUri,
                     "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
                     "https://login.microsoftonline.com/common/oauth2/v2.0/token",
                     "openid profile email User.Read",
@@ -199,16 +320,12 @@ public class SsoService {
         return config;
     }
 
-    private String requireString(Map<String, Object> claims, String key) {
-        Object value = claims.get(key);
-        if (value == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing claim: " + key);
+    private String getStringClaimSafe(JWTClaimsSet claims, String claimName) {
+        try {
+            return claims.getStringClaim(claimName);
+        } catch (java.text.ParseException e) {
+            return null;
         }
-        return value.toString();
-    }
-
-    private String stringValue(Object value) {
-        return value == null ? null : value.toString();
     }
 
     private String firstNonBlank(String... values) {

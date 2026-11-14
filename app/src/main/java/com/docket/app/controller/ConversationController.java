@@ -8,7 +8,8 @@ import com.docket.app.repository.TenantRepository;
 import com.docket.app.repository.UserRepository;
 import com.docket.app.service.ConversationService;
 import com.docket.app.service.TenantAuthorizationService;
-import com.docket.app.service.ai.RateLimiterService;
+import com.docket.app.service.ai.AiRateLimiter;
+import com.docket.app.service.ai.RateLimitExceededException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -29,7 +30,7 @@ import java.util.UUID;
 public class ConversationController {
 
     private final ConversationService conversationService;
-    private final RateLimiterService rateLimiterService;
+    private final AiRateLimiter aiRateLimiter;
     private final TenantAuthorizationService tenantAuthorizationService;
     private final TenantRepository tenantRepository;
     private final UserRepository userRepository;
@@ -261,9 +262,13 @@ public class ConversationController {
     }
 
     private void requireRateLimit(User user) {
-        if (!rateLimiterService.isAllowed(user.getId())) {
-            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
-                    "Rate limit exceeded. Maximum 10 queries per minute. Please wait and try again.");
+        try {
+            aiRateLimiter.checkAllowed(user.getId().toString());
+        } catch (RateLimitExceededException e) {
+            ResponseStatusException ex = new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
+                    "Rate limit exceeded. Maximum 10 queries per minute. Please wait and try again.", e);
+            ex.getHeaders().add("Retry-After", String.valueOf(e.retryAfterSeconds()));
+            throw ex;
         }
     }
 }

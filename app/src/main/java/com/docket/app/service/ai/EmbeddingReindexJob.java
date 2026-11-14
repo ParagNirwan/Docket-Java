@@ -16,7 +16,7 @@ import java.util.UUID;
 
 // Brings documents up to the current embedding version a few at a time. It runs on the
 // scheduler's threads rather than the upload pool, so new uploads never wait behind it.
-// The default pace matches RateLimiterService's budget of 10 AI requests a minute.
+// The default pace matches AiRateLimiter's budget of 10 AI requests a minute.
 @Component
 @RequiredArgsConstructor
 @Profile("gcp")

@@ -77,14 +77,17 @@ export async function getTenantTrays(
   slug: string,
   token?: string | null,
 ): Promise<Tray[]> {
-  if (!token) return [];
+  if (!token) throw new Error("Authentication required to fetch trays");
 
   const response = await apiFetch(`${API_BASE}/tenants/${encodeURIComponent(slug)}/trays`, {
     method: "GET",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
   });
 
-  if (!response.ok) throw new Error(`Failed to fetch trays (${response.status})`);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({})) as { message?: string };
+    throw new Error(errorData.message || `Failed to fetch trays (${response.status})`);
+  }
 
   const data = await response.json();
   return (data as Partial<FolderItem>[]).map((item) => ({
@@ -188,14 +191,18 @@ export async function getFolderChildren(
   token?: string | null,
 ): Promise<{ folders: FolderItem[]; files: FileItem[] }> {
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(folderId);
-  if (!token || !isUuid) return { folders: [], files: [] };
+  if (!token) throw new Error("Authentication required to load folder contents");
+  if (!isUuid) throw new Error("Invalid folder ID");
 
   const response = await apiFetch(
     `${API_BASE}/tenants/${encodeURIComponent(slug)}/folders/${encodeURIComponent(folderId)}/children`,
     { method: "GET", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } },
   );
 
-  if (!response.ok) throw new Error(`Failed to load folder contents (${response.status})`);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({})) as { message?: string };
+    throw new Error(errorData.message || `Failed to load folder contents (${response.status})`);
+  }
 
   const data = await response.json() as Partial<FolderItem>[];
   const folders: FolderItem[] = data.map((item) => ({
@@ -329,14 +336,18 @@ export async function getBreadcrumbs(
   token?: string | null,
 ): Promise<BreadcrumbNode[]> {
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(currentFolderOrTrayId);
-  if (!token || !isUuid) return [];
+  if (!token) throw new Error("Authentication required to load breadcrumbs");
+  if (!isUuid) throw new Error("Invalid folder or tray ID");
 
   const response = await apiFetch(
     `${API_BASE}/tenants/${encodeURIComponent(slug)}/folders/${encodeURIComponent(currentFolderOrTrayId)}/breadcrumb`,
     { headers: { Authorization: `Bearer ${token}` } },
   );
 
-  if (!response.ok) throw new Error(`Failed to load the folder path (${response.status})`);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({})) as { message?: string };
+    throw new Error(errorData.message || `Failed to load the folder path (${response.status})`);
+  }
   return response.json();
 }
 

@@ -11,6 +11,10 @@ import com.docket.app.enums.Permission;
 import com.docket.app.repository.TenantRepository;
 import com.docket.app.repository.WebhookDeliveryRepository;
 import com.docket.app.repository.WebhookEndpointRepository;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +35,7 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 @Service
@@ -43,8 +48,18 @@ public class WebhookService {
     private final TenantAuthorizationService tenantAuthorizationService;
     private final AuditService auditService;
     private final DocketWebhookProperties webhookProperties;
+    private final MeterRegistry meterRegistry;
 
     private RestClient restClient;
+
+    // Metrics
+    private Counter deliveriesTotal;
+    private Counter deliveriesSucceeded;
+    private Counter deliveriesFailed;
+    private Counter deliveriesRetried;
+    private Timer deliveryLatency;
+    private final AtomicInteger pendingDeliveriesGauge = new AtomicInteger(0);
+    private final AtomicInteger inProgressDeliveriesGauge = new AtomicInteger(0);
 
     @PostConstruct
     void init() {
@@ -54,6 +69,32 @@ public class WebhookService {
         this.restClient = RestClient.builder()
                 .requestFactory(factory)
                 .build();
+
+        // Initialize metrics
+        deliveriesTotal = Counter.builder("docket.webhook.deliveries.total")
+                .description("Total number of webhook delivery attempts")
+                .tag("status", "unknown")
+                .register(meterRegistry);
+        deliveriesSucceeded = Counter.builder("docket.webhook.deliveries.succeeded")
+                .description("Total number of successful webhook deliveries")
+                .register(meterRegistry);
+        deliveriesFailed = Counter.builder("docket.webhook.deliveries.failed")
+                .description("Total number of failed webhook deliveries (moved to DLQ)")
+                .register(meterRegistry);
+        deliveriesRetried = Counter.builder("docket.webhook.deliveries.retried")
+                .description("Total number of webhook deliveries scheduled for retry")
+                .register(meterRegistry);
+        deliveryLatency = Timer.builder("docket.webhook.delivery.latency")
+                .description("Latency of webhook delivery HTTP calls")
+                .register(meterRegistry);
+
+        // Register gauges for pending and in-progress deliveries
+        Gauge.builder("docket.webhook.deliveries.pending", pendingDeliveriesGauge, AtomicInteger::get)
+                .description("Number of pending webhook deliveries")
+                .register(meterRegistry);
+        Gauge.builder("docket.webhook.deliveries.in_progress", inProgressDeliveriesGauge, AtomicInteger::get)
+                .description("Number of in-progress webhook deliveries")
+                .register(meterRegistry);
     }
 
     public List<WebhookEndpointDTO> list(String slug, Authentication authentication) {
@@ -119,6 +160,7 @@ public class WebhookService {
         delivery.setAttempts(0);
         delivery.setNextAttemptAt(Instant.now());
         webhookDeliveryRepository.save(delivery);
+        pendingDeliveriesGauge.incrementAndGet();
     }
 
     @Scheduled(fixedDelayString = "${docket.webhooks.retry-delay-ms:60000}")
@@ -158,6 +200,10 @@ public class WebhookService {
             webhookDeliveryRepository.save(delivery);
         }
 
+        // Update gauges: pending -> in_progress
+        pendingDeliveriesGauge.addAndGet(-deliveries.size());
+        inProgressDeliveriesGauge.addAndGet(deliveries.size());
+
         return deliveries;
     }
 
@@ -175,6 +221,7 @@ public class WebhookService {
             return;
         }
 
+        Timer.Sample sample = Timer.start(meterRegistry);
         try {
             var response = restClient.post()
                     .uri(endpoint.getUrl())
@@ -186,10 +233,17 @@ public class WebhookService {
                     .toBodilessEntity();
 
             // Success - update in a new short transaction
+            sample.stop(deliveryLatency);
+            deliveriesTotal.increment();
+            deliveriesSucceeded.increment();
             markDelivered(delivery, response.getStatusCode().value());
 
         } catch (Exception ex) {
+            sample.stop(deliveryLatency);
+            deliveriesTotal.increment();
             handleDeliveryFailure(delivery, maxRetries, ex.getMessage());
+        } finally {
+            // Update gauges: in_progress -> (decremented in handleDeliveryFailure or markDelivered)
         }
     }
 
@@ -202,6 +256,8 @@ public class WebhookService {
             managed.setResponseStatus(responseStatus);
             webhookDeliveryRepository.save(managed);
         }
+        // Update gauge: in_progress decremented
+        inProgressDeliveriesGauge.decrementAndGet();
     }
 
     @Transactional
@@ -219,6 +275,8 @@ public class WebhookService {
             managed.setLastError("Max retries (" + maxRetries + ") exceeded. Last error: " + errorMessage);
             managed.setAttempts(nextAttempt);
             log.warn("Webhook delivery {} moved to FAILED after {} attempts: {}", delivery.getId(), maxRetries, errorMessage);
+            deliveriesFailed.increment();
+            inProgressDeliveriesGauge.decrementAndGet();
         } else {
             // Schedule retry with exponential backoff
             managed.setAttempts(nextAttempt);
@@ -231,6 +289,9 @@ public class WebhookService {
             managed.setStatus(WebhookDelivery.Status.PENDING.name());
             log.debug("Webhook delivery {} scheduled for retry {}/{}, next attempt at {}",
                     delivery.getId(), nextAttempt, maxRetries, managed.getNextAttemptAt());
+            deliveriesRetried.increment();
+            inProgressDeliveriesGauge.decrementAndGet();
+            pendingDeliveriesGauge.incrementAndGet();
         }
         webhookDeliveryRepository.save(managed);
     }

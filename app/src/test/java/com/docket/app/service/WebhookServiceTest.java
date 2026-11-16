@@ -11,6 +11,7 @@ import com.docket.app.repository.TenantRepository;
 import com.docket.app.repository.WebhookDeliveryRepository;
 import com.docket.app.repository.WebhookEndpointRepository;
 import com.docket.app.security.AuthenticatedUser;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -53,6 +54,9 @@ class WebhookServiceTest {
     @Mock
     private DocketWebhookProperties webhookProperties;
 
+    @Mock
+    private MeterRegistry meterRegistry;
+
     private WebhookService webhookService;
 
     private Tenant tenant;
@@ -64,7 +68,7 @@ class WebhookServiceTest {
     void setUp() {
         webhookService = new WebhookService(
                 tenantRepository, webhookEndpointRepository, webhookDeliveryRepository,
-                tenantAuthorizationService, auditService, webhookProperties
+                tenantAuthorizationService, auditService, webhookProperties, meterRegistry
         );
 
         tenant = new Tenant();

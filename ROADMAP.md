@@ -12,10 +12,10 @@ These are critical for production deployment. Blockers for going live.
   - Document PITR (Point-in-Time Recovery) procedure for PostgreSQL
   - Quarterly restore test to staging; verify RTO/RPO
   - Document GCS bucket versioning + lifecycle for document storage
-- **#111** Add PostgreSQL and Flyway integration test coverage (P1, infra)
-  - Testcontainers-based tests for all Flyway migrations (V1–V24)
-  - Verify migration rollback scripts where applicable
-  - CI gate: migrations must apply cleanly on empty DB
+- **#111** Add PostgreSQL and Flyway integration test coverage (P1, infra) — **DONE**
+  - Testcontainers-based tests for all Flyway migrations (V1–V24) — implemented in `FlywayMigrationIT`
+  - Verify migration rollback scripts where applicable — `flywayCleanRemovesAllObjects()` test
+  - CI gate: migrations must apply cleanly on empty DB — `allMigrationsApplyCleanlyOnEmptyDatabase()` test
 
 ### AI Search Quality
 - **#113** Enforce AI query limits across backend replicas (P1, ai-search, platform) — **DONE** (DB-backed rate limiter implemented)
@@ -68,8 +68,8 @@ These are critical for production deployment. Blockers for going live.
 - Retention policy UI: create/edit/delete, dry-run preview, compliance reports
 
 ### Document Management (Epic #94)
-- **#72** Favourites and recent files (P3, documents)
-  - Star/unstar documents; recent files sidebar (last 20)
+- ~~**#72** Favourites and recent files (P3, documents)~~ — **DONE**
+  - ~~Star/unstar documents; recent files sidebar (last 20)~~
 - Version comparison: side-by-side diff for text/PDF
 - Bulk operations: move, tag, retention assign, download zip
 
@@ -114,14 +114,14 @@ These are critical for production deployment. Blockers for going live.
 
 | Priority | Issues | Phase |
 |----------|--------|-------|
-| **P1** | #116, #112, #111 | Phase 0 |
+| **P1** | #116, #112 | Phase 0 |
 | **P2** | #124, #123, #121, #115, #114, #97, #96, #95, #93, #92, #94 | Phase 1–2 |
-| **P3** | #89, #84, #72, #60, #54, #46 | Phase 3 |
+| **P3** | #89, #84, #60, #54, #46 | Phase 3 |
 
 ---
 
 ## Notes
 
 - **Epic issues** (#91–#97) are tracking umbrellas; work happens in their child issues.
-- **Done this cycle:** #113 (AI rate limiting across replicas) — DB-backed `DatabaseRateLimiter` with shared counters.
+- **Done this cycle:** #113 (AI rate limiting across replicas) — DB-backed `DatabaseRateLimiter` with shared counters; #72 (Favourites and recent files) — star/unstar documents, recent documents sidebar; #111 (PostgreSQL and Flyway integration test coverage) — Testcontainers-based tests for all 24 migrations.
 - **Security fixes applied:** refresh token grace window ↓, SSO `azp` check, HKDF webhook keys, access token out of localStorage.

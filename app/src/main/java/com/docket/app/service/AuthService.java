@@ -22,6 +22,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
 @Service
@@ -45,7 +46,8 @@ public class AuthService {
     private boolean emailVerificationEnabled;
 
     // Compared against when an email isn't registered. See login().
-    private volatile String dummyPasswordHash;
+    // AtomicReference ensures thread-safe lazy initialization.
+    private final AtomicReference<String> dummyPasswordHash = new AtomicReference<>();
 
     // The new user signs in separately, so this token has no session behind it.
     public AuthResponseDTO register(RegisterRequestDTO request) {
@@ -190,10 +192,8 @@ public class AuthService {
     }
 
     private String dummyPasswordHash() {
-        if (dummyPasswordHash == null) {
-            dummyPasswordHash = passwordEncoder.encode(TokenHasher.newToken());
-        }
-        return dummyPasswordHash;
+        return dummyPasswordHash.updateAndGet(current ->
+                current == null ? passwordEncoder.encode(TokenHasher.newToken()) : current);
     }
 
     private String normalizeEmail(String email) {

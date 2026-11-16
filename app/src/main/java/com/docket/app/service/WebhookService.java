@@ -236,11 +236,53 @@ public class WebhookService {
     }
 
     private String computeHmacSha256(String secret, String payload) throws Exception {
+        // Derive a proper HMAC key from the secret using HKDF-SHA256
+        // This ensures the key has full entropy regardless of the secret format (UUID, etc.)
+        byte[] derivedKey = hkdfSha256(
+                secret.getBytes(StandardCharsets.UTF_8),
+                "docket-webhook-hmac".getBytes(StandardCharsets.UTF_8),
+                32
+        );
+
         Mac mac = Mac.getInstance("HmacSHA256");
-        SecretKeySpec secretKeySpec = new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
+        SecretKeySpec secretKeySpec = new SecretKeySpec(derivedKey, "HmacSHA256");
         mac.init(secretKeySpec);
         byte[] hash = mac.doFinal(payload.getBytes(StandardCharsets.UTF_8));
         return Base64.getEncoder().encodeToString(hash);
+    }
+
+    // HKDF-SHA256 (RFC 5869) - extract + expand
+    private byte[] hkdfSha256(byte[] ikm, byte[] info, int length) throws Exception {
+        // Extract: PRK = HMAC-SHA256(salt, IKM)
+        // Using empty salt as per RFC 5869 when no salt is provided
+        byte[] salt = new byte[32]; // 32 zero bytes for SHA-256
+        Mac extractMac = Mac.getInstance("HmacSHA256");
+        extractMac.init(new SecretKeySpec(salt, "HmacSHA256"));
+        byte[] prk = extractMac.doFinal(ikm);
+
+        // Expand: T = HMAC-SHA256(PRK, T_previous || info || counter)
+        byte[] okm = new byte[length];
+        byte[] t = new byte[0];
+        int counter = 1;
+        int pos = 0;
+
+        Mac expandMac = Mac.getInstance("HmacSHA256");
+        expandMac.init(new SecretKeySpec(prk, "HmacSHA256"));
+
+        while (pos < length) {
+            expandMac.update(t);
+            expandMac.update(info);
+            expandMac.update((byte) counter);
+            t = expandMac.doFinal();
+
+            int remaining = length - pos;
+            int toCopy = Math.min(t.length, remaining);
+            System.arraycopy(t, 0, okm, pos, toCopy);
+            pos += toCopy;
+            counter++;
+        }
+
+        return okm;
     }
 
     private Tenant findTenant(String slug) {

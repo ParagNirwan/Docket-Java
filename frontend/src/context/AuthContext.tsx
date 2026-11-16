@@ -5,7 +5,7 @@ import {
   type ReactNode,
 } from "react";
 import { type AuthUser, parseJwt, isTokenExpired } from "../lib/jwt";
-import { endServerSession, getStoredToken, onTokenChange, refreshAccessToken, storeToken } from "../lib/session";
+import { endServerSession, getAccessToken, onAccessTokenChange, refreshAccessToken, setAccessToken } from "../lib/session";
 import { AuthContext } from "./AuthContextValue";
 
 export type { AuthUser };
@@ -15,16 +15,16 @@ const REFRESH_MARGIN_MS = 60_000;
 const MIN_REFRESH_DELAY_MS = 5_000;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [token, setToken] = useState<string | null>(getStoredToken);
+  const [token, setToken] = useState<string | null>(getAccessToken);
   const [user, setUser] = useState<AuthUser | null>(() => {
-    const initialToken = getStoredToken();
+    const initialToken = getAccessToken();
     return initialToken ? parseJwt(initialToken) : null;
   });
 
   // An expired token means this browser was logged in earlier, so the refresh cookie
   // may still be good. With no token at all there's no session worth asking about.
   const [isInitializing, setIsInitializing] = useState(() => {
-    const initialToken = getStoredToken();
+    const initialToken = getAccessToken();
     return !!initialToken && isTokenExpired(parseJwt(initialToken));
   });
 
@@ -43,7 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(parsed);
     // Pages reload their data when `token` changes, so it must stay the same across a
     // silent refresh or the workspace would blank out every few minutes. It's fine for
-    // this value to go stale: apiFetch always sends the newest token from storage.
+    // this value to go stale: apiFetch always sends the newest token from memory.
     setToken((current) => {
       const sameUser = current && nextToken && parseJwt(current)?.email === parsed?.email;
       return sameUser ? current : nextToken;
@@ -52,15 +52,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     void endServerSession();
-    storeToken(null);
+    setAccessToken(null);
     setIsSettingsModalOpen(false);
   }, []);
 
   const login = useCallback((newToken: string) => {
-    storeToken(newToken);
+    setAccessToken(newToken);
   }, []);
 
-  useEffect(() => onTokenChange(applyToken), [applyToken]);
+  useEffect(() => onAccessTokenChange(applyToken), [applyToken]);
 
   // Restore the session on page load.
   useEffect(() => {
@@ -68,24 +68,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refreshAccessToken().then((refreshed) => {
       if (!refreshed) {
         // Couldn't be restored right now. Without a usable token the app has to log in.
-        storeToken(null);
+        setAccessToken(null);
       }
       setIsInitializing(false);
     });
   }, [isInitializing]);
-
-  // Synchronize across browser tabs. Another tab logging out only clears this tab's
-  // state, because that tab has already ended the session on the server.
-  useEffect(() => {
-    function handleStorageChange(event: StorageEvent) {
-      if (event.key === "token") {
-        applyToken(event.newValue);
-      }
-    }
-
-    window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
-  }, [applyToken]);
 
   // Refresh shortly before the token expires. Browsers slow down timers in background
   // tabs, so this can run late: apiFetch's retry on 401 covers those cases.

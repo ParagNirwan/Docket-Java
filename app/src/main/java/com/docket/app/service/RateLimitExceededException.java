@@ -17,6 +17,10 @@ public class RateLimitExceededException extends ResponseStatusException {
         this.retryAfterSeconds = retryAfterSeconds;
     }
 
+    public long retryAfterSeconds() {
+        return retryAfterSeconds;
+    }
+
     @Override
     public HttpHeaders getHeaders() {
         HttpHeaders headers = new HttpHeaders();

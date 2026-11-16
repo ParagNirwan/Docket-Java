@@ -17,6 +17,10 @@ public class DocketSsoProperties {
         private String clientId;
         private String clientSecret;
         private String redirectUri;
+        // JWKS and issuer URLs - defaults match Google/Microsoft OIDC endpoints.
+        // Override in config if providers change their endpoints.
+        private String jwksUrl = "";
+        private String issuer = "";
 
         public boolean isConfigured() {
             return clientId != null && !clientId.isBlank() && clientSecret != null && !clientSecret.isBlank();

@@ -16,7 +16,7 @@ public class DocketAuthProperties {
     public static final int DEFAULT_LOCKOUT_FAILURES = 10;
     public static final int DEFAULT_LOCKOUT_WINDOW_MINUTES = 15;
     public static final int DEFAULT_REFRESH_TTL_DAYS = 14;
-    public static final int DEFAULT_REFRESH_REUSE_GRACE_SECONDS = 10;
+    public static final int DEFAULT_REFRESH_REUSE_GRACE_SECONDS = 2;
 
     private int loginLimitPerIp = DEFAULT_LOGIN_LIMIT_PER_IP;
     private int loginLimitPerAccount = DEFAULT_LOGIN_LIMIT_PER_ACCOUNT;

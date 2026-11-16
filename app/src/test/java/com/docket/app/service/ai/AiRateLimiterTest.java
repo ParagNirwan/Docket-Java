@@ -2,6 +2,8 @@ package com.docket.app.service.ai;
 
 import com.docket.app.config.DocketAiProperties;
 import com.docket.app.security.TokenHasher;
+import com.docket.app.service.DatabaseRateLimiter;
+import com.docket.app.service.RateLimitExceededException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -10,10 +12,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
-import java.util.List;
+import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -24,15 +26,19 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class AiRateLimiterTest {
 
     @Mock
-    private JdbcTemplate jdbcTemplate;
+    private DatabaseRateLimiter databaseRateLimiter;
 
     @Spy
     private DocketAiProperties aiProperties = new DocketAiProperties();
@@ -48,45 +54,33 @@ class AiRateLimiterTest {
 
     @Test
     void twoInstancesShareSamePerUserCounter() {
-        // Simulate first instance allowing the request
-        AiRateLimiter.Hit hit1 = new AiRateLimiter.Hit(1, 59);
-        when(jdbcTemplate.queryForObject(anyString(), any(RowMapper.class), anyString(), eq(60L), eq(60L), eq(60L)))
-                .thenReturn(hit1);
-
         // First call
+        doNothing().when(databaseRateLimiter).check(eq("ai:user-123"), eq(10), any(Duration.class));
         aiRateLimiter.checkAllowed("user-123");
-
-        // Simulate second instance seeing the incremented count
-        AiRateLimiter.Hit hit2 = new AiRateLimiter.Hit(2, 58);
-        when(jdbcTemplate.queryForObject(anyString(), any(RowMapper.class), anyString(), eq(60L), eq(60L), eq(60L)))
-                .thenReturn(hit2);
 
         // Second call from "another instance" - same user
+        doNothing().when(databaseRateLimiter).check(eq("ai:user-123"), eq(10), any(Duration.class));
         aiRateLimiter.checkAllowed("user-123");
 
-        // Verify both calls used the same hashed key
+        // Verify both calls used the same raw key (hashing happens inside DatabaseRateLimiter)
         ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
-        verify(jdbcTemplate, times(2)).queryForObject(anyString(), any(RowMapper.class), keyCaptor.capture(), eq(60L), eq(60L), eq(60L));
-        assertEquals(TokenHasher.hash("ai:user-123"), keyCaptor.getAllValues().get(0));
-        assertEquals(TokenHasher.hash("ai:user-123"), keyCaptor.getAllValues().get(1));
+        verify(databaseRateLimiter, times(2)).check(keyCaptor.capture(), eq(10), any(Duration.class));
+        assertEquals("ai:user-123", keyCaptor.getAllValues().get(0));
+        assertEquals("ai:user-123", keyCaptor.getAllValues().get(1));
     }
 
     @Test
     void differentUsersDoNotShareCounters() {
-        AiRateLimiter.Hit hit1 = new AiRateLimiter.Hit(1, 59);
-        AiRateLimiter.Hit hit2 = new AiRateLimiter.Hit(1, 59);
-
-        when(jdbcTemplate.queryForObject(anyString(), any(RowMapper.class), anyString(), eq(60L), eq(60L), eq(60L)))
-                .thenReturn(hit1, hit2);
+        doNothing().when(databaseRateLimiter).check(anyString(), eq(10), any(Duration.class));
 
         aiRateLimiter.checkAllowed("user-1");
         aiRateLimiter.checkAllowed("user-2");
 
         ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
-        verify(jdbcTemplate, times(2)).queryForObject(anyString(), any(RowMapper.class), keyCaptor.capture(), eq(60L), eq(60L), eq(60L));
+        verify(databaseRateLimiter, times(2)).check(keyCaptor.capture(), eq(10), any(Duration.class));
 
-        assertEquals(TokenHasher.hash("ai:user-1"), keyCaptor.getAllValues().get(0));
-        assertEquals(TokenHasher.hash("ai:user-2"), keyCaptor.getAllValues().get(1));
+        assertEquals("ai:user-1", keyCaptor.getAllValues().get(0));
+        assertEquals("ai:user-2", keyCaptor.getAllValues().get(1));
     }
 
     @Test
@@ -96,17 +90,14 @@ class AiRateLimiterTest {
         AtomicInteger allowed = new AtomicInteger(0);
         AtomicInteger rejected = new AtomicInteger(0);
 
-        // Use thenAnswer to return sequential values based on call count
         AtomicInteger callCount = new AtomicInteger(0);
-        when(jdbcTemplate.queryForObject(anyString(), any(RowMapper.class), anyString(), eq(60L), eq(60L), eq(60L)))
-                .thenAnswer(invocation -> {
-                    int count = callCount.incrementAndGet();
-                    if (count <= limit) {
-                        return new AiRateLimiter.Hit(count, 60 - count);
-                    } else {
-                        return new AiRateLimiter.Hit(limit + 1, 1);
-                    }
-                });
+        doAnswer(invocation -> {
+            int count = callCount.incrementAndGet();
+            if (count > limit) {
+                throw new RateLimitExceededException(1);
+            }
+            return null;
+        }).when(databaseRateLimiter).check(anyString(), eq(limit), any(Duration.class));
 
         ExecutorService executor = Executors.newFixedThreadPool(threadCount);
         CountDownLatch latch = new CountDownLatch(threadCount);
@@ -127,16 +118,14 @@ class AiRateLimiterTest {
         latch.await();
         executor.shutdown();
 
-        // Exactly limit requests should be allowed, rest rejected
         assertEquals(limit, allowed.get());
         assertEquals(threadCount - limit, rejected.get());
     }
 
     @Test
     void requestAboveLimitThrows429WithRetryAfter() {
-        AiRateLimiter.Hit hit = new AiRateLimiter.Hit(11, 30);
-        when(jdbcTemplate.queryForObject(anyString(), any(RowMapper.class), anyString(), eq(60L), eq(60L), eq(60L)))
-                .thenReturn(hit);
+        doThrow(new RateLimitExceededException(30))
+                .when(databaseRateLimiter).check(anyString(), eq(10), any(Duration.class));
 
         RateLimitExceededException ex = assertThrows(
                 RateLimitExceededException.class,
@@ -148,9 +137,8 @@ class AiRateLimiterTest {
 
     @Test
     void tryAcquireReturnsFalseWhenLimitExceeded() {
-        AiRateLimiter.Hit hit = new AiRateLimiter.Hit(11, 30);
-        when(jdbcTemplate.queryForObject(anyString(), any(RowMapper.class), anyString(), eq(60L), eq(60L), eq(60L)))
-                .thenReturn(hit);
+        when(databaseRateLimiter.tryAcquire(anyString(), eq(10), any(Duration.class)))
+                .thenReturn(false);
 
         boolean allowed = aiRateLimiter.tryAcquire("user-123");
         assertEquals(false, allowed);
@@ -158,9 +146,8 @@ class AiRateLimiterTest {
 
     @Test
     void tryAcquireReturnsTrueWhenUnderLimit() {
-        AiRateLimiter.Hit hit = new AiRateLimiter.Hit(5, 45);
-        when(jdbcTemplate.queryForObject(anyString(), any(RowMapper.class), anyString(), eq(60L), eq(60L), eq(60L)))
-                .thenReturn(hit);
+        when(databaseRateLimiter.tryAcquire(anyString(), eq(10), any(Duration.class)))
+                .thenReturn(true);
 
         boolean allowed = aiRateLimiter.tryAcquire("user-123");
         assertEquals(true, allowed);
@@ -168,8 +155,8 @@ class AiRateLimiterTest {
 
     @Test
     void getCurrentCountReturnsZeroForUnknownUser() {
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq(60L), anyString(), eq(60L)))
-                .thenReturn(List.of());
+        when(databaseRateLimiter.peek(anyString(), any(Duration.class)))
+                .thenReturn(0);
 
         int count = aiRateLimiter.getCurrentCount("unknown-user");
         assertEquals(0, count);
@@ -177,9 +164,8 @@ class AiRateLimiterTest {
 
     @Test
     void getCurrentCountReturnsCurrentAttempts() {
-        AiRateLimiter.Hit hit = new AiRateLimiter.Hit(7, 20);
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq(60L), anyString(), eq(60L)))
-                .thenReturn(List.of(hit));
+        when(databaseRateLimiter.peek(anyString(), any(Duration.class)))
+                .thenReturn(7);
 
         int count = aiRateLimiter.getCurrentCount("user-123");
         assertEquals(7, count);
@@ -189,10 +175,8 @@ class AiRateLimiterTest {
     void resetRemovesUserCounter() {
         aiRateLimiter.reset("user-123");
 
-        verify(jdbcTemplate).update(
-                eq("DELETE FROM auth_rate_limits WHERE bucket_key = ?"),
-                eq(TokenHasher.hash("ai:user-123"))
-        );
+        // DatabaseRateLimiter.reset receives the raw key and hashes it internally
+        verify(databaseRateLimiter).reset(eq("ai:user-123"));
     }
 
     @Test
@@ -200,12 +184,10 @@ class AiRateLimiterTest {
         aiProperties.getRateLimit().setMaxRequests(5);
         aiProperties.getRateLimit().setWindowMillis(120_000L); // 2 minutes
 
-        AiRateLimiter.Hit hit = new AiRateLimiter.Hit(1, 119);
-        when(jdbcTemplate.queryForObject(anyString(), any(RowMapper.class), anyString(), eq(120L), eq(120L), eq(120L)))
-                .thenReturn(hit);
+        doNothing().when(databaseRateLimiter).check(anyString(), eq(5), any(Duration.class));
 
         aiRateLimiter.checkAllowed("user-123");
 
-        verify(jdbcTemplate).queryForObject(anyString(), any(RowMapper.class), anyString(), eq(120L), eq(120L), eq(120L));
+        verify(databaseRateLimiter).check(anyString(), eq(5), any(Duration.class));
     }
 }

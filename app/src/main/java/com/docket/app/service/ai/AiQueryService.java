@@ -86,18 +86,6 @@ public class AiQueryService {
         this.aiProperties = aiProperties;
     }
 
-    public AiQueryService(
-            EmbeddingService embeddingService,
-            HybridRetriever hybridRetriever,
-            RerankService rerankService,
-            GeminiClient geminiClient,
-            ObjectMapper objectMapper,
-            DocumentRepository documentRepository,
-            FolderAccessService folderAccessService) {
-        this(embeddingService, hybridRetriever, rerankService, geminiClient, objectMapper,
-                documentRepository, folderAccessService, new DocketAiProperties());
-    }
-
     @org.springframework.beans.factory.annotation.Value("${docket.ai.gemini.model}")
     private String geminiModel;
 

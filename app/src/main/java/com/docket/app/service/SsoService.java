@@ -84,14 +84,20 @@ public class SsoService {
     private void initializeJwtProcessors() {
         // Google JWKS
         if (ssoProperties.getGoogle().isConfigured()) {
-            setupProvider("google", "https://www.googleapis.com/oauth2/v3/certs",
-                    "https://accounts.google.com", ssoProperties.getGoogle().getClientId());
+            String jwksUrl = ssoProperties.getGoogle().getJwksUrl();
+            String issuer = ssoProperties.getGoogle().getIssuer();
+            if (jwksUrl.isBlank()) jwksUrl = "https://www.googleapis.com/oauth2/v3/certs";
+            if (issuer.isBlank()) issuer = "https://accounts.google.com";
+            setupProvider("google", jwksUrl, issuer, ssoProperties.getGoogle().getClientId());
         }
 
         // Microsoft JWKS
         if (ssoProperties.getMicrosoft().isConfigured()) {
-            setupProvider("microsoft", "https://login.microsoftonline.com/common/discovery/v2.0/keys",
-                    "https://login.microsoftonline.com/common/v2.0", ssoProperties.getMicrosoft().getClientId());
+            String jwksUrl = ssoProperties.getMicrosoft().getJwksUrl();
+            String issuer = ssoProperties.getMicrosoft().getIssuer();
+            if (jwksUrl.isBlank()) jwksUrl = "https://login.microsoftonline.com/common/discovery/v2.0/keys";
+            if (issuer.isBlank()) issuer = "https://login.microsoftonline.com/common/v2.0";
+            setupProvider("microsoft", jwksUrl, issuer, ssoProperties.getMicrosoft().getClientId());
         }
     }
 
@@ -113,6 +119,16 @@ public class SsoService {
                 // Verify audience
                 if (claims.getAudience() == null || !claims.getAudience().contains(expectedAudience)) {
                     throw new com.nimbusds.jwt.proc.BadJWTException("Invalid audience: " + claims.getAudience());
+                }
+                // Verify authorized party (azp) if present — OIDC requires this when azp != aud
+                String azp;
+                try {
+                    azp = claims.getStringClaim("azp");
+                } catch (java.text.ParseException e) {
+                    azp = null;
+                }
+                if (azp != null && !azp.equals(expectedAudience)) {
+                    throw new com.nimbusds.jwt.proc.BadJWTException("Invalid authorized party: " + azp);
                 }
                 // Verify expiration
                 if (claims.getExpirationTime() != null && claims.getExpirationTime().before(new Date())) {

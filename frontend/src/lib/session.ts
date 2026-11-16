@@ -1,25 +1,22 @@
 import { isTokenExpired, parseJwt } from "./jwt";
 
 const API_BASE = import.meta.env.VITE_API_URL || "/api";
-const TOKEN_KEY = "token";
 
 type TokenListener = (token: string | null) => void;
 const listeners = new Set<TokenListener>();
 
-export function getStoredToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
+let currentAccessToken: string | null = null;
+
+export function getAccessToken(): string | null {
+  return currentAccessToken;
 }
 
-export function storeToken(token: string | null) {
-  if (token) {
-    localStorage.setItem(TOKEN_KEY, token);
-  } else {
-    localStorage.removeItem(TOKEN_KEY);
-  }
+export function setAccessToken(token: string | null) {
+  currentAccessToken = token;
   listeners.forEach((listener) => listener(token));
 }
 
-export function onTokenChange(listener: TokenListener): () => void {
+export function onAccessTokenChange(listener: TokenListener): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
 }
@@ -32,7 +29,7 @@ let refreshInFlight: Promise<string | null> | null = null;
 // Refresh tokens are single-use, so simultaneous refreshes must be avoided: the
 // promise covers this tab and the Web Lock covers other tabs. Whoever waited for the
 // lock usually finds that another tab already did the work.
-export function refreshAccessToken(staleToken: string | null = getStoredToken()): Promise<string | null> {
+export function refreshAccessToken(staleToken: string | null = getAccessToken()): Promise<string | null> {
   if (!refreshInFlight) {
     const run = () => performRefresh(staleToken);
     const attempt = navigator.locks ? navigator.locks.request("docket-token-refresh", run) : run();
@@ -44,7 +41,7 @@ export function refreshAccessToken(staleToken: string | null = getStoredToken())
 }
 
 async function performRefresh(staleToken: string | null): Promise<string | null> {
-  const current = getStoredToken();
+  const current = getAccessToken();
   if (current && current !== staleToken && !isTokenExpired(parseJwt(current))) {
     return current;
   }
@@ -58,7 +55,7 @@ async function performRefresh(staleToken: string | null): Promise<string | null>
   }
 
   if (response.status === 401) {
-    storeToken(null);
+    setAccessToken(null);
     return null;
   }
   if (!response.ok) {
@@ -66,7 +63,7 @@ async function performRefresh(staleToken: string | null): Promise<string | null>
   }
 
   const { token } = (await response.json()) as { token: string };
-  storeToken(token);
+  setAccessToken(token);
   return token;
 }
 
@@ -78,7 +75,7 @@ export async function apiFetch(input: string, init: RequestInit = {}): Promise<R
     return fetch(input, init);
   }
 
-  const latest = getStoredToken();
+  const latest = getAccessToken();
   if (latest) {
     headers.set("Authorization", `Bearer ${latest}`);
   }

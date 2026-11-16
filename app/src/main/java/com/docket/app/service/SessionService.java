@@ -63,13 +63,17 @@ public class SessionService {
             return Optional.empty();
         }
 
-        if (token.getRotatedAt() != null && !isWithinReuseGrace(token, now)) {
-            refreshTokenRepository.revokeFamily(token.getFamilyId(), now);
-            auditService.recordAccountEvent(token.getUserId(), AuditAction.REFRESH_TOKEN_REUSED, "SESSION", token.getFamilyId(), null);
-            return Optional.empty();
-        }
-
-        if (token.getRotatedAt() == null) {
+        if (token.getRotatedAt() != null) {
+            if (!isWithinReuseGrace(token, now)) {
+                refreshTokenRepository.revokeFamily(token.getFamilyId(), now);
+                auditService.recordAccountEvent(token.getUserId(), AuditAction.REFRESH_TOKEN_REUSED, "SESSION", token.getFamilyId(), null);
+                return Optional.empty();
+            }
+            // Grace-window replay: revoke the old token so only the newly issued one works.
+            // This preserves UX for legitimate races while preventing two tokens from being
+            // simultaneously valid in the grace window.
+            token.setRevokedAt(now);
+        } else {
             token.setRotatedAt(now);
         }
         return userRepository.findById(token.getUserId()).map(user -> issue(user, token.getFamilyId()));

@@ -12,7 +12,10 @@ import {
   ChevronRight as ChevronRightIconLucide,
   Check as CheckIconLucide,
   FileStack as FileStackIconLucide,
-  ServerNas as ServerNasLucide
+  ServerNas as ServerNasLucide,
+  Star as StarIconLucide,
+  Clock as ClockIconLucide,
+  Heart as HeartIconLucide
 } from 'lucide-react';
 
 export const LogoIcon = (props: SVGProps<SVGSVGElement>) => <FileStackIconLucide className='w-7 h-7' {...props} />;
@@ -29,3 +32,6 @@ export const ChevronDownIcon = (props: SVGProps<SVGSVGElement>) => <ChevronDownI
 export const ChevronRightIcon = (props: SVGProps<SVGSVGElement>) => <ChevronRightIconLucide className='w-4 h-4' {...props} />;
 export const CheckIcon = (props: SVGProps<SVGSVGElement>) => <CheckIconLucide className='w-4 h-4' {...props} />;
 export const ServerNas =  (props: SVGProps<SVGSVGElement>) => <ServerNasLucide className='w-4 h-4' {...props} />;
+export const StarIcon = (props: SVGProps<SVGSVGElement>) => <StarIconLucide className='w-5 h-5' {...props} />;
+export const ClockIcon = (props: SVGProps<SVGSVGElement>) => <ClockIconLucide className='w-5 h-5' {...props} />;
+export const HeartIcon = (props: SVGProps<SVGSVGElement>) => <HeartIconLucide className='w-5 h-5' {...props} />;

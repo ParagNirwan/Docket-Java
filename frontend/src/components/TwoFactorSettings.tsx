@@ -7,10 +7,10 @@ import {
   disable2fa,
   type TwoFactorSetupDTO,
 } from "../services/twoFactorService";
-import { getStoredToken } from "../lib/session";
+import { getAccessToken } from "../lib/session";
 
 export function TwoFactorSettings() {
-  const token = getStoredToken();
+  const token = getAccessToken();
   const [enabled, setEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

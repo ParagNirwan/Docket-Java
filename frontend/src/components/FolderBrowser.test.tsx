@@ -342,11 +342,12 @@ describe("FolderBrowser - rename, move and copy", () => {
   const openMenu = async (name: string) =>
     fireEvent.click(await screen.findByRole("button", { name: `More actions for ${name}` }));
 
-  it("hides the actions from people who can't use them", async () => {
+  it("hides the actions from people who can't use them, but shows favorite action", async () => {
     renderBrowser({ canUpdateDocuments: false, canCopyDocuments: false, canUpdateFolders: false });
 
     expect(await screen.findByText("Financial_Report_2026.xlsx")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /More actions/ })).toBeNull();
+    // Favorite action is always available, so menu should still be there
+    expect(screen.queryByRole("button", { name: /More actions/ })).not.toBeNull();
   });
 
   it("renames a document while keeping its extension out of reach", async () => {

@@ -46,6 +46,7 @@ import {
   Tag as TagIcon,
   CheckSquare,
   Square,
+  Star,
 } from "lucide-react";
 import { BreadcrumbNav } from "./BreadcrumbNav";
 import { CreateFolderModal } from "./CreateFolderModal";
@@ -90,6 +91,8 @@ import {
   updateDocument,
   copyDocument,
   formatFileSize,
+  toggleFavorite,
+  removeFavorite,
   type UploadTask,
   type DocumentDTO,
 } from "../services/documentService";
@@ -640,7 +643,27 @@ export function FolderBrowser({
       ...(canOverrideLocks && canBeOverridden(doc) ? [
         { label: "Delete anyway...", icon: ShieldAlert, danger: true, onSelect: () => setOverriding(doc) },
       ] : []),
+      // Favorite toggle (always available for documents the user can read)
+      {
+        label: "Remove from favorites",
+        icon: Star,
+        onSelect: () => handleToggleFavorite(doc, true),
+      },
     ];
+  }
+
+  async function handleToggleFavorite(doc: DocumentDTO, currentlyFavorite: boolean) {
+    try {
+      if (currentlyFavorite) {
+        await removeFavorite(slug, doc.id, token!);
+      } else {
+        await toggleFavorite(slug, doc.id, token!);
+      }
+      // Refresh documents to reflect the change
+      refreshDocuments();
+    } catch (err) {
+      notify.error("Failed to update favorite", err instanceof Error ? err.message : "An error occurred");
+    }
   }
 
   // ── Dragging Folders and Documents Into Folders ───────────────────
@@ -1362,6 +1385,19 @@ export function FolderBrowser({
                             )}
                           </div>
                           <div className="flex items-center gap-1">
+                            {/* Favorite star button */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleFavorite(doc, false);
+                              }}
+                              className="p-1.5 rounded-full text-gray-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors"
+                              title="Add to favorites"
+                              aria-label={`Add ${doc.originalFileName} to favorites`}
+                            >
+                              <Star className="h-4 w-4" />
+                            </button>
                             <ItemActionsMenu itemName={doc.originalFileName} actions={documentActions(doc)} openUp />
                             {canDeleteDocuments && (
                               <button
@@ -1462,6 +1498,19 @@ export function FolderBrowser({
                               {typeInfo.extension}
                             </span>
                             <ItemActionsMenu itemName={doc.originalFileName} actions={documentActions(doc)} openUp />
+                            {/* Favorite star button */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleFavorite(doc, false);
+                              }}
+                              className="p-1 rounded-full text-gray-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors"
+                              title="Add to favorites"
+                              aria-label={`Add ${doc.originalFileName} to favorites`}
+                            >
+                              <Star className="h-3.5 w-3.5" />
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -1640,6 +1689,19 @@ export function FolderBrowser({
                                       <Sparkles className="h-4 w-4" />
                                     </button>
                                   )}
+                                  {/* Favorite star button */}
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleToggleFavorite(doc, false);
+                                    }}
+                                    className="p-1.5 rounded-full text-gray-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors"
+                                    title="Add to favorites"
+                                    aria-label={`Add ${doc.originalFileName} to favorites`}
+                                  >
+                                    <Star className="h-4 w-4" />
+                                  </button>
                                   <button
                                     type="button"
                                     onClick={() => handleDownloadDocument(doc)}

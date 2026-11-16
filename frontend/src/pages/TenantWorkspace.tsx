@@ -23,6 +23,8 @@ import {
   Trash2,
   UsersRound,
   History,
+  Star,
+  Clock,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { CreateTrayModal } from "../components/CreateTrayModal";
@@ -33,6 +35,8 @@ import { TrashView } from "../components/TrashView";
 import { TraysOverview } from "../components/TraysOverview";
 import { ActivityLog } from "../components/ActivityLog";
 import { OrganizationSettings } from "../components/OrganizationSettings";
+import { FavoritesContent } from "../components/FavoritesContent";
+import { RecentContent } from "../components/RecentContent";
 import { notify } from "../lib/notifications";
 import type { Tray, CreateTrayRequestDTO } from "../services/trayService";
 import { getTenantTrays, createTray, deleteTray } from "../services/trayService";
@@ -89,6 +93,8 @@ const sectionLabels: Record<string, string> = {
   emails: "Connected Emails",
   activity: "Activity Log",
   settings: "Settings",
+  favorites: "Favorites",
+  recent: "Recent",
 };
 
 // A single sidebar button. Shows an icon, label, and optional count badge.
@@ -295,6 +301,8 @@ export function TenantWorkspace() {
   const mainNavItems: WorkspaceNavItem[] = [
     { id: "review", label: "Review", icon: Inbox, permission: "documents.read", count: "6" },
     { id: "ai-search", label: "AI Search", icon: Sparkles, permission: "documents.read" },
+    { id: "favorites", label: "Favorites", icon: Star, permission: "documents.read" },
+    { id: "recent", label: "Recent", icon: Clock, permission: "documents.read" },
     { id: "partners", label: "Partners", icon: UsersRound, permission: "members.read" },
     { id: "emails", label: "Connected Emails", icon: Mail, permission: null, count: "2" },
     { id: "activity", label: "Activity Log", icon: History, permission: "audit.read" },
@@ -597,6 +605,8 @@ export function TenantWorkspace() {
               {currentSection === "ai-search" && (
                 <WorkspaceAiSearch slug={slug || ""} token={token} />
               )}
+              {currentSection === "favorites" && token && <FavoritesContent slug={slug || ""} token={token} onAskAi={handleAskAi} />}
+              {currentSection === "recent" && token && <RecentContent slug={slug || ""} token={token} onAskAi={handleAskAi} />}
               {currentSection === "partners" && <PartnersContent canInvite={hasPermission(permissions, "members.invite")} />}
               {currentSection === "emails" && <ConnectedEmailsContent />}
               {currentSection === "activity" && <ActivityLog slug={slug || ""} token={token} />}
@@ -682,6 +692,8 @@ function sectionDescription(section: string) {
     partners: "People and organizations you work with.",
     emails: "Email accounts connected to this workspace.",
     settings: "People, retention and legal holds in this organization, and changes that are hard to undo.",
+    favorites: "Starred documents for quick access.",
+    recent: "Recently viewed and downloaded documents.",
   };
   return descriptions[section] || "Manage workspace documents and folders.";
 }

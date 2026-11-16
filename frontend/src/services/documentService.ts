@@ -1,4 +1,4 @@
-import { apiFetch, getStoredToken, refreshAccessToken } from "../lib/session";
+import { apiFetch, getAccessToken, refreshAccessToken } from "../lib/session";
 import { randomUUID } from "../lib/uuid";
 import type { LockMode } from "../lib/retention";
 
@@ -311,7 +311,7 @@ export class UploadManager {
     const xhr = new XMLHttpRequest();
     const startTime = Date.now();
     // A queued upload can start long after this manager was created.
-    const sentToken = getStoredToken() ?? this.token;
+    const sentToken = getAccessToken() ?? this.token;
 
     // This event fires repeatedly while the file is being sent,
     // telling us how much has been uploaded so far
@@ -762,6 +762,76 @@ export async function bulkTagDocuments(
   });
   if (!response.ok) {
     throw new Error(`Bulk tag failed (${response.status})`);
+  }
+  return response.json();
+}
+
+// ─── FAVORITES & RECENT ──────────────────────────────────────────────────
+
+export interface FavoriteResultDTO {
+  documentId: string;
+  favorite: boolean;
+}
+
+// Toggle favorite status for a document
+export async function toggleFavorite(
+  slug: string,
+  docId: string,
+  token: string,
+): Promise<FavoriteResultDTO> {
+  const response = await apiFetch(`${API_BASE}/tenants/${encodeURIComponent(slug)}/documents/${docId}/favorite`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to toggle favorite (${response.status})`);
+  }
+  return response.json();
+}
+
+// Remove favorite status for a document
+export async function removeFavorite(
+  slug: string,
+  docId: string,
+  token: string,
+): Promise<FavoriteResultDTO> {
+  const response = await apiFetch(`${API_BASE}/tenants/${encodeURIComponent(slug)}/documents/${docId}/favorite`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to remove favorite (${response.status})`);
+  }
+  return response.json();
+}
+
+// List favorite documents
+export async function listFavorites(
+  slug: string,
+  token: string,
+  page = 0,
+  size = 20,
+): Promise<PagedDocuments> {
+  const response = await apiFetch(`${API_BASE}/tenants/${encodeURIComponent(slug)}/documents/favorites?page=${page}&size=${size}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to load favorites (${response.status})`);
+  }
+  return response.json();
+}
+
+// List recently viewed/downloaded documents
+export async function listRecentDocuments(
+  slug: string,
+  token: string,
+  limit = 20,
+): Promise<DocumentDTO[]> {
+  const response = await apiFetch(`${API_BASE}/tenants/${encodeURIComponent(slug)}/documents/recent?limit=${limit}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to load recent documents (${response.status})`);
   }
   return response.json();
 }

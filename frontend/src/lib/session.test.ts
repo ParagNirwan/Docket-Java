@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { apiFetch, getStoredToken, refreshAccessToken, retryAfterMessage, storeToken } from "./session";
+import { apiFetch, getAccessToken, setAccessToken, refreshAccessToken, retryAfterMessage } from "./session";
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status });
@@ -38,7 +38,7 @@ describe("session", () => {
   });
 
   it("sends the newest token even if the caller holds an older one", async () => {
-    storeToken(jwt("new"));
+    setAccessToken(jwt("new"));
     fetchMock.mockResolvedValue(jsonResponse({}));
 
     await apiFetch("/api/x", { headers: { Authorization: "Bearer old" } });
@@ -47,7 +47,7 @@ describe("session", () => {
   });
 
   it("refreshes on 401 and retries once with the new token", async () => {
-    storeToken(jwt("stale"));
+    setAccessToken(jwt("stale"));
     fetchMock
       .mockResolvedValueOnce(jsonResponse({}, 401))
       .mockResolvedValueOnce(jsonResponse({ token: jwt("fresh") }))
@@ -60,11 +60,11 @@ describe("session", () => {
     expect(fetchMock.mock.calls[1][0]).toContain("/auth/refresh");
     expect(sentToken(fetchMock.mock.calls[2])).toBe(`Bearer ${jwt("fresh")}`);
     expect(fetchMock.mock.calls[2][1].body).toBe("data");
-    expect(getStoredToken()).toBe(jwt("fresh"));
+    expect(getAccessToken()).toBe(jwt("fresh"));
   });
 
   it("does not retry a second time if the retry is also rejected", async () => {
-    storeToken(jwt("stale"));
+    setAccessToken(jwt("stale"));
     fetchMock
       .mockResolvedValueOnce(jsonResponse({}, 401))
       .mockResolvedValueOnce(jsonResponse({ token: jwt("fresh") }))
@@ -77,7 +77,7 @@ describe("session", () => {
   });
 
   it("shares one refresh between simultaneous 401s, because refresh tokens are single-use", async () => {
-    storeToken(jwt("stale"));
+    setAccessToken(jwt("stale"));
     fetchMock.mockImplementation(async (url: string, init: RequestInit) => {
       if (url.includes("/auth/refresh")) return jsonResponse({ token: jwt("fresh") });
       return new Headers(init.headers).get("Authorization") === `Bearer ${jwt("fresh")}`
@@ -96,7 +96,7 @@ describe("session", () => {
   });
 
   it("uses a token another tab already refreshed instead of spending the cookie again", async () => {
-    storeToken(jwt("from-other-tab"));
+    setAccessToken(jwt("from-other-tab"));
 
     await expect(refreshAccessToken(jwt("stale"))).resolves.toBe(jwt("from-other-tab"));
 
@@ -104,24 +104,24 @@ describe("session", () => {
   });
 
   it("logs out when the server says the session is over", async () => {
-    storeToken(jwt("stale"));
+    setAccessToken(jwt("stale"));
     fetchMock.mockResolvedValue(jsonResponse({}, 401));
 
     await expect(refreshAccessToken()).resolves.toBeNull();
 
-    expect(getStoredToken()).toBeNull();
+    expect(getAccessToken()).toBeNull();
   });
 
   it("stays logged in through network failures and server errors", async () => {
-    storeToken(jwt("stale"));
+    setAccessToken(jwt("stale"));
 
     fetchMock.mockRejectedValueOnce(new TypeError("offline"));
     await expect(refreshAccessToken()).resolves.toBeNull();
-    expect(getStoredToken()).toBe(jwt("stale"));
+    expect(getAccessToken()).toBe(jwt("stale"));
 
     fetchMock.mockResolvedValueOnce(jsonResponse({}, 503));
     await expect(refreshAccessToken()).resolves.toBeNull();
-    expect(getStoredToken()).toBe(jwt("stale"));
+    expect(getAccessToken()).toBe(jwt("stale"));
   });
 
   it("describes how long to wait", () => {

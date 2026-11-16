@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { KeyRound } from "lucide-react";
 import { AuthCard, AuthError } from "../components/AuthCard";
-import { retryAfterMessage, storeToken } from "../lib/session";
+import { retryAfterMessage, setAccessToken } from "../lib/session";
 import { resetPasswordSchema } from "../lib/validation";
 
 export function ResetPasswordPage() {
@@ -35,7 +35,7 @@ export function ResetPasswordPage() {
 
       if (response.ok) {
         // Every session just ended on the server, including any in this browser.
-        storeToken(null);
+        setAccessToken(null);
         navigate("/login", { replace: true, state: { message: "Password changed. Please sign in." } });
       } else if (response.status === 429) {
         setError(retryAfterMessage(response));

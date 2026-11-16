@@ -11,7 +11,7 @@ vi.mock("../services/twoFactorService", () => ({
 }));
 
 vi.mock("../lib/session", () => ({
-  getStoredToken: () => "mock-jwt-token",
+  getAccessToken: () => "mock-jwt-token",
 }));
 
 describe("TwoFactorSettings", () => {

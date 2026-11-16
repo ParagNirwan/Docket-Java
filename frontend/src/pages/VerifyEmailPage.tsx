@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { MailCheck } from "lucide-react";
 import { AuthCard, AuthError, AuthNotice } from "../components/AuthCard";
-import { getStoredToken, refreshAccessToken } from "../lib/session";
+import { getAccessToken, refreshAccessToken } from "../lib/session";
 
 type VerifyState = "verifying" | "verified" | "failed";
 
@@ -29,7 +29,7 @@ export function VerifyEmailPage() {
           return;
         }
         // If they're logged in here, get a token that knows they're verified now.
-        if (getStoredToken()) {
+        if (getAccessToken()) {
           await refreshAccessToken();
         }
         setState("verified");

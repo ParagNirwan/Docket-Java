@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
-import { Lock, Pencil, Plus, Trash2 } from "lucide-react";
+import { Download, Lock, Pencil, Plus, Trash2 } from "lucide-react";
 import { DeleteConfirmationModal } from "./DeleteConfirmationModal";
 import { notify } from "../lib/notifications";
 import { hasPermission } from "../lib/permissions";
@@ -8,13 +8,16 @@ import { formatDate, LOCK_MODE_LABELS, type LockMode } from "../lib/retention";
 import {
   createPolicy,
   deletePolicy,
+  downloadComplianceReport,
   getRetentionSummary,
   listPolicies,
+  previewPolicy,
   updatePolicy,
   updateTrashRetention,
   type ClockStart,
   type OnExpiry,
   type RetentionPolicy,
+  type RetentionPreview,
   type RetentionSummary,
 } from "../services/retentionService";
 import type { Tray } from "../services/trayService";
@@ -121,12 +124,25 @@ export function RetentionPanel({ slug, token, trays, permissions }: RetentionPan
             <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Retention policies</h3>
             <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">How long documents in a tray must be kept before they can be deleted.</p>
           </div>
-          {canManage && availableTrays.length > 0 && (
-            <button type="button" onClick={() => setEditing("new")} className="inline-flex shrink-0 items-center gap-2 rounded-full bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-indigo-700">
-              <Plus className="h-4 w-4" />
-              Add policy
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                downloadComplianceReport(slug, token).catch((err: unknown) =>
+                  notify.error("Could not download the report", err instanceof Error ? err.message : undefined));
+              }}
+              className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Compliance report
             </button>
-          )}
+            {canManage && availableTrays.length > 0 && (
+              <button type="button" onClick={() => setEditing("new")} className="inline-flex shrink-0 items-center gap-2 rounded-full bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-indigo-700">
+                <Plus className="h-4 w-4" />
+                Add policy
+              </button>
+            )}
+          </div>
         </div>
 
         {policies.length === 0 ? (
@@ -295,6 +311,20 @@ function PolicyForm({ slug, token, policy, trays, onClose, onSaved }: {
   const [confirmName, setConfirmName] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [preview, setPreview] = useState<RetentionPreview | null>(null);
+  const [previewing, setPreviewing] = useState(false);
+
+  async function handlePreview() {
+    try {
+      setPreviewing(true);
+      setError("");
+      setPreview(await previewPolicy(slug, { folderId, retentionDays, lockMode, clockStart, appliesToSubfolders }, token));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not preview the policy");
+    } finally {
+      setPreviewing(false);
+    }
+  }
 
   const wasCompliance = policy?.lockMode === "COMPLIANCE";
   const trayName = policy?.folderName ?? trays.find((tray) => tray.id === folderId)?.name ?? "";
@@ -429,6 +459,19 @@ function PolicyForm({ slug, token, policy, trays, onClose, onSaved }: {
           </label>
         )}
 
+        {preview && (
+          <div role="status" aria-label="Policy preview" className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3 text-xs text-gray-700 dark:border-indigo-900 dark:bg-indigo-950/30 dark:text-gray-200">
+            <p className="font-semibold">Dry run: nothing has changed yet</p>
+            <ul className="mt-1 space-y-0.5">
+              <li>{preview.covered} documents covered</li>
+              <li>{preview.newlyLocked} newly locked, {preview.extended} kept longer, {preview.unchanged} already locked for longer</li>
+              {preview.becomeCompliance > 0 && <li className="font-medium text-red-700 dark:text-red-300">{preview.becomeCompliance} would become permanently locked (Compliance)</li>}
+              {preview.alreadyExpired > 0 && <li className="text-amber-700 dark:text-amber-300">{preview.alreadyExpired} are already past this period and would reach &quot;{ON_EXPIRY_LABELS[onExpiry]}&quot; on the next run</li>}
+              {preview.latestUntil && <li>Locks would last until {new Date(preview.latestUntil).toLocaleDateString()} at the latest</li>}
+            </ul>
+          </div>
+        )}
+
         {tooShort && <p className="text-xs text-red-600 dark:text-red-400">A Compliance policy can only be extended: at least {minimumDays} days.</p>}
         {error && (
           <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-600 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-400">
@@ -438,6 +481,9 @@ function PolicyForm({ slug, token, policy, trays, onClose, onSaved }: {
 
         <div className="flex justify-end gap-2">
           <button type="button" onClick={onClose} className="rounded-full border border-gray-200 px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">Cancel</button>
+          <button type="button" onClick={() => void handlePreview()} disabled={previewing || !folderId || tooShort} className="rounded-full border border-indigo-200 px-4 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 disabled:opacity-50 dark:border-indigo-900 dark:text-indigo-300">
+            {previewing ? "Checking..." : "Preview impact"}
+          </button>
           <button
             type="submit"
             disabled={saving || !folderId || tooShort || (needsConfirmation && confirmName !== trayName)}

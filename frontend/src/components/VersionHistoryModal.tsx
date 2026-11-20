@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from "react";
-import { X, History, Upload, Eye, RotateCcw, AlertCircle, Loader2 } from "lucide-react";
+import { X, History, Upload, Eye, RotateCcw, AlertCircle, Loader2, GitCompare } from "lucide-react";
 import {
   getDocumentVersions,
   uploadDocumentVersion,
@@ -9,6 +9,7 @@ import {
   type DocumentDTO,
 } from "../services/documentService";
 import { DocumentPreviewModal } from "./DocumentPreviewModal";
+import { CompareModal } from "./CompareModal";
 
 interface VersionHistoryModalProps {
   slug: string;
@@ -38,6 +39,7 @@ export function VersionHistoryModal({
 
   // Preview sub-modal
   const [previewVersion, setPreviewVersion] = useState<number | null>(null);
+  const [compareVersion, setCompareVersion] = useState<number | null>(null);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -263,6 +265,17 @@ export function VersionHistoryModal({
                         >
                           <Eye className="w-4 h-4" />
                         </button>
+                        {!isCurrent && (
+                          <button
+                            type="button"
+                            onClick={() => setCompareVersion(v.version)}
+                            title="Compare with the current version"
+                            aria-label={`Compare version ${v.version} with current`}
+                            className="p-1.5 rounded-lg text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                          >
+                            <GitCompare className="w-4 h-4" />
+                          </button>
+                        )}
                         {canUpdate && !isCurrent && (
                           <button
                             type="button"
@@ -283,6 +296,16 @@ export function VersionHistoryModal({
           </div>
         </div>
       </div>
+
+      {compareVersion !== null && (
+        <CompareModal
+          slug={slug}
+          token={token}
+          path={`/documents/${encodeURIComponent(document.id)}/versions/${compareVersion}/diff/${currentVersionNumber}`}
+          title={`v${compareVersion} → v${currentVersionNumber}`}
+          onClose={() => setCompareVersion(null)}
+        />
+      )}
 
       {previewVersion !== null && (
         <DocumentPreviewModal

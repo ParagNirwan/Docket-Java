@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { X, Download, Eye, AlertCircle, Loader2, FileText, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
 import { getDocumentSummary, type DocumentSummary } from "../services/aiService";
+import { DocumentInsights } from "./DocumentInsights";
 import { previewDocument, previewDocumentVersion, downloadDocument, formatFileSize } from "../services/documentService";
 
 interface DocumentPreviewModalProps {
@@ -203,6 +204,8 @@ export function DocumentPreviewModal({
             )}
           </section>
         )}
+
+        {!version && <DocumentInsights slug={slug} docId={docId} token={token} />}
 
         {/* Preview Viewport */}
         <div className="flex-1 bg-gray-50/70 dark:bg-gray-950/80 p-4 overflow-auto flex items-center justify-center">

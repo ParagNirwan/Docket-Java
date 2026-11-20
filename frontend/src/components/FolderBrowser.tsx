@@ -1925,6 +1925,7 @@ export function FolderBrowser({
           selectedDocIds={selectedDocIds}
           token={token}
           trays={trays.length > 0 ? trays : [activeTray]}
+          canManageRetention={canApplyLegalHold}
           onClearSelection={() => setSelectedDocIds([])}
           onOperationComplete={(msg) => {
             notify.success("Bulk action", msg);

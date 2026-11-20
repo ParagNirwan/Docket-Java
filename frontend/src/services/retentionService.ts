@@ -202,3 +202,48 @@ export async function unarchiveDocument(slug: string, docId: string, token: stri
   const response = await ok(await send(url(slug, `documents/${docId}/unarchive`), token, "POST"), { 409: "This document isn't archived" }, "Could not unarchive this document");
   return response.json();
 }
+
+export interface RetentionPreview {
+  covered: number;
+  newlyLocked: number;
+  extended: number;
+  unchanged: number;
+  alreadyExpired: number;
+  becomeCompliance: number;
+  earliestUntil: string | null;
+  latestUntil: string | null;
+}
+
+// Dry run: what a policy with these terms would do. Changes nothing.
+export async function previewPolicy(
+  slug: string,
+  input: Pick<RetentionPolicyInput, "folderId" | "retentionDays" | "lockMode" | "clockStart" | "appliesToSubfolders">,
+  token: string,
+): Promise<RetentionPreview> {
+  const params = new URLSearchParams({
+    folderId: input.folderId,
+    retentionDays: String(input.retentionDays),
+    lockMode: input.lockMode,
+    clockStart: input.clockStart,
+    appliesToSubfolders: String(input.appliesToSubfolders),
+  });
+  const response = await apiFetch(`${API_BASE}/tenants/${encodeURIComponent(slug)}/retention-policies/preview?${params}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) throw new Error(`Couldn't preview the policy (${response.status})`);
+  return response.json();
+}
+
+// CSV of every document under a retention lock or an active legal hold.
+export async function downloadComplianceReport(slug: string, token: string): Promise<void> {
+  const response = await apiFetch(`${API_BASE}/tenants/${encodeURIComponent(slug)}/retention-policies/report`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) throw new Error(`Couldn't download the report (${response.status})`);
+  const url = URL.createObjectURL(await response.blob());
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "retention-compliance-report.csv";
+  link.click();
+  URL.revokeObjectURL(url);
+}

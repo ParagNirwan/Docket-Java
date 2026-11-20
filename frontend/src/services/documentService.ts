@@ -766,6 +766,42 @@ export async function bulkTagDocuments(
   return response.json();
 }
 
+export async function bulkAssignRetention(
+  slug: string,
+  documentIds: string[],
+  policyId: string,
+  token: string,
+): Promise<BulkOperationResultDTO> {
+  const response = await apiFetch(`${API_BASE}/tenants/${encodeURIComponent(slug)}/documents/bulk-retention`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ documentIds, policyId }),
+  });
+  if (!response.ok) {
+    throw new Error(`Applying retention failed (${response.status})`);
+  }
+  return response.json();
+}
+
+// Downloads the selection as one zip (max 100 files / 1 GB). Files that can't be included
+// (no access, awaiting scan) are listed in _skipped.txt inside the zip.
+export async function bulkDownloadZip(slug: string, documentIds: string[], token: string): Promise<void> {
+  const response = await apiFetch(`${API_BASE}/tenants/${encodeURIComponent(slug)}/documents/bulk-download`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ documentIds }),
+  });
+  if (!response.ok) {
+    throw new Error(`Download failed (${response.status})`);
+  }
+  const url = URL.createObjectURL(await response.blob());
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "documents.zip";
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 // ─── FAVORITES & RECENT ──────────────────────────────────────────────────
 
 export interface FavoriteResultDTO {

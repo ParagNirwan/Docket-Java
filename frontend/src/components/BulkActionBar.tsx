@@ -1,14 +1,17 @@
 import { useState } from "react";
-import { Trash2, FolderInput, Archive, Tag, X, Loader2 } from "lucide-react";
+import { Trash2, FolderInput, Archive, Tag, X, Loader2, Download, Lock } from "lucide-react";
 import { FolderPickerModal } from "./FolderPickerModal";
 import {
   bulkDeleteDocuments,
   bulkMoveDocuments,
   bulkArchiveDocuments,
   bulkTagDocuments,
+  bulkAssignRetention,
+  bulkDownloadZip,
 } from "../services/documentService";
 import { getTags, type TagDTO } from "../services/tagService";
 import type { Tray } from "../services/trayService";
+import { listPolicies, type RetentionPolicy } from "../services/retentionService";
 
 interface BulkActionBarProps {
   slug: string;
@@ -17,6 +20,8 @@ interface BulkActionBarProps {
   trays?: Tray[];
   onClearSelection: () => void;
   onOperationComplete: (summary: string) => void;
+  // retention.manage: shows the Retain action
+  canManageRetention?: boolean;
 }
 
 export function BulkActionBar({
@@ -26,12 +31,14 @@ export function BulkActionBar({
   trays = [],
   onClearSelection,
   onOperationComplete,
+  canManageRetention = false,
 }: BulkActionBarProps) {
   const [loading, setLoading] = useState(false);
   const [showFolderPicker, setShowFolderPicker] = useState(false);
   const [showTagPicker, setShowTagPicker] = useState(false);
   const [availableTags, setAvailableTags] = useState<TagDTO[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [policies, setPolicies] = useState<RetentionPolicy[] | null>(null);
 
   if (selectedDocIds.length === 0) return null;
 
@@ -72,6 +79,44 @@ export function BulkActionBar({
       onClearSelection();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Bulk archive failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDownload() {
+    try {
+      setLoading(true);
+      await bulkDownloadZip(slug, selectedDocIds, token);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Download failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function openRetentionPicker() {
+    try {
+      setLoading(true);
+      setPolicies(await listPolicies(slug, token));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Couldn't load retention policies");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleApplyRetention(policy: RetentionPolicy) {
+    const lock = policy.lockMode === "COMPLIANCE" ? "a Compliance lock that nobody can remove early" : "a Governance lock";
+    if (!window.confirm(`Keep ${selectedDocIds.length} documents for ${policy.retentionDays} days under ${lock}? Existing longer locks are kept.`)) return;
+    try {
+      setLoading(true);
+      setPolicies(null);
+      const res = await bulkAssignRetention(slug, selectedDocIds, policy.id, token);
+      onOperationComplete(`Applied retention to ${res.succeeded} documents${res.failed > 0 ? ` (${res.failed} failed)` : ""}`);
+      onClearSelection();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Applying retention failed");
     } finally {
       setLoading(false);
     }
@@ -154,6 +199,28 @@ export function BulkActionBar({
 
               <button
                 type="button"
+                onClick={handleDownload}
+                title="Download selected as zip"
+                className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-full bg-gray-800 hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-200 transition-colors"
+              >
+                <Download className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="hidden sm:inline">Zip</span>
+              </button>
+
+              {canManageRetention && (
+                <button
+                  type="button"
+                  onClick={openRetentionPicker}
+                  title="Apply a retention policy"
+                  className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-full bg-gray-800 hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-200 transition-colors"
+                >
+                  <Lock className="w-3.5 h-3.5 text-purple-400" />
+                  <span className="hidden sm:inline">Retain</span>
+                </button>
+              )}
+
+              <button
+                type="button"
                 onClick={handleArchive}
                 title="Archive selected"
                 className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-full bg-gray-800 hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-200 transition-colors"
@@ -175,6 +242,38 @@ export function BulkActionBar({
           )}
         </div>
       </div>
+
+      {policies && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Apply retention policy">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-xs" onClick={() => setPolicies(null)} />
+          <div className="relative w-full max-w-md rounded-2xl bg-white p-5 shadow-xl dark:bg-gray-900">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Apply a retention policy</h3>
+            <p className="mt-1 text-xs text-gray-500">Locks the selected documents under the policy terms, wherever they are.</p>
+            {policies.length === 0 ? (
+              <p className="mt-4 text-sm text-gray-500">No retention policies yet. Create one under Settings, Retention.</p>
+            ) : (
+              <ul className="mt-4 max-h-72 space-y-2 overflow-y-auto">
+                {policies.map((policy) => (
+                  <li key={policy.id}>
+                    <button type="button" onClick={() => void handleApplyRetention(policy)}
+                      className="w-full rounded-xl border border-gray-200 p-3 text-left text-sm hover:border-indigo-400 dark:border-gray-700">
+                      <span className="font-medium text-gray-900 dark:text-white">{policy.folderName ?? "Policy"}</span>
+                      <span className="block text-xs text-gray-500">
+                        {policy.retentionDays} days · {policy.lockMode === "COMPLIANCE" ? "Compliance" : "Governance"} lock
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="mt-4 text-right">
+              <button type="button" onClick={() => setPolicies(null)} className="text-xs text-gray-500 hover:text-gray-900 dark:hover:text-white">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showFolderPicker && (
         <FolderPickerModal

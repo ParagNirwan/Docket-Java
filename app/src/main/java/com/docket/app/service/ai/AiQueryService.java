@@ -98,6 +98,25 @@ public class AiQueryService {
     @org.springframework.beans.factory.annotation.Value("${docket.ai.retrieval.min-results}")
     private int minResults = 1;
 
+    // Overrides from the organization's AI settings. Optional so that tests constructing
+    // the service directly keep working with the server defaults.
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.docket.app.repository.TenantRepository tenantRepository;
+
+    record Thresholds(double maxDistance, double fallbackMaxDistance, double rerankMinScore) {
+    }
+
+    Thresholds thresholdsFor(UUID tenantId) {
+        Thresholds defaults = new Thresholds(maxDistance, fallbackMaxDistance, rerankMinScore);
+        if (tenantRepository == null || tenantId == null) return defaults;
+        return tenantRepository.findById(tenantId)
+                .map(t -> new Thresholds(
+                        t.getAiMaxDistance() != null ? t.getAiMaxDistance() : maxDistance,
+                        t.getAiFallbackMaxDistance() != null ? t.getAiFallbackMaxDistance() : fallbackMaxDistance,
+                        t.getAiRerankMinScore() != null ? t.getAiRerankMinScore() : rerankMinScore))
+                .orElse(defaults);
+    }
+
     // A re-ranked chunk scoring below this isn't an answer to the question
     @org.springframework.beans.factory.annotation.Value("${docket.ai.rerank.min-score}")
     private double rerankMinScore = 0.3;
@@ -210,7 +229,7 @@ public class AiQueryService {
         }
 
         recordDistances(candidates);
-        List<RetrievedChunk> relevant = dropIrrelevant(rerankService.rerank(searchQuery, candidates));
+        List<RetrievedChunk> relevant = dropIrrelevant(rerankService.rerank(searchQuery, candidates), thresholdsFor(tenantId));
         Metrics.summary("docket.ai.retrieval.after_threshold").record(relevant.size());
         List<RetrievedChunk> chunks = relevant.stream()
                 .limit(isBroadQuery ? aiProperties.getQuery().getTopKBroad() : aiProperties.getQuery().getTopKSpecific())
@@ -260,6 +279,13 @@ public class AiQueryService {
     // When the candidates were re-ranked, their score decides instead of their distance: it comes
     // from reading the question and the chunk together, so it is the better judge of the two.
     List<RetrievedChunk> dropIrrelevant(List<RetrievedChunk> candidates) {
+        return dropIrrelevant(candidates, new Thresholds(maxDistance, fallbackMaxDistance, rerankMinScore));
+    }
+
+    List<RetrievedChunk> dropIrrelevant(List<RetrievedChunk> candidates, Thresholds thresholds) {
+        double maxDistance = thresholds.maxDistance();
+        double fallbackMaxDistance = thresholds.fallbackMaxDistance();
+        double rerankMinScore = thresholds.rerankMinScore();
         boolean reranked = candidates.stream().anyMatch(chunk -> chunk.rerankScore() != null);
         List<RetrievedChunk> kept = new ArrayList<>(candidates.stream()
                 .filter(chunk -> chunk.exactMatch() || (reranked

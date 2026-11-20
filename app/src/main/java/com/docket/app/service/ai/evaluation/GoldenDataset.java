@@ -89,6 +89,8 @@ public final class GoldenDataset {
         private double citationPrecision;
         private double citationRecall;
         private double answerCorrectness; // LLM-as-judge score
+        // Share of substantive answer sentences carrying a [n] citation (reported, not gated)
+        private double citationCoverage;
         private double averageLatencyMs;
         private double p95LatencyMs;
         private List<QuestionResult> questionResults;
@@ -111,6 +113,7 @@ public final class GoldenDataset {
         private double citationPrecision;
         private double citationRecall;
         private double answerCorrectness;
+        private double citationCoverage;
         private long latencyMs;
         private boolean passed;
         private String failureReason;

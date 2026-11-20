@@ -38,6 +38,7 @@ public class DocumentProcessingService {
     private final NotificationService notificationService;
     private final TenantRepository tenantRepository;
     private final DocumentSummaryService documentSummaryService;
+    private final DocumentClassificationService documentClassificationService;
 
     // Raising this makes the re-index job process every document again. Do that whenever
     // a change to extraction, chunking or embedding should reach existing documents.
@@ -119,6 +120,8 @@ public class DocumentProcessingService {
             replaceChunks(documentId, chunkEntities, IndexingStatus.COMPLETED);
             // After the chunks are saved, so the document is searchable while its summary is written
             refreshSummary(document, chunks);
+            // #121: type, key fields and suggested tags. Never fails indexing.
+            documentClassificationService.classify(documentId, chunks);
             log.info("Document processing completed: {} ({} chunks)", documentId, chunks.size());
 
         } catch (Exception e) {

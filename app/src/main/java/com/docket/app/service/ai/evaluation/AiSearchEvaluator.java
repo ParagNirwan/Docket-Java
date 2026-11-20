@@ -93,6 +93,9 @@ public class AiSearchEvaluator {
         double answerCorrectness = questionResults.stream()
                 .mapToDouble(GoldenDataset.QuestionResult::getAnswerCorrectness)
                 .average().orElse(0.0);
+        double citationCoverage = questionResults.stream()
+                .mapToDouble(GoldenDataset.QuestionResult::getCitationCoverage)
+                .average().orElse(0.0);
         double avgLatency = latencies.stream().mapToLong(Long::longValue).average().orElse(0.0);
         double p95Latency = calculatePercentile(latencies, 95);
 
@@ -104,6 +107,7 @@ public class AiSearchEvaluator {
                 .citationPrecision(citationPrecision)
                 .citationRecall(citationRecall)
                 .answerCorrectness(answerCorrectness)
+                .citationCoverage(citationCoverage)
                 .averageLatencyMs(avgLatency)
                 .p95LatencyMs(p95Latency)
                 .questionResults(questionResults)
@@ -113,6 +117,7 @@ public class AiSearchEvaluator {
         Metrics.gauge("docket.ai.evaluation.citation_precision", evaluationResult, GoldenDataset.EvaluationResult::getCitationPrecision);
         Metrics.gauge("docket.ai.evaluation.citation_recall", evaluationResult, GoldenDataset.EvaluationResult::getCitationRecall);
         Metrics.gauge("docket.ai.evaluation.answer_correctness", evaluationResult, GoldenDataset.EvaluationResult::getAnswerCorrectness);
+        Metrics.gauge("docket.ai.evaluation.citation_coverage", evaluationResult, GoldenDataset.EvaluationResult::getCitationCoverage);
         Metrics.gauge("docket.ai.evaluation.avg_latency_ms", evaluationResult, GoldenDataset.EvaluationResult::getAverageLatencyMs);
         Metrics.gauge("docket.ai.evaluation.pass_rate", evaluationResult, GoldenDataset.EvaluationResult::getPassRate);
 
@@ -120,6 +125,23 @@ public class AiSearchEvaluator {
                 successful, dataset.size(), citationPrecision, citationRecall, answerCorrectness, avgLatency);
 
         return evaluationResult;
+    }
+
+    private static final java.util.regex.Pattern CITATION = java.util.regex.Pattern.compile("\\[\\d+\\]");
+    private static final java.util.regex.Pattern SENTENCE_END = java.util.regex.Pattern.compile("(?<=[.!?])\\s+|\\n+");
+
+    // How much of the answer is backed by a source: substantive sentences (20+ characters,
+    // so "Yes." and headings don't count) that carry at least one [n] marker. An answer with
+    // no substantive sentences counts as fully covered.
+    static double citationCoverage(String answer) {
+        if (answer == null || answer.isBlank()) return 1.0;
+        List<String> sentences = java.util.Arrays.stream(SENTENCE_END.split(answer.strip()))
+                .map(String::strip)
+                .filter(sentence -> CITATION.matcher(sentence).replaceAll("").strip().length() >= 20)
+                .toList();
+        if (sentences.isEmpty()) return 1.0;
+        long cited = sentences.stream().filter(sentence -> CITATION.matcher(sentence).find()).count();
+        return (double) cited / sentences.size();
     }
 
     private GoldenDataset.QuestionResult evaluateQuestion(
@@ -191,6 +213,7 @@ public class AiSearchEvaluator {
                     .citationPrecision(citationPrecision)
                     .citationRecall(citationRecall)
                     .answerCorrectness(answerCorrectness)
+                    .citationCoverage(citationCoverage(actualAnswer))
                     .passed(passed)
                     .failureReason(passed ? null : buildFailureReason(citationPrecision, citationRecall, answerCorrectness, config))
                     .build();

@@ -224,7 +224,7 @@ public class ConversationService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Conversation not found");
         }
 
-        List<ConversationTurn> history = recentHistory(conversation);
+        List<ConversationTurn> history = recentHistory(conversation, authentication, tenantId);
         String searchQuery = queryRewriteService.rewrite(history, question);
 
         ConversationMessage userMsg = new ConversationMessage();
@@ -401,17 +401,43 @@ public class ConversationService {
 
     // Old citation markers are removed, because their numbers would clash with the new sources.
     private List<ConversationTurn> recentHistory(Conversation conversation) {
+        return recentHistory(conversation, null, null);
+    }
+
+    // Answers carry the names of the documents they drew on, so a follow-up like "and when
+    // does it end?" can be rewritten to name the right document. Only documents this
+    // person can open are named, so a shared conversation can't leak a restricted title.
+    private List<ConversationTurn> recentHistory(Conversation conversation, Authentication authentication, UUID tenantId) {
         List<ConversationMessage> messages = conversation.getMessages();
         int historyLimit = aiProperties.getConversation().getHistoryMessages();
         int maxMsgLen = aiProperties.getConversation().getMaxHistoryMessageLength();
+        Map<UUID, Boolean> access = new java.util.HashMap<>();
         return messages.subList(Math.max(0, messages.size() - historyLimit), messages.size()).stream()
                 .map(msg -> {
                     String content = CITATION_MARKER.matcher(msg.getContent()).replaceAll("");
-                    return new ConversationTurn(msg.getRole(), content.length() > maxMsgLen
-                            ? content.substring(0, maxMsgLen) + "..."
-                            : content);
+                    if (content.length() > maxMsgLen) {
+                        content = content.substring(0, maxMsgLen) + "...";
+                    }
+                    if (authentication != null && "ai".equals(msg.getRole()) && msg.getSourcesJson() != null) {
+                        String names = sourceNames(msg.getSourcesJson(), authentication, tenantId, access);
+                        if (!names.isEmpty()) {
+                            content = content + "\n[Sources: " + names + "]";
+                        }
+                    }
+                    return new ConversationTurn(msg.getRole(), content);
                 })
                 .toList();
+    }
+
+    private String sourceNames(String sourcesJson, Authentication authentication, UUID tenantId, Map<UUID, Boolean> access) {
+        List<AiSourceChunkDTO> sources = deserializeSources(sourcesJson);
+        if (sources == null || sources.isEmpty()) return "";
+        return filterSourcesForViewer(sources, authentication, tenantId, access).stream()
+                .map(AiSourceChunkDTO::getDocumentName)
+                .filter(name -> name != null && !name.isBlank())
+                .distinct()
+                .limit(5)
+                .collect(java.util.stream.Collectors.joining(", "));
     }
 
     private ConversationDTO toDTO(Conversation c, boolean includeMessages, Authentication authentication,

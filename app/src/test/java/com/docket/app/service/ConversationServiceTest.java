@@ -125,6 +125,46 @@ class ConversationServiceTest {
     }
 
     @Test
+    void sendMessage_followUpHistoryNamesOnlySourcesThisPersonCanOpen() {
+        conversationExists();
+        UUID allowedId = UUID.randomUUID();
+        UUID deniedId = UUID.randomUUID();
+        UUID openFolder = UUID.randomUUID();
+        UUID closedFolder = UUID.randomUUID();
+        Document allowed = new Document();
+        allowed.setId(allowedId);
+        allowed.setTenantId(tenantId);
+        allowed.setFolderId(openFolder);
+        allowed.setFileStatus(FileStatus.ACTIVE);
+        Document denied = new Document();
+        denied.setId(deniedId);
+        denied.setTenantId(tenantId);
+        denied.setFolderId(closedFolder);
+        denied.setFileStatus(FileStatus.ACTIVE);
+        when(documentRepository.findById(allowedId)).thenReturn(Optional.of(allowed));
+        when(documentRepository.findById(deniedId)).thenReturn(Optional.of(denied));
+        when(folderAccessService.canAccessFolder(authentication, tenantId, openFolder)).thenReturn(true);
+        when(folderAccessService.canAccessFolder(authentication, tenantId, closedFolder)).thenReturn(false);
+
+        addMessage("user", "Who is the landlord?");
+        addMessage("ai", "Acme Ltd [1].").setSourcesJson("""
+                [{"documentId":"%s","documentName":"lease-2024.pdf","chunkText":"t","chunkIndex":0},
+                 {"documentId":"%s","documentName":"board-secret.pdf","chunkText":"t","chunkIndex":0}]
+                """.formatted(allowedId, deniedId));
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<ConversationTurn>> history = ArgumentCaptor.forClass(List.class);
+        when(queryRewriteService.rewrite(history.capture(), eq(FOLLOW_UP))).thenReturn(FOLLOW_UP);
+        when(aiQueryService.query(any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(new AiQueryResponseDTO("Answer", List.of()));
+
+        service.sendMessage(authentication, conversationId, tenantId, userId, FOLLOW_UP);
+
+        String aiTurn = history.getValue().get(1).content();
+        assertTrue(aiTurn.contains("[Sources: lease-2024.pdf]"));
+        assertFalse(aiTurn.contains("board-secret"));
+    }
+
+    @Test
     void sendMessage_onlySendsTheLastSixMessages() {
         conversationExists();
         for (int i = 1; i <= 8; i++) {

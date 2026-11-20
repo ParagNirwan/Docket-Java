@@ -56,7 +56,7 @@ class DocumentSummaryServiceTest {
         document.setId(UUID.randomUUID());
         document.setTenantId(UUID.randomUUID());
         document.setOriginalFileName("lease.pdf");
-        when(tenantRepository.findById(document.getTenantId())).thenReturn(Optional.of(tenant));
+        org.mockito.Mockito.lenient().when(tenantRepository.findById(document.getTenantId())).thenReturn(Optional.of(tenant));
     }
 
     private TextChunk chunk(String text) {
@@ -93,6 +93,37 @@ class DocumentSummaryServiceTest {
         assertEquals(4, prompts.getAllValues().size());
         assertTrue(prompts.getAllValues().get(3).contains("notes"));
         verify(documentRepository).saveAiSummary(eq(document.getId()), anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void refresh_notesStillTooLong_areCondensedAgain() throws IOException {
+        // Each group's notes are long, so the notes themselves need a second round.
+        List<TextChunk> chunks = IntStream.range(0, 25).mapToObj(i -> chunk("x".repeat(2000))).toList();
+        String longNotes = "n".repeat(20_000);
+        ArgumentCaptor<String> prompts = ArgumentCaptor.forClass(String.class);
+        when(geminiClient.generate(any(), prompts.capture(), any(GenerationConfig.class)))
+                .thenReturn(longNotes, longNotes, longNotes, "short notes", MODEL_REPLY);
+        when(embeddingService.embed(any(), any())).thenReturn(List.of(new float[]{0.5f}));
+
+        service.refresh(document, chunks);
+
+        // 3 map calls, 1 reduce of the 3 notes, then the summary from the reduced notes
+        assertEquals(5, prompts.getAllValues().size());
+        assertTrue(prompts.getAllValues().get(4).contains("short notes"));
+    }
+
+    @Test
+    void selectEvenly_spansTheWholeDocumentIncludingTheEnd() {
+        List<TextChunk> chunks = IntStream.range(0, 1000).mapToObj(i -> chunk("c" + i)).toList();
+
+        List<TextChunk> picked = DocumentSummaryService.selectEvenly(chunks, 200);
+
+        assertEquals(200, picked.size());
+        assertEquals("c0", picked.get(0).text());
+        assertEquals("c999", picked.get(picked.size() - 1).text());
+        // Roughly every 5th chunk, so something from the middle of the document is in.
+        assertTrue(picked.stream().map(c -> Integer.parseInt(c.text().substring(1))).anyMatch(i -> i >= 495 && i <= 505));
+        assertEquals(chunks.subList(0, 5), DocumentSummaryService.selectEvenly(chunks.subList(0, 5), 200));
     }
 
     @Test

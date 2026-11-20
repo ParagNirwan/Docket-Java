@@ -181,7 +181,7 @@ jobs:
       - name: Run AI Search Evaluation
         env:
           SPRING_PROFILES_ACTIVE: gcp
-          JWT_SECRET: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
           AI_EVALUATION_ENABLED: true
           AI_EVALUATION_DATASET: legal
           AI_EVALUATION_TENANT_ID: aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
@@ -190,7 +190,7 @@ jobs:
           AI_EVAL_MIN_CITATION_RECALL: 0.5
           AI_EVAL_MIN_ANSWER_CORRECTNESS: 0.4
           AI_EVAL_FAIL_ON_REGRESSION: true
-          GCP_PROJECT_ID: test-project
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
         run: |
           # Run the evaluation via spring boot
           java -jar target/*.jar \

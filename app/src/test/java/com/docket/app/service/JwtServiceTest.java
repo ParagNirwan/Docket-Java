@@ -1,11 +1,13 @@
 package com.docket.app.service;
 
+import com.docket.app.entity.ServiceAccount;
 import com.docket.app.entity.User;
 import com.docket.app.security.AuthenticatedUser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.Instant;
 import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
@@ -24,10 +26,19 @@ class JwtServiceTest {
         ReflectionTestUtils.setField(jwtService, "secret",
                 Base64.getEncoder().encodeToString("0123456789abcdef0123456789abcdef".getBytes()));
         ReflectionTestUtils.setField(jwtService, "accessTokenTtlMs", 60_000L);
+        ReflectionTestUtils.setField(jwtService, "serviceAccountTokenTtlMs", 3600_000L);
     }
 
     private AuthenticatedUser principal(int tokenVersion) {
         return new AuthenticatedUser("ada@example.com", "hash", List.of(), tokenVersion);
+    }
+
+    private ServiceAccount serviceAccount(String clientId) {
+        ServiceAccount sa = new ServiceAccount();
+        sa.setClientId(clientId);
+        sa.setScopes(List.of("documents.read"));
+        sa.setCreatedAt(Instant.now());
+        return sa;
     }
 
     @Test
@@ -58,5 +69,56 @@ class JwtServiceTest {
 
         assertEquals(sessionId, jwtService.extractSessionId(jwtService.generateAccessToken(user, sessionId)));
         assertNull(jwtService.extractSessionId(jwtService.generateAccessToken(user, null)));
+    }
+
+    @Test
+    void serviceAccountTokenContainsCorrectClaims() {
+        ServiceAccount sa = serviceAccount("dkt_sa_test123");
+        String token = jwtService.generateServiceAccountToken(sa);
+
+        assertEquals("dkt_sa_test123", jwtService.extractClientId(token));
+        assertEquals("service_account", jwtService.extractTokenType(token));
+    }
+
+    @Test
+    void serviceAccountTokenIsValidForMatchingAccount() {
+        ServiceAccount sa = serviceAccount("dkt_sa_test123");
+        String token = jwtService.generateServiceAccountToken(sa);
+
+        assertTrue(jwtService.isServiceAccountTokenValid(token, sa));
+    }
+
+    @Test
+    void serviceAccountTokenInvalidForDifferentClientId() {
+        ServiceAccount sa1 = serviceAccount("dkt_sa_test123");
+        ServiceAccount sa2 = serviceAccount("dkt_sa_other456");
+        String token = jwtService.generateServiceAccountToken(sa1);
+
+        assertFalse(jwtService.isServiceAccountTokenValid(token, sa2));
+    }
+
+    @Test
+    void userTokenRejectedAsServiceAccountToken() {
+        user.setTokenVersion(1);
+        String userToken = jwtService.generateAccessToken(user, null);
+        ServiceAccount sa = serviceAccount("dkt_sa_test123");
+
+        assertFalse(jwtService.isServiceAccountTokenValid(userToken, sa));
+    }
+
+    @Test
+    void serviceAccountTokenRejectedAsUserToken() {
+        ServiceAccount sa = serviceAccount("dkt_sa_test123");
+        String saToken = jwtService.generateServiceAccountToken(sa);
+
+        assertFalse(jwtService.isTokenValid(saToken, principal(1)));
+    }
+
+    @Test
+    void extractTokenTypeUser() {
+        user.setTokenVersion(1);
+        String token = jwtService.generateAccessToken(user, null);
+
+        assertEquals("user", jwtService.extractTokenType(token));
     }
 }

@@ -1,5 +1,6 @@
 package com.docket.app.service;
 
+import com.docket.app.entity.ServiceAccount;
 import com.docket.app.entity.User;
 import com.docket.app.security.AuthenticatedUser;
 import io.jsonwebtoken.Claims;
@@ -23,12 +24,17 @@ public class JwtService {
     private static final String CLAIM_TOKEN_VERSION = "tv";
     private static final String CLAIM_SESSION_ID = "sid";
     private static final String CLAIM_EMAIL_VERIFIED = "emailVerified";
+    private static final String CLAIM_CLIENT_ID = "cid";
+    private static final String CLAIM_TOKEN_TYPE = "typ";
 
     @Value("${jwt.secret}")
     private String secret;
 
     @Value("${jwt.access-token-ttl-ms}")
     private long accessTokenTtlMs;
+
+    @Value("${jwt.service-account-token-ttl-ms:3600000}") // default 1 hour
+    private long serviceAccountTokenTtlMs;
 
     private Key getSigningKey() {
         byte[] keyBytes = Base64.getDecoder().decode(secret);
@@ -42,7 +48,8 @@ public class JwtService {
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + accessTokenTtlMs))
                 .claim(CLAIM_TOKEN_VERSION, user.getTokenVersion())
-                .claim(CLAIM_EMAIL_VERIFIED, user.getEmailVerifiedAt() != null);
+                .claim(CLAIM_EMAIL_VERIFIED, user.getEmailVerifiedAt() != null)
+                .claim(CLAIM_TOKEN_TYPE, "user");
 
         if (sessionId != null) {
             builder.claim(CLAIM_SESSION_ID, sessionId.toString());
@@ -53,8 +60,27 @@ public class JwtService {
                 .compact();
     }
 
+    public String generateServiceAccountToken(ServiceAccount serviceAccount) {
+        return Jwts.builder()
+                .setSubject(serviceAccount.getClientId())
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + serviceAccountTokenTtlMs))
+                .claim(CLAIM_CLIENT_ID, serviceAccount.getClientId())
+                .claim(CLAIM_TOKEN_TYPE, "service_account")
+                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+                .compact();
+    }
+
     public String extractUsername(String token) {
         return extractAllClaims(token).getSubject();
+    }
+
+    public String extractClientId(String token) {
+        return extractAllClaims(token).get(CLAIM_CLIENT_ID, String.class);
+    }
+
+    public String extractTokenType(String token) {
+        return extractAllClaims(token).get(CLAIM_TOKEN_TYPE, String.class);
     }
 
     public UUID extractSessionId(String token) {
@@ -69,12 +95,25 @@ public class JwtService {
         if (claims.get("purpose") != null) {
             return false;
         }
+        if (!"user".equals(claims.get(CLAIM_TOKEN_TYPE, String.class))) {
+            return false;
+        }
         Integer tokenVersion = claims.get(CLAIM_TOKEN_VERSION, Integer.class);
         return claims.getSubject().equals(userDetails.getUsername())
                 && claims.getExpiration().after(new Date())
                 && userDetails instanceof AuthenticatedUser user
                 && tokenVersion != null
                 && tokenVersion == user.getTokenVersion();
+    }
+
+    public boolean isServiceAccountTokenValid(String token, ServiceAccount serviceAccount) {
+        Claims claims = extractAllClaims(token);
+        if (!"service_account".equals(claims.get(CLAIM_TOKEN_TYPE, String.class))) {
+            return false;
+        }
+        String clientId = claims.get(CLAIM_CLIENT_ID, String.class);
+        return serviceAccount.getClientId().equals(clientId)
+                && claims.getExpiration().after(new Date());
     }
 
     public String generateTwoFactorTempToken(User user) {

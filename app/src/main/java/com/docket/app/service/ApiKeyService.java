@@ -99,6 +99,9 @@ public class ApiKeyService {
         if (tenantId != null && !key.getTenantId().equals(tenantId)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "API key does not match tenant");
         }
+        // Update last used timestamp
+        key.setLastUsedAt(Instant.now());
+        apiKeyRepository.save(key);
         return key;
     }
 

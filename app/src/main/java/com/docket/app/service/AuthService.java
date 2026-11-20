@@ -36,11 +36,11 @@ public class AuthService {
     private final SessionService sessionService;
     private final AccountRecoveryService accountRecoveryService;
     private final InvitationService invitationService;
-    private final TenantDomainService tenantDomainService;
     private final AuditService auditService;
     private final AuthRateLimiter authRateLimiter;
     private final ClientRequestInfo clientRequestInfo;
     private final DocketAuthProperties authProperties;
+    private final TenantDomainService tenantDomainService;
 
     @Value("${docket.email.verification.enabled:false}")
     private boolean emailVerificationEnabled;
@@ -72,12 +72,10 @@ public class AuthService {
         // The account exists by now, and the email can be re-sent from the app, so
         // a problem here shouldn't turn a successful registration into an error.
         try {
-            if (!acceptedInvite(request.getInviteToken(), user)) {
-                if (!tenantDomainService.autoJoinVerifiedDomain(user)) {
-                    if (emailVerificationEnabled) {
-                        accountRecoveryService.sendVerificationEmail(user);
-                    }
-                }
+            // Domain auto-join happens later, in AccountRecoveryService.verifyEmail: the
+            // address has to be proven before it can grant membership anywhere.
+            if (!acceptedInvite(request.getInviteToken(), user) && emailVerificationEnabled) {
+                accountRecoveryService.sendVerificationEmail(user);
             }
         } catch (RuntimeException exception) {
             log.error("Could not queue verification email for user {}", user.getId(), exception);
@@ -127,6 +125,12 @@ public class AuthService {
 
         User user = found.get();
         authRateLimiter.reset(lockoutKey);
+
+        // Checked only after the password matched, so it can't be used to probe policies.
+        if (tenantDomainService.ssoRequiredFor(user.getEmail())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Your organization requires single sign-on. Use the Google or Microsoft button to sign in.");
+        }
 
         if (user.isTwoFactorEnabled()) {
             String tempToken = jwtService.generateTwoFactorTempToken(user);

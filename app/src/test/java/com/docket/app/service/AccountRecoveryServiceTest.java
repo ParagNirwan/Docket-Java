@@ -64,6 +64,9 @@ class AccountRecoveryServiceTest {
     @Mock
     private PasswordEncoder passwordEncoder;
 
+    @Mock
+    private TenantDomainService tenantDomainService;
+
     @InjectMocks
     private AccountRecoveryService service;
 
@@ -166,6 +169,18 @@ class AccountRecoveryServiceTest {
 
         assertNotNull(user.getEmailVerifiedAt());
         verify(auditService).recordAccountEvent(userId, AuditAction.EMAIL_VERIFIED, "USER", userId, null);
+        verify(tenantDomainService).autoJoinVerifiedDomain(user);
+    }
+
+    @Test
+    void verifyingAnAlreadyVerifiedAddressDoesNotJoinAgain() {
+        user.setEmailVerifiedAt(Instant.now());
+        storedToken(AccountTokenPurpose.EMAIL_VERIFICATION);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
+        service.verifyEmail(RAW_TOKEN);
+
+        verifyNoInteractions(tenantDomainService);
     }
 
     @Test

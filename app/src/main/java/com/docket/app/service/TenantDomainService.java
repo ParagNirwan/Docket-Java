@@ -16,6 +16,7 @@ import com.docket.app.enums.UserType;
 import com.docket.app.repository.TenantDomainRepository;
 import com.docket.app.repository.TenantMembershipRepository;
 import com.docket.app.repository.TenantRepository;
+import com.docket.app.service.domain.DomainTxtLookup;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -28,12 +29,26 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
 public class TenantDomainService {
+    public static final String TXT_RECORD_PREFIX = "_docket-verification.";
+    private static final String TXT_VALUE_PREFIX = "docket-verification=";
+    private static final Pattern DOMAIN_PATTERN =
+            Pattern.compile("^(?=.{4,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}$");
+    private static final Set<String> PUBLIC_EMAIL_DOMAINS = Set.of(
+            "gmail.com", "googlemail.com", "outlook.com", "hotmail.com", "live.com", "msn.com",
+            "yahoo.com", "ymail.com", "icloud.com", "me.com", "mac.com", "aol.com", "proton.me",
+            "protonmail.com", "gmx.com", "gmx.de", "gmx.net", "web.de", "mail.com", "yandex.com",
+            "zoho.com", "fastmail.com", "hey.com", "qq.com", "163.com"
+    );
+
     private final TenantDomainRepository tenantDomainRepository;
+    private final DomainTxtLookup domainTxtLookup;
     private final TenantRepository tenantRepository;
     private final TenantMembershipRepository membershipRepository;
     private final TenantAuthorizationService tenantAuthorizationService;
@@ -54,9 +69,17 @@ public class TenantDomainService {
         tenantAuthorizationService.requirePermission(authentication, tenant.getId(), Permission.TENANT_UPDATE);
 
         String normalized = normalizeDomain(domain);
+        if (!DOMAIN_PATTERN.matcher(normalized).matches()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Enter a domain such as example.com");
+        }
+        // Anyone can get an address at these, so owning one proves nothing about an organization.
+        if (PUBLIC_EMAIL_DOMAINS.contains(normalized)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Public email domains can't be claimed");
+        }
         if (tenantDomainRepository.findByTenantIdAndDomainIgnoreCase(tenant.getId(), normalized).isPresent()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "This domain is already configured");
         }
+        requireNotVerifiedElsewhere(tenant.getId(), normalized);
 
         TenantDomain tenantDomain = new TenantDomain();
         tenantDomain.setTenantId(tenant.getId());
@@ -72,20 +95,30 @@ public class TenantDomainService {
     }
 
     @Transactional
-    public TenantDomainDTO verify(String slug, String domain, String token, Authentication authentication) {
+    // The token is shown to admins, so knowing it proves nothing. Only someone who controls
+    // the domain's DNS can publish it as a TXT record, and that is what we check.
+    public TenantDomainDTO verify(String slug, String domain, Authentication authentication) {
         Tenant tenant = findTenant(slug);
         tenantAuthorizationService.requirePermission(authentication, tenant.getId(), Permission.TENANT_UPDATE);
 
         String normalized = normalizeDomain(domain);
         TenantDomain tenantDomain = tenantDomainRepository.findByTenantIdAndDomainIgnoreCase(tenant.getId(), normalized)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Domain not found"));
+        if (tenantDomain.getVerifiedAt() != null) {
+            return toDto(tenantDomain);
+        }
+        requireNotVerifiedElsewhere(tenant.getId(), normalized);
 
-        if (!token.equals(tenantDomain.getVerificationToken())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Verification token is invalid");
+        String expected = txtRecordValue(tenantDomain.getVerificationToken());
+        boolean published = domainTxtLookup.txtRecords(TXT_RECORD_PREFIX + normalized).stream()
+                .anyMatch(value -> value.trim().equals(expected));
+        if (!published) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "TXT record not found. Add " + TXT_RECORD_PREFIX + normalized + " with value \"" + expected
+                            + "\" and try again. DNS changes can take a while to appear.");
         }
 
         tenantDomain.setVerifiedAt(Instant.now());
-        tenantDomain.setVerificationToken(randomToken());
         tenantDomainRepository.save(tenantDomain);
 
         auditService.record(authentication, tenant.getId(), AuditAction.DOMAIN_VERIFIED, "TENANT_DOMAIN", tenantDomain.getId(),
@@ -130,10 +163,12 @@ public class TenantDomainService {
                 Map.of("domain", normalized));
     }
 
+    // Call only once the user has proven they control the address (the verification link),
+    // never at registration: otherwise anyone could type a colleague's domain and walk in.
     @Transactional
     public boolean autoJoinVerifiedDomain(User user) {
         String email = user.getEmail() == null ? "" : user.getEmail().trim();
-        if (email.isBlank()) {
+        if (email.isBlank() || user.getEmailVerifiedAt() == null) {
             return false;
         }
 
@@ -178,6 +213,29 @@ public class TenantDomainService {
         auditService.record(tenant.getId(), user.getId(), AuditAction.MEMBER_JOINED_BY_DOMAIN, "TENANT", tenant.getId(),
                 Map.of("domain", domain, "role", Roles.MEMBER.name()));
         return true;
+    }
+
+    // True when a verified domain has switched off password sign-in for its addresses.
+    public boolean ssoRequiredFor(String email) {
+        String domain = email == null ? null : extractDomain(email.trim());
+        if (domain == null) {
+            return false;
+        }
+        return tenantDomainRepository.findByDomainIgnoreCaseAndVerifiedAtIsNotNull(domain).stream()
+                .anyMatch(TenantDomain::isSsoRequired);
+    }
+
+    // A domain belongs to one organization. Otherwise auto-join would pick one arbitrarily.
+    private void requireNotVerifiedElsewhere(UUID tenantId, String domain) {
+        boolean claimed = tenantDomainRepository.findByDomainIgnoreCaseAndVerifiedAtIsNotNull(domain).stream()
+                .anyMatch(existing -> !existing.getTenantId().equals(tenantId));
+        if (claimed) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This domain is verified by another organization");
+        }
+    }
+
+    public static String txtRecordValue(String token) {
+        return TXT_VALUE_PREFIX + token;
     }
 
     private Tenant findTenant(String slug) {

@@ -46,7 +46,7 @@ public class TenantDomainController {
             @Valid @RequestBody VerifyTenantDomainRequestDTO request,
             Authentication authentication
     ) {
-        return ResponseEntity.ok(tenantDomainService.verify(slug, request.domain(), request.token(), authentication));
+        return ResponseEntity.ok(tenantDomainService.verify(slug, request.domain(), authentication));
     }
 
     @PutMapping("/{domain}")

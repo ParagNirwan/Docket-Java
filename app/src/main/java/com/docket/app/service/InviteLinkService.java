@@ -105,6 +105,12 @@ public class InviteLinkService {
                 Map.of("role", link.getRole().name()));
     }
 
+    public InviteLinkSettingsDTO settings(String slug, Authentication authentication) {
+        Tenant tenant = findTenant(slug);
+        tenantAuthorizationService.requirePermission(authentication, tenant.getId(), Permission.TENANT_UPDATE);
+        return new InviteLinkSettingsDTO(tenant.isInviteLinksEnabled());
+    }
+
     // Existing links stop working while this is off, and work again if it's switched back on.
     @Transactional
     public InviteLinkSettingsDTO updateSettings(String slug, InviteLinkSettingsDTO settings, Authentication authentication) {

@@ -207,6 +207,7 @@ class SsoServiceTest {
         JWTClaimsSet claims = new JWTClaimsSet.Builder()
                 .subject("test-subject")
                 .claim("email", "test@example.com")
+                .claim("email_verified", true)
                 .build();
 
         invokeCreateNewUser("test@example.com", claims, "google", "test-subject");
@@ -215,6 +216,32 @@ class SsoServiceTest {
         assertEquals("test", savedUser.getName()); // Name derived from email prefix
         assertEquals("test@example.com", savedUser.getEmail());
         assertNotNull(savedUser.getEmailVerifiedAt());
+    }
+
+    @Test
+    void createNewUser_leavesEmailUnverifiedWhenTheProviderDoesNotVouchForIt() {
+        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+        when(userRepository.save(userCaptor.capture())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        JWTClaimsSet claims = new JWTClaimsSet.Builder()
+                .subject("ms-subject")
+                .claim("email", "ceo@victim.com")
+                .build();
+
+        invokeCreateNewUser("ceo@victim.com", claims, "microsoft", "ms-subject");
+
+        org.junit.jupiter.api.Assertions.assertNull(userCaptor.getValue().getEmailVerifiedAt());
+    }
+
+    @Test
+    void isEmailVerified_readsTheProviderSpecificClaim() {
+        JWTClaimsSet google = new JWTClaimsSet.Builder().claim("email_verified", true).build();
+        JWTClaimsSet microsoftUnverified = new JWTClaimsSet.Builder().claim("email_verified", true).build();
+        JWTClaimsSet microsoftVerified = new JWTClaimsSet.Builder().claim("xms_edov", true).build();
+
+        org.junit.jupiter.api.Assertions.assertTrue(SsoService.isEmailVerified("google", google));
+        org.junit.jupiter.api.Assertions.assertFalse(SsoService.isEmailVerified("microsoft", microsoftUnverified));
+        org.junit.jupiter.api.Assertions.assertTrue(SsoService.isEmailVerified("microsoft", microsoftVerified));
     }
 
     @Test

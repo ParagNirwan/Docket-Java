@@ -35,6 +35,7 @@ import java.time.Instant;
 import java.util.Date;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -218,26 +219,33 @@ public class SsoService {
         JWTClaimsSet claims = validateIdToken(provider, idToken, config);
 
         String subject = claims.getSubject();
-        String email = firstNonBlank(
-                getStringClaimSafe(claims, "email"),
-                getStringClaimSafe(claims, "preferred_username"),
-                getStringClaimSafe(claims, "upn")
-        );
+        // Only the email claim: preferred_username and upn are editable by the identity
+        // provider's tenant admin and aren't proof of owning an address.
+        String email = getStringClaimSafe(claims, "email");
         if (email == null || email.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The identity provider did not return an email address");
         }
+        boolean emailVerified = isEmailVerified(config.provider(), claims);
 
-        User user = userIdentityService.findUserByIdentity(config.provider(), subject)
-                .or(() -> userRepository.findByEmailIgnoreCase(email))
-                .orElseGet(() -> createNewUser(email, claims, config.provider(), subject));
-
-        if (userIdentityService.findUserByIdentity(config.provider(), subject).isEmpty()) {
+        Optional<User> linked = userIdentityService.findUserByIdentity(config.provider(), subject);
+        User user;
+        if (linked.isPresent()) {
+            user = linked.get();
+        } else {
+            Optional<User> existing = userRepository.findByEmailIgnoreCase(email);
+            // Linking an existing account by email hands it to whoever controls that email at
+            // the provider, so the provider has to vouch for the address ("nOAuth").
+            if (existing.isPresent() && !emailVerified) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "An account with this email already exists. Sign in with your password instead.");
+            }
+            user = existing.orElseGet(() -> createNewUser(email, claims, config.provider(), subject));
             userIdentityService.linkIdentity(user, config.provider(), subject, email);
             auditService.recordAccountEvent(user.getId(), AuditAction.SSO_IDENTITY_LINKED, "USER_IDENTITY", user.getId(),
                     Map.of("provider", config.provider(), "subject", subject));
         }
 
-        if (user.getEmailVerifiedAt() == null) {
+        if (user.getEmailVerifiedAt() == null && emailVerified) {
             user.setEmailVerifiedAt(Instant.now());
             userRepository.save(user);
         }
@@ -276,8 +284,29 @@ public class SsoService {
             fullName = email.substring(0, email.indexOf('@'));
         }
         User user = new User(fullName, email.toLowerCase(Locale.ROOT), passwordEncoder.encode(TokenHasher.newToken()));
-        user.setEmailVerifiedAt(Instant.now());
+        if (isEmailVerified(provider, claims)) {
+            user.setEmailVerifiedAt(Instant.now());
+        }
         return userRepository.save(user);
+    }
+
+    // Google sets email_verified. Microsoft only vouches for the address through the optional
+    // xms_edov ("email domain owner verified") claim; without it the email is just a label.
+    static boolean isEmailVerified(String provider, JWTClaimsSet claims) {
+        String claim = "microsoft".equals(provider) ? "xms_edov" : "email_verified";
+        Object value = claims.getClaim(claim);
+        return Boolean.TRUE.equals(value) || "true".equalsIgnoreCase(String.valueOf(value));
+    }
+
+    public java.util.List<String> configuredProviders() {
+        java.util.List<String> providers = new java.util.ArrayList<>();
+        if (ssoProperties.getGoogle().isConfigured()) {
+            providers.add("google");
+        }
+        if (ssoProperties.getMicrosoft().isConfigured()) {
+            providers.add("microsoft");
+        }
+        return providers;
     }
 
     private Map<String, Object> exchangeCodeForToken(ProviderConfig config, String code) {

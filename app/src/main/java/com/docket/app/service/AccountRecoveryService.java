@@ -38,6 +38,7 @@ public class AccountRecoveryService {
     private final AuditService auditService;
     private final AuthRateLimiter authRateLimiter;
     private final PasswordEncoder passwordEncoder;
+    private final TenantDomainService tenantDomainService;
 
     @Value("${docket.app.base-url}")
     private String baseUrl;
@@ -98,6 +99,8 @@ public class AccountRecoveryService {
         if (user.getEmailVerifiedAt() == null) {
             user.setEmailVerifiedAt(Instant.now());
             auditService.recordAccountEvent(user.getId(), AuditAction.EMAIL_VERIFIED, "USER", user.getId(), null);
+            // Only now is the address proven, so only now may it join an organization by domain.
+            tenantDomainService.autoJoinVerifiedDomain(user);
         }
     }
 

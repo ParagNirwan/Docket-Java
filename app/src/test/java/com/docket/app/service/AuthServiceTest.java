@@ -98,15 +98,17 @@ class AuthServiceTest {
         RegisterRequestDTO request = registerFromInvite();
         when(invitationService.acceptForNewUser(eq("invite-token"), any(User.class)))
                 .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "expired"));
-        when(tenantDomainService.autoJoinVerifiedDomain(any(User.class))).thenReturn(false);
 
         authService.register(request);
 
         verify(accountRecoveryService).sendVerificationEmail(any(User.class));
     }
 
+    // Registration must not grant domain membership: the address isn't proven yet.
+    // Auto-join happens in AccountRecoveryService.verifyEmail instead.
     @Test
-    void registerAutoJoinsVerifiedDomainUsersWithoutSendingVerificationEmail() {
+    void registerSendsVerificationEmailInsteadOfAutoJoiningByDomain() {
+        ReflectionTestUtils.setField(authService, "emailVerificationEnabled", true);
         RegisterRequestDTO request = new RegisterRequestDTO();
         request.setFirstName("Ada");
         request.setLastName("Lovelace");
@@ -115,11 +117,9 @@ class AuthServiceTest {
         when(userRepository.existsByEmailIgnoreCase("ada@example.com")).thenReturn(false);
         when(passwordEncoder.encode("plain-password")).thenReturn("encoded-password");
         when(jwtService.generateAccessToken(any(User.class), org.mockito.ArgumentMatchers.isNull())).thenReturn("token");
-        when(tenantDomainService.autoJoinVerifiedDomain(any(User.class))).thenReturn(true);
 
         assertEquals("token", authService.register(request).getToken());
-        verify(tenantDomainService).autoJoinVerifiedDomain(any(User.class));
-        verify(accountRecoveryService, never()).sendVerificationEmail(any(User.class));
+        verify(accountRecoveryService).sendVerificationEmail(any(User.class));
     }
 
     private LoginRequestDTO loginRequest(String email) {
@@ -213,6 +213,20 @@ class AuthServiceTest {
 
         verify(authRateLimiter).reset(AuthService.lockoutKey("ada@example.com"));
         verify(auditService).recordAccountEvent(any(), eq(AuditAction.LOGIN), eq("USER"), any(), any());
+    }
+
+    @Test
+    void passwordLoginIsRefusedWhenTheDomainRequiresSso() {
+        User user = new User("Ada Lovelace", "ada@example.com", "encoded-password");
+        when(userRepository.findByEmailIgnoreCase("ada@example.com")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("plain-password", "encoded-password")).thenReturn(true);
+        when(tenantDomainService.ssoRequiredFor("ada@example.com")).thenReturn(true);
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> authService.login(loginRequest("ada@example.com")));
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+        verify(sessionService, never()).start(any());
     }
 
     @Test

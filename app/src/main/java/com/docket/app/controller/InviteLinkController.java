@@ -55,6 +55,11 @@ public class InviteLinkController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/api/tenants/{slug}/invite-links/settings")
+    public ResponseEntity<InviteLinkSettingsDTO> settings(@PathVariable String slug, Authentication authentication) {
+        return ResponseEntity.ok(inviteLinkService.settings(slug, authentication));
+    }
+
     // PUT /api/tenants/{slug}/invite-links/settings
     // Switches invite links on or off for the whole organization.
     @PutMapping("/api/tenants/{slug}/invite-links/settings")

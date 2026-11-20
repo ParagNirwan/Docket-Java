@@ -86,8 +86,15 @@ public class AuthController {
             @RequestParam(required = false) String redirectUri,
             @RequestParam(required = false) String state
     ) {
-        String resolvedRedirect = redirectUri == null || redirectUri.isBlank() ? "http://localhost:5173/auth/sso/callback" : redirectUri;
-        return ResponseEntity.ok(java.util.Map.of("provider", provider, "authUrl", ssoService.buildAuthUrl(provider, resolvedRedirect, state)));
+        // A blank redirect falls back to the configured one (docket.sso.*.redirect-uri). The
+        // provider only redirects to URIs registered with it, so this can't be pointed elsewhere.
+        return ResponseEntity.ok(java.util.Map.of("provider", provider, "authUrl", ssoService.buildAuthUrl(provider, redirectUri, state)));
+    }
+
+    // GET /api/auth/sso/providers — which sign-in buttons the login page should show.
+    @GetMapping("/sso/providers")
+    public ResponseEntity<java.util.Map<String, java.util.List<String>>> ssoProviders() {
+        return ResponseEntity.ok(java.util.Map.of("providers", ssoService.configuredProviders()));
     }
 
     @PostMapping({"/sso/{provider}/callback", "/sso/{provider}/login"})

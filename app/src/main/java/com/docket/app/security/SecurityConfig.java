@@ -90,6 +90,12 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**", "/actuator/health/**", "/actuator/prometheus", "/error").permitAll()
                         // Someone opening an invite link may not have an account yet.
                         .requestMatchers(HttpMethod.GET, "/api/invitations/*").permitAll()
+                        // Same for a reusable invite link: the preview is public, joining needs a session.
+                        .requestMatchers(HttpMethod.GET, "/api/invite-links/*").permitAll()
+                        // Stripe's server calls this; the Stripe-Signature header authenticates it.
+                        .requestMatchers(HttpMethod.POST, "/api/billing/stripe/webhook").permitAll()
+                        // OpenAPI spec of the public API (springdoc.paths-to-match limits it to /api/public/**).
+                        .requestMatchers(HttpMethod.GET, "/v3/api-docs", "/v3/api-docs/**").permitAll()
                         .anyRequest().authenticated())
                 // Without this Spring answers 403, and the frontend needs a 401 to
                 // know it should refresh its token rather than show "no permission".

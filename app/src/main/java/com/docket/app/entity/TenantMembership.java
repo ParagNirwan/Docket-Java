@@ -63,4 +63,8 @@ public class TenantMembership {
     // When they joined. Null for people who joined before this was recorded.
     private Instant joinedAt;
 
+    // Optional organization-defined role adding permissions on top of `role`.
+    @Column(name = "custom_role_id")
+    private UUID customRoleId;
+
 }

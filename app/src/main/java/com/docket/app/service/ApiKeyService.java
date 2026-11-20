@@ -53,7 +53,7 @@ public class ApiKeyService {
         apiKey.setName(name == null || name.isBlank() ? "API key" : name.trim());
         apiKey.setKeyHash(hash(secret));
         apiKey.setPrefix(secret.substring(0, Math.min(8, secret.length())));
-        apiKey.setScopes(scopes == null ? List.of() : scopes.stream().map(String::trim).filter(s -> !s.isBlank()).toList());
+        apiKey.setScopes(com.docket.app.enums.ApiScope.normalize(scopes));
         apiKey.setCreatedBy(currentUserId(authentication));
         apiKey.setCreatedAt(Instant.now());
         apiKeyRepository.save(apiKey);

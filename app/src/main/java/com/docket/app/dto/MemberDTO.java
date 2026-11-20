@@ -14,6 +14,8 @@ public record MemberDTO(
         MemberStatus status,
         Instant joinedAt,
         Instant lastActiveAt,
-        boolean currentUser
+        boolean currentUser,
+        // Organization-defined role on top of `role`, or null.
+        UUID customRoleId
 ) {
 }

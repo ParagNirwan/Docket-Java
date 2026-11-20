@@ -69,7 +69,8 @@ public class MemberService {
                             membership.getMemberStatus(),
                             membership.getJoinedAt(),
                             lastActive.get(user.getId()),
-                            user.getEmail().equalsIgnoreCase(authentication.getName()));
+                            user.getEmail().equalsIgnoreCase(authentication.getName()),
+                            membership.getCustomRoleId());
                 })
                 .sorted(Comparator.comparing(MemberDTO::name, String.CASE_INSENSITIVE_ORDER))
                 .toList();

@@ -39,6 +39,9 @@ class TenantAuthorizationServiceTest {
     @Mock
     private TenantRepository tenantRepository;
 
+    @Mock
+    private com.docket.app.repository.TenantRoleRepository tenantRoleRepository;
+
     @InjectMocks
     private TenantAuthorizationService tenantAuthorizationService;
 
@@ -197,6 +200,24 @@ class TenantAuthorizationServiceTest {
         );
 
         assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
+    }
+
+    @Test
+    void customRoleAddsPermissionsOnTopOfTheBuiltInRole() {
+        UUID roleId = UUID.randomUUID();
+        TenantMembership member = membership(tenantId, Roles.MEMBER, MemberStatus.ACTIVE);
+        member.setCustomRoleId(roleId);
+        com.docket.app.entity.TenantRole role = new com.docket.app.entity.TenantRole();
+        role.setPermissions(List.of("retention.manage"));
+        when(tenantMembershipRepository.findByUserIdAndTenantIdAndMemberStatus(userId, tenantId, MemberStatus.ACTIVE))
+                .thenReturn(List.of(member));
+        when(tenantRoleRepository.findByIdAndTenantId(roleId, tenantId)).thenReturn(Optional.of(role));
+
+        tenantAuthorizationService.requirePermission(authentication, tenantId, Permission.RETENTION_MANAGE);
+        org.junit.jupiter.api.Assertions.assertTrue(
+                tenantAuthorizationService.getPermissionCodes(authentication, tenantId).contains("retention.manage"));
+        assertThrows(ResponseStatusException.class,
+                () -> tenantAuthorizationService.requirePermission(authentication, tenantId, Permission.API_MANAGE));
     }
 
     private TenantMembership membership(UUID membershipTenantId, Roles role, MemberStatus memberStatus) {

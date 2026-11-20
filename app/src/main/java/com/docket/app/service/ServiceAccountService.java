@@ -57,7 +57,7 @@ public class ServiceAccountService {
         serviceAccount.setName(request.name());
         serviceAccount.setClientId(clientId);
         serviceAccount.setClientSecretHash(hash(clientSecret));
-        serviceAccount.setScopes(request.scopes() == null ? List.of() : request.scopes().stream().map(String::trim).filter(s -> !s.isBlank()).toList());
+        serviceAccount.setScopes(com.docket.app.enums.ApiScope.normalize(request.scopes()));
         serviceAccount.setCreatedBy(currentUserId(authentication));
         serviceAccount.setCreatedAt(Instant.now());
         serviceAccountRepository.save(serviceAccount);
@@ -96,7 +96,8 @@ public class ServiceAccountService {
         }
         ServiceAccount account = serviceAccountRepository.findByClientId(clientId.trim())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid service account"));
-        if (!hash(clientSecret.trim()).equals(account.getClientSecretHash())) {
+        if (!MessageDigest.isEqual(hash(clientSecret.trim()).getBytes(StandardCharsets.UTF_8),
+                String.valueOf(account.getClientSecretHash()).getBytes(StandardCharsets.UTF_8))) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid service account credentials");
         }
         if (account.getRevokedAt() != null || account.getExpiresAt() != null && account.getExpiresAt().isBefore(Instant.now())) {

@@ -112,7 +112,11 @@ public class JwtService {
             return false;
         }
         String clientId = claims.get(CLAIM_CLIENT_ID, String.class);
-        return serviceAccount.getClientId().equals(clientId)
+        // Revoking or expiring the account cuts off tokens already issued, not just new ones.
+        boolean accountUsable = serviceAccount.getRevokedAt() == null
+                && (serviceAccount.getExpiresAt() == null || serviceAccount.getExpiresAt().isAfter(java.time.Instant.now()));
+        return accountUsable
+                && serviceAccount.getClientId().equals(clientId)
                 && claims.getExpiration().after(new Date());
     }
 

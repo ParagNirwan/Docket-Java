@@ -39,7 +39,7 @@ A multi-tenant document vault and management platform with AI-powered search. Do
 │   │   ├── security/           # JWT, Auth & Role Logic
 │   │   └── service/            # Business Logic & AI RAG Pipeline
 │   └── src/main/resources/
-│       └── db/migration/       # Flyway schema versions (V1–V20)
+│       └── db/migration/       # Flyway schema versions (V1–V25)
 ├── frontend/                   # React SPA
 │   ├── src/
 │   │   ├── components/         # UI Components
@@ -58,14 +58,14 @@ Copy `.env.example` to `.env` and configure your secrets:
 ```bash
 cp .env.example .env
 ```
-*Minimum required: `POSTGRES_PASSWORD` and `JWT_SECRET`.*
+*`compose.yaml` ships local-only fallbacks for `POSTGRES_PASSWORD` and `JWT_SECRET`, so the stack starts without a `.env`. Set real values before exposing it anywhere.*
 
 ### 2. Launching the Platform
-The easiest way to start is using the provided npm scripts:
+`npm start`, `.\start.ps1` and `start.bat` are equivalent: each runs `docker compose up --build --remove-orphans`.
 
 | Action | Command | Description |
 | :--- | :--- | :--- |
-| **Full Start** | `npm start` | Builds and starts all services (DB, Backend, Frontend, Mailpit) |
+| **Full Start** | `npm start` / `.\start.ps1` / `start.bat` | Builds and starts all services (DB, Backend, Frontend, Mailpit) |
 | **Quick Up** | `npm run up` | Starts services without rebuilding images |
 | **Stop** | `npm run down` | Stops and removes containers |
 | **Logs** | `npm run logs` | Tail logs for all services |
@@ -76,6 +76,38 @@ The easiest way to start is using the provided npm scripts:
 | **Frontend** | `http://localhost:80` | Main Application UI |
 | **Backend API** | `http://localhost:8080` | REST API |
 | **Mailpit** | `http://localhost:8025` | Local email catcher (view outgoing emails here) |
+| **PostgreSQL** | `localhost:5433` | Mapped to 5433 to avoid clashing with a host Postgres |
+
+### 4. Running CI Checks Locally
+These are the exact commands the `CI Pipeline` workflow ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs on every push and PR to `main` and `dev`:
+
+| Job | Directory | Commands | Toolchain |
+| :--- | :--- | :--- | :--- |
+| Backend - Build & Test | `app/` | `./mvnw clean verify` (CI uses `mvn`) | Java 21 (Temurin) |
+| Frontend - Lint, Build & Test | `frontend/` | `npm ci && npm run lint && npm run build && npm test` | Node 20 |
+| AI Search Quality Evaluation | `app/` | `mvn clean package -DskipTests`, Flyway migrate, then the jar with `--docket.ai.evaluation.enabled=true` | Needs `pgvector/pgvector:pg18` and GCP credentials |
+
+Backend tests include Testcontainers-based Flyway tests, so Docker must be running for `mvn verify`. The AI evaluation job needs Vertex AI access and is normally left to CI.
+
+### 5. Deployment (CD)
+The `CD Pipeline` ([.github/workflows/cd.yml](.github/workflows/cd.yml)) runs only on pushes to `main`. It builds both images, pushes them to Artifact Registry (`europe-west3`), renders `k8s/prod` with Kustomize, runs `.github/scripts/preflight.sh` to confirm secrets exist, applies to GKE Autopilot, and rolls back if either rollout fails.
+
+---
+
+## 🔀 Local vs. Production Configuration
+
+| Concern | Local (`compose.yaml`) | Production (`prod` profile / GKE) |
+| :--- | :--- | :--- |
+| Spring profile | default | `prod` (+ `gcp` for Vertex AI / GCS) |
+| Secrets | Fallback defaults in `compose.yaml` | Required, with no defaults; startup fails if `JWT_SECRET`, `APP_BASE_URL` or `EMAIL_FROM` is missing |
+| Schema | Flyway | Flyway; `ddl-auto=none` |
+| Email | `smtp` → Mailpit | `resend` or `disabled` |
+| Storage | Local `uploads` volume | GCS bucket (`docket-java-uploads`) |
+| Cookies | Insecure allowed (`http://localhost`) | `AUTH_COOKIE_SECURE=true` |
+| CORS | Same origin through nginx | `CORS_ALLOWED_ORIGINS` (defaults to `APP_BASE_URL`) |
+| Logging | Spring defaults | Root `WARN`, `com.docket` `INFO` |
+
+To test the production profile locally: `docker compose -f compose.yaml -f compose.prod.yaml up --build`. Set `JWT_SECRET`, `APP_BASE_URL` and `EMAIL_FROM` first.
 
 ---
 
@@ -98,6 +130,7 @@ Schema is managed via Flyway. Recent milestones include:
 - **V12-V16**: Rate limiting, account verification, reliable hybrid search, retention, trash, and notifications.
 - **V17-V19**: Versioning, tags, permissions, and background job lease improvements.
 - **V20**: Tenant-scoped AI answer feedback.
+- **V21-V25**: AI document summaries, enterprise features (SSO, API keys, webhooks), tenant email-verification setting, favourites, and service accounts.
 
 ## AI Search
 
@@ -108,6 +141,10 @@ Workspace results limit the number of chunks contributed by one document, merge 
 Retrieval, embedding, generation, and end-to-end query latency are recorded as Micrometer metrics, along with candidate counts, retrieval distances, and estimated input/output token counts. Retrieval thresholds and hybrid search are configurable with `AI_RETRIEVAL_MAX_DISTANCE`, `AI_RETRIEVAL_FALLBACK_MAX_DISTANCE`, and `AI_RETRIEVAL_HYBRID`.
 
 See [docs/ai-search.md](docs/ai-search.md) for Google Cloud setup and indexing details.
+
+## Developer Platform & SSO
+
+Organization admins manage API keys, service accounts, webhooks, verified domains, invite links and single sign-on under **Settings**. See [docs/developer-platform.md](docs/developer-platform.md) for scopes, webhook signature verification, DNS domain verification and Google/Microsoft SSO setup.
 
 ---
 

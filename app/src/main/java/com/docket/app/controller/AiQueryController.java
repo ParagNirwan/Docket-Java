@@ -39,6 +39,7 @@ public class AiQueryController {
     private final TenantRepository tenantRepository;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
+    private final com.docket.app.service.billing.PlanLimitService planLimitService;
 
     @PostMapping("/ai/query")
     public ResponseEntity<AiQueryResponseDTO> query(
@@ -88,6 +89,8 @@ public class AiQueryController {
             ex.getHeaders().add("Retry-After", String.valueOf(e.retryAfterSeconds()));
             throw ex;
         }
+        // Monthly plan allowance (no-op when billing is off). 402 when used up.
+        planLimitService.countAiQuery(tenant.getId());
 
         return tenant;
     }

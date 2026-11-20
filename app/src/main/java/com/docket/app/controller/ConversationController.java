@@ -48,6 +48,7 @@ public class ConversationController {
     private final TenantRepository tenantRepository;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
+    private final com.docket.app.service.billing.PlanLimitService planLimitService;
 
     @GetMapping
     public ResponseEntity<List<ConversationDTO>> list(
@@ -163,7 +164,7 @@ public class ConversationController {
         tenantAuthorizationService.requirePermission(
                 authentication, tenant.getId(), Permission.DOCUMENTS_READ);
         User user = resolveUser(authentication);
-        requireRateLimit(user);
+        requireRateLimit(user, tenant);
 
         ConversationDTO conversation = conversationService.createConversation(
                 authentication, tenant.getId(), user.getId(), request.getQuestion(), request.getMode(),
@@ -185,7 +186,7 @@ public class ConversationController {
         tenantAuthorizationService.requirePermission(
                 authentication, tenant.getId(), Permission.DOCUMENTS_READ);
         User user = resolveUser(authentication);
-        requireRateLimit(user);
+        requireRateLimit(user, tenant);
 
         SseStream.run(response, objectMapper, listener -> conversationService.createConversation(
                 authentication, tenant.getId(), user.getId(), request.getQuestion(), request.getMode(),
@@ -203,7 +204,7 @@ public class ConversationController {
         tenantAuthorizationService.requirePermission(
                 authentication, tenant.getId(), Permission.DOCUMENTS_READ);
         User user = resolveUser(authentication);
-        requireRateLimit(user);
+        requireRateLimit(user, tenant);
 
         ConversationMessageDTO aiMessage = conversationService.sendMessage(
                 authentication, conversationId, tenant.getId(), user.getId(), request.getQuestion(),
@@ -225,7 +226,7 @@ public class ConversationController {
         tenantAuthorizationService.requirePermission(
                 authentication, tenant.getId(), Permission.DOCUMENTS_READ);
         User user = resolveUser(authentication);
-        requireRateLimit(user);
+        requireRateLimit(user, tenant);
 
         SseStream.run(response, objectMapper, listener -> conversationService.sendMessage(
                 authentication, conversationId, tenant.getId(), user.getId(), request.getQuestion(),
@@ -274,7 +275,7 @@ public class ConversationController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
     }
 
-    private void requireRateLimit(User user) {
+    private void requireRateLimit(User user, Tenant tenant) {
         try {
             aiRateLimiter.checkAllowed(user.getId().toString());
         } catch (RateLimitExceededException e) {
@@ -283,5 +284,7 @@ public class ConversationController {
             ex.getHeaders().add("Retry-After", String.valueOf(e.retryAfterSeconds()));
             throw ex;
         }
+        // Monthly plan allowance (no-op when billing is off). 402 when used up.
+        planLimitService.countAiQuery(tenant.getId());
     }
 }

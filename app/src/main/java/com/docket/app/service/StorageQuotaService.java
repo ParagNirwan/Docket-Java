@@ -26,6 +26,7 @@ public class StorageQuotaService {
     private final TenantAuthorizationService tenantAuthorizationService;
     private final NotificationService notificationService;
     private final AuditService auditService;
+    private final com.docket.app.service.billing.PlanLimitService planLimitService;
 
     // Checks that adding additionalBytes won't exceed the organization's quota.
     // If approaching or exceeding, notifies admins.
@@ -33,7 +34,8 @@ public class StorageQuotaService {
         Tenant tenant = tenantRepository.findById(tenantId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Tenant not found"));
 
-        if (tenant.getStorageQuotaBytes() == null) {
+        Long effectiveQuota = effectiveQuota(tenant);
+        if (effectiveQuota == null) {
             return; // Unlimited
         }
 
@@ -42,7 +44,7 @@ public class StorageQuotaService {
                 .orElse(0L);
 
         long newTotal = currentUsed + additionalBytes;
-        long quota = tenant.getStorageQuotaBytes();
+        long quota = effectiveQuota;
 
         if (newTotal > quota) {
             notificationService.notifyPermissionHolders(tenantId, Permission.TENANT_UPDATE,
@@ -63,6 +65,15 @@ public class StorageQuotaService {
         }
     }
 
+    // The tighter of the admin-set quota and the plan's storage (when billing is on).
+    Long effectiveQuota(Tenant tenant) {
+        Long manual = tenant.getStorageQuotaBytes();
+        Long plan = planLimitService.storageLimitBytes(tenant);
+        if (manual == null) return plan;
+        if (plan == null) return manual;
+        return Math.min(manual, plan);
+    }
+
     @Transactional
     public void recordUsage(UUID tenantId, long deltaBytes, long deltaDocs) {
         if (tenantUsageRepository.adjustUsage(tenantId, deltaBytes, deltaDocs) == 0) {
@@ -79,7 +90,7 @@ public class StorageQuotaService {
         TenantUsage usage = tenantUsageRepository.findByTenantId(tenant.getId())
                 .orElseGet(() -> new TenantUsage(tenant.getId(), 0L, 0L, java.time.Instant.now()));
 
-        return new TenantUsageDTO(usage.getStorageBytesUsed(), tenant.getStorageQuotaBytes(), usage.getDocumentCount());
+        return new TenantUsageDTO(usage.getStorageBytesUsed(), effectiveQuota(tenant), usage.getDocumentCount());
     }
 
     @Transactional

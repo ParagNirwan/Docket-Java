@@ -45,9 +45,30 @@ class StorageQuotaServiceTest {
     private NotificationService notificationService;
     @Mock
     private AuditService auditService;
+    @Mock
+    private com.docket.app.service.billing.PlanLimitService planLimitService;
+
+    // Billing off: no plan limit, so only the manual quota applies. (Mockito would
+    // otherwise return 0L for an unstubbed Long, i.e. a zero-byte plan.)
+    @org.junit.jupiter.api.BeforeEach
+    void billingOff() {
+        org.mockito.Mockito.lenient().when(planLimitService.storageLimitBytes(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(null);
+    }
 
     @InjectMocks
     private StorageQuotaService storageQuotaService;
+
+    @org.junit.jupiter.api.Test
+    void effectiveQuotaIsTheTighterOfManualAndPlanLimits() {
+        com.docket.app.entity.Tenant tenant = new com.docket.app.entity.Tenant();
+        tenant.setStorageQuotaBytes(500L);
+        org.mockito.Mockito.when(planLimitService.storageLimitBytes(tenant)).thenReturn(1_000L);
+        org.junit.jupiter.api.Assertions.assertEquals(500L, storageQuotaService.effectiveQuota(tenant));
+
+        tenant.setStorageQuotaBytes(null);
+        org.junit.jupiter.api.Assertions.assertEquals(1_000L, storageQuotaService.effectiveQuota(tenant));
+    }
 
     private UUID tenantId;
     private Tenant tenant;

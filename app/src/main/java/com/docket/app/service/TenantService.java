@@ -108,6 +108,9 @@ public class TenantService {
         tenant.setName(tenantDTO.getTenantName());
         tenant.setSlug(slug);
         tenant.setStatus(TenantStatus.ACTIVE);
+        if (tenantDTO.getDataRegion() != null) {
+            tenant.setDataRegion(tenantDTO.getDataRegion());
+        }
         tenant = tenantRepository.save(tenant);
 
         // Automatically make the person who created this org the Owner.

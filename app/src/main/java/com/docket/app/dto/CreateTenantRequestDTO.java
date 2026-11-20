@@ -16,4 +16,12 @@ public class CreateTenantRequestDTO {
     @NotBlank(message = "Slug is required")
     @JsonAlias({"tenantSlug"})
     private String slug;
+
+    // Optional; defaults to EU. Can't be changed later.
+    private com.docket.app.enums.DataRegion dataRegion;
+
+    public CreateTenantRequestDTO(String tenantName, String slug) {
+        this.tenantName = tenantName;
+        this.slug = slug;
+    }
 }

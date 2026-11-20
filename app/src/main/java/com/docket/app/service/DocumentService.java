@@ -119,7 +119,7 @@ public class DocumentService {
         // could contain dangerous characters or path traversal tricks.
         String originalFilename = sanitizeFilename(file.getOriginalFilename());
         String extension = getExtension(originalFilename);
-        String storedFilename = buildStoragePath(tenant.getId(), UUID.randomUUID() + extension);
+        String storedFilename = buildStoragePath(tenant, UUID.randomUUID() + extension);
 
         // Step 5: Save the file to disk and compute its SHA-256 checksum
         // at the same time (we do both in one pass to avoid reading the file twice)
@@ -268,7 +268,7 @@ public class DocumentService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
         int number = (head.getVersion() != null ? head.getVersion() : 1) + 1;
-        String stored = buildStoragePath(tenant.getId(), UUID.randomUUID() + getExtension(head.getOriginalFileName()));
+        String stored = buildStoragePath(tenant, UUID.randomUUID() + getExtension(head.getOriginalFileName()));
         String checksum;
         try {
             checksum = storeWithChecksum(file.getInputStream(), stored, file.getContentType());
@@ -467,7 +467,7 @@ public class DocumentService {
         storageQuotaService.assertQuota(tenant.getId(), source.getFileSize());
 
         String name = DocumentNames.available(documentRepository, tenant.getId(), folderId, source.getOriginalFileName());
-        String storedFilename = buildStoragePath(tenant.getId(), UUID.randomUUID() + getExtension(name));
+        String storedFilename = buildStoragePath(tenant, UUID.randomUUID() + getExtension(name));
         String checksum;
         try (InputStream data = storageService.retrieve(source.getStoredFileName())) {
             checksum = storeWithChecksum(data, storedFilename, source.getContentType());
@@ -597,9 +597,13 @@ public class DocumentService {
     // Organizes files on disk by tenant and date:
     // uploads/{tenant-id}/2026/10/{uuid-filename}.pdf
     // This prevents any single folder from having millions of files.
-    private String buildStoragePath(UUID tenantId, String filename) {
+    // Prefixed with the tenant's data region (eu/, us/) so storage can route the object to
+    // that region's bucket and encryption key. See DataRegion and GcsStorageService.
+    private String buildStoragePath(Tenant tenant, String filename) {
         LocalDate now = LocalDate.now();
-        return tenantId + "/" + now.getYear() + "/" + now.getMonthValue() + "/" + filename;
+        com.docket.app.enums.DataRegion region = tenant.getDataRegion() == null
+                ? com.docket.app.enums.DataRegion.EU : tenant.getDataRegion();
+        return region.pathPrefix() + tenant.getId() + "/" + now.getYear() + "/" + now.getMonthValue() + "/" + filename;
     }
 
     // ─── HELPER: Store file and compute SHA-256 checksum at the same time ─
@@ -664,5 +668,31 @@ public class DocumentService {
     // metadata together from the download method. The controller uses
     // the metadata to set HTTP headers (filename, content type).
     public record DocumentDownload(Resource resource, Document document) {
+    }
+
+    // For comparison: the stored file of a document (version null = current) or of one of
+    // its versions, after the same access and malware-scan checks as a download.
+    public Document resolveStoredFile(String slug, UUID id, Integer version, Authentication auth) {
+        Tenant tenant = findTenantOrThrow(slug);
+        tenantAuthorizationService.requirePermission(auth, tenant.getId(), Permission.DOCUMENTS_READ);
+        Document head = findAccessibleDocumentOrThrow(id, tenant.getId(), auth);
+        if (version == null || version.equals(head.getVersion())) {
+            if (head.getScanStatus() != null && head.getScanStatus() != ScanStatus.CLEAN) {
+                throw new ResponseStatusException(HttpStatus.LOCKED, "This document is awaiting a security scan");
+            }
+            return head;
+        }
+        var v = documentVersionRepository.findByDocumentIdAndVersion(id, version)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Version not found"));
+        if (v.getScanStatus() != ScanStatus.CLEAN) {
+            throw new ResponseStatusException(HttpStatus.LOCKED, "This version is awaiting a security scan");
+        }
+        Document historical = new Document();
+        historical.setId(head.getId());
+        historical.setOriginalFileName(head.getOriginalFileName());
+        historical.setStoredFileName(v.getStoredFileName());
+        historical.setContentType(v.getContentType());
+        historical.setVersion(v.getVersion());
+        return historical;
     }
 }

@@ -49,8 +49,23 @@ public class Tenant {
     // Whether this organization sends verification emails to unverified members.
     private boolean emailVerificationEnabled = false;
 
+    // Per-organization AI search tuning; null means "use the server default".
+    @jakarta.persistence.Column(name = "ai_max_distance")
+    private Double aiMaxDistance;
+
+    @jakarta.persistence.Column(name = "ai_fallback_max_distance")
+    private Double aiFallbackMaxDistance;
+
+    @jakarta.persistence.Column(name = "ai_rerank_min_score")
+    private Double aiRerankMinScore;
+
     @Enumerated(EnumType.STRING)
     private Plan plan = Plan.FREE;
+
+    // Immutable after creation (updatable = false), see DataRegion.
+    @Enumerated(EnumType.STRING)
+    @jakarta.persistence.Column(name = "data_region", nullable = false, updatable = false)
+    private com.docket.app.enums.DataRegion dataRegion = com.docket.app.enums.DataRegion.EU;
 
     // Billing details are for the Owner's billing page only, never the general tenant response
     @JsonIgnore

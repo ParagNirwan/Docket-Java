@@ -11,6 +11,7 @@ export interface Member {
   joinedAt: string | null;
   lastActiveAt: string | null;
   currentUser: boolean;
+  customRoleId?: string | null;
 }
 
 export interface Invitation {

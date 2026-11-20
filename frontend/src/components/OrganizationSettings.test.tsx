@@ -7,6 +7,9 @@ vi.mock("./MembersPanel", () => ({ MembersPanel: () => <div>members panel</div> 
 vi.mock("./RetentionPanel", () => ({ RetentionPanel: () => <div>retention panel</div> }));
 vi.mock("./LegalHoldsPanel", () => ({ LegalHoldsPanel: () => <div>holds panel</div> }));
 vi.mock("./DangerZone", () => ({ DangerZone: () => <div>danger panel</div> }));
+vi.mock("./AccessSettingsPanel", () => ({ AccessSettingsPanel: () => <div>access panel</div> }));
+vi.mock("./DeveloperSettingsPanel", () => ({ DeveloperSettingsPanel: () => <div>developer panel</div> }));
+vi.mock("./InsightsPanel", () => ({ InsightsPanel: () => <div>insights panel</div> }));
 
 function show(permissions: string[], initialTab?: string) {
   render(
@@ -60,5 +63,22 @@ describe("OrganizationSettings", () => {
     cleanup();
     show(["tenant.update"]);
     expect(screen.getByRole("tab", { name: "Email" })).toBeTruthy();
+  });
+
+  it("shows access and insights to tenant admins and developers only with api.manage", () => {
+    show(["members.read"]);
+    expect(screen.queryByRole("tab", { name: "Access & SSO" })).toBeNull();
+    expect(screen.queryByRole("tab", { name: "Developers" })).toBeNull();
+    expect(screen.queryByRole("tab", { name: "Insights" })).toBeNull();
+
+    cleanup();
+    show(["tenant.update"]);
+    expect(screen.getByRole("tab", { name: "Access & SSO" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Insights" })).toBeTruthy();
+    expect(screen.queryByRole("tab", { name: "Developers" })).toBeNull();
+
+    cleanup();
+    show(["tenant.update", "api.manage"], "developers");
+    expect(screen.getByText("developer panel")).toBeTruthy();
   });
 });

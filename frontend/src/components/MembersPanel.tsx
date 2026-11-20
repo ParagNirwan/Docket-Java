@@ -4,6 +4,7 @@ import { DeleteConfirmationModal } from "./DeleteConfirmationModal";
 import { InviteMembersModal } from "./InviteMembersModal";
 import { notify } from "../lib/notifications";
 import { assignableRoles, hasPermission, ROLE_LABELS, type MemberRole } from "../lib/permissions";
+import { assignCustomRole, listCustomRoles, type CustomRole } from "../services/roleService";
 import {
   listInvitations,
   listMembers,
@@ -34,6 +35,7 @@ export function MembersPanel({ slug, token, permissions }: MembersPanelProps) {
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [pendingRemoval, setPendingRemoval] = useState<Member | null>(null);
   const [pendingRevoke, setPendingRevoke] = useState<Invitation | null>(null);
+  const [customRoles, setCustomRoles] = useState<CustomRole[]>([]);
 
   const load = useCallback(async () => {
     try {
@@ -72,6 +74,10 @@ export function MembersPanel({ slug, token, permissions }: MembersPanelProps) {
         }
       }
     })();
+    // Custom roles are optional: a failure here shouldn't hide the member list.
+    listCustomRoles(slug, token)
+      .then((list) => !cancelled && setCustomRoles(Array.isArray(list?.roles) ? list.roles : []))
+      .catch(() => undefined);
     return () => {
       cancelled = true;
     };
@@ -96,6 +102,17 @@ export function MembersPanel({ slug, token, permissions }: MembersPanelProps) {
       notify.success("Role updated", `${member.name} is now ${ROLE_LABELS[role]}`);
     } catch (err) {
       notify.error("Could not change the role", err instanceof Error ? err.message : undefined);
+    }
+  }
+
+  async function handleCustomRoleChange(member: Member, customRoleId: string | null) {
+    try {
+      await assignCustomRole(slug, member.membershipId, customRoleId, token);
+      setMembers((previous) => previous.map((m) => m.membershipId === member.membershipId ? { ...m, customRoleId } : m));
+      const name = customRoles.find((r) => r.id === customRoleId)?.name;
+      notify.success("Custom role updated", name ? `${member.name} now has ${name}` : `${member.name} has no custom role`);
+    } catch (err) {
+      notify.error("Could not change the custom role", err instanceof Error ? err.message : undefined);
     }
   }
 
@@ -184,6 +201,23 @@ export function MembersPanel({ slug, token, permissions }: MembersPanelProps) {
                         </select>
                       ) : (
                         <span className="font-medium text-gray-700 dark:text-gray-200">{ROLE_LABELS[member.role]}</span>
+                      )}
+                      {customRoles.length > 0 && member.role !== "OWNER" && (
+                        canChangeRoles && inReach ? (
+                          <select
+                            aria-label={`Custom role for ${member.name}`}
+                            value={member.customRoleId ?? ""}
+                            onChange={(e) => void handleCustomRoleChange(member, e.target.value || null)}
+                            className="mt-1 block rounded-lg border border-gray-200 bg-white px-2 py-1 text-[11px] text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+                          >
+                            <option value="">No custom role</option>
+                            {customRoles.map((r) => <option key={r.id} value={r.id}>+ {r.name}</option>)}
+                          </select>
+                        ) : member.customRoleId ? (
+                          <span className="mt-0.5 block text-[11px] text-indigo-600 dark:text-indigo-400">
+                            + {customRoles.find((r) => r.id === member.customRoleId)?.name ?? "Custom role"}
+                          </span>
+                        ) : null
                       )}
                     </td>
                     <td className="hidden px-4 py-3 text-gray-500 dark:text-gray-400 sm:table-cell">{formatDate(member.joinedAt)}</td>

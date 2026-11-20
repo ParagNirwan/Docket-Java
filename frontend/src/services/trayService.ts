@@ -413,9 +413,10 @@ export async function updateTenantQuota(
   token: string,
 ): Promise<TenantUsageDTO> {
   const response = await apiFetch(`${API_BASE}/tenants/${encodeURIComponent(slug)}/quota`, {
-    method: "PATCH",
+    // Matches TenantController.updateQuota (PUT, UpdateQuotaRequestDTO.storageQuotaBytes).
+    method: "PUT",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ quotaBytes }),
+    body: JSON.stringify({ storageQuotaBytes: quotaBytes }),
   });
   if (!response.ok) {
     throw new Error(`Failed to update storage quota (${response.status})`);

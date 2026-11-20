@@ -72,8 +72,15 @@ export async function getAuditEvents(slug: string, filters: AuditFilters, page: 
   return response.json();
 }
 
-export async function downloadAuditCsv(slug: string, filters: AuditFilters, token: string): Promise<void> {
-  const response = await apiFetch(`${API_BASE}/tenants/${encodeURIComponent(slug)}/audit-events/export?${filterParams(filters)}`, {
+export async function downloadAuditCsv(
+  slug: string,
+  filters: AuditFilters,
+  token: string,
+  format: "csv" | "json" = "csv",
+): Promise<void> {
+  const params = filterParams(filters);
+  params.set("format", format);
+  const response = await apiFetch(`${API_BASE}/tenants/${encodeURIComponent(slug)}/audit-events/export?${params}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!response.ok) throw new Error("Could not export the activity log");
@@ -81,7 +88,7 @@ export async function downloadAuditCsv(slug: string, filters: AuditFilters, toke
   const url = URL.createObjectURL(await response.blob());
   const link = document.createElement("a");
   link.href = url;
-  link.download = "audit-log.csv";
+  link.download = `audit-log.${format}`;
   link.click();
   URL.revokeObjectURL(url);
 }

@@ -1,5 +1,10 @@
 import { useState } from "react";
+import { AccessSettingsPanel } from "./AccessSettingsPanel";
+import { CustomRolesPanel } from "./CustomRolesPanel";
 import { AiSettingsPanel } from "./AiSettingsPanel";
+import { BillingPanel } from "./BillingPanel";
+import { DeveloperSettingsPanel } from "./DeveloperSettingsPanel";
+import { InsightsPanel } from "./InsightsPanel";
 import { EmailVerificationSettingsPanel } from "./EmailVerificationSettingsPanel";
 import { DangerZone } from "./DangerZone";
 import { LegalHoldsPanel } from "./LegalHoldsPanel";
@@ -20,21 +25,41 @@ type OrganizationSettingsProps = {
   onOwnershipTransferred: () => void;
 };
 
-type Tab = "members" | "storage" | "ai" | "email" | "retention" | "legal-holds" | "danger";
+type Tab =
+  | "members"
+  | "roles"
+  | "storage"
+  | "ai"
+  | "email"
+  | "access"
+  | "developers"
+  | "insights"
+  | "billing"
+  | "retention"
+  | "legal-holds"
+  | "danger";
 
 export function OrganizationSettings({ slug, token, tenantName, permissions, trays = [], initialTab, onOwnershipTransferred }: OrganizationSettingsProps) {
   const canSeeMembers = hasPermission(permissions, "members.read");
   const canSeeRetention = hasPermission(permissions, "retention.read");
   const canManageQuota = hasPermission(permissions, "tenant.update") || hasPermission(permissions, "retention.manage");
   const canManageTenant = hasPermission(permissions, "tenant.update");
+  const canChangeRoles = hasPermission(permissions, "members.update_role");
+  const canManageApi = hasPermission(permissions, "api.manage");
+  const canManageBilling = hasPermission(permissions, "billing.manage");
 
   const resolvedInitialTab = initialTab === "general" ? "storage" : initialTab;
 
   const tabs: { id: Tab; label: string }[] = [
     ...(canSeeMembers ? [{ id: "members" as const, label: "Members" }] : []),
+    ...(canChangeRoles ? [{ id: "roles" as const, label: "Roles" }] : []),
     { id: "storage" as const, label: "Storage & Quotas" },
     { id: "ai" as const, label: "AI" },
     ...(canManageTenant ? [{ id: "email" as const, label: "Email" }] : []),
+    ...(canManageTenant ? [{ id: "access" as const, label: "Access & SSO" }] : []),
+    ...(canManageApi ? [{ id: "developers" as const, label: "Developers" }] : []),
+    ...(canManageTenant ? [{ id: "insights" as const, label: "Insights" }] : []),
+    ...(canManageBilling ? [{ id: "billing" as const, label: "Billing" }] : []),
     ...(canSeeRetention ? [
       { id: "retention" as const, label: "Retention" },
       { id: "legal-holds" as const, label: "Legal holds" },
@@ -75,6 +100,11 @@ export function OrganizationSettings({ slug, token, tenantName, permissions, tra
       {tab === "email" && canManageTenant && (
         <EmailVerificationSettingsPanel slug={slug} token={token} canManage={canManageTenant} />
       )}
+      {tab === "roles" && canChangeRoles && <CustomRolesPanel slug={slug} token={token} myPermissions={permissions} />}
+      {tab === "access" && canManageTenant && <AccessSettingsPanel slug={slug} token={token} />}
+      {tab === "developers" && canManageApi && <DeveloperSettingsPanel slug={slug} token={token} />}
+      {tab === "insights" && canManageTenant && <InsightsPanel slug={slug} token={token} />}
+      {tab === "billing" && canManageBilling && <BillingPanel slug={slug} token={token} />}
       {tab === "retention" && canSeeRetention && <RetentionPanel slug={slug} token={token} trays={trays} permissions={permissions} />}
       {tab === "legal-holds" && canSeeRetention && <LegalHoldsPanel slug={slug} token={token} trays={trays} permissions={permissions} />}
       {tab === "danger" && (

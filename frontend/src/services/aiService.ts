@@ -187,6 +187,14 @@ export async function getDocumentSummary(slug: string, docId: string, token: str
 
 export interface AiSettings {
   summariesEnabled: boolean;
+  // Optional on update: left out means unchanged.
+  classificationEnabled?: boolean;
+  autoApplyTags?: boolean;
+  // Search tuning overrides; null means the server default.
+  maxDistance?: number | null;
+  fallbackMaxDistance?: number | null;
+  rerankMinScore?: number | null;
+  resetRetrievalTuning?: boolean;
 }
 
 export async function getAiSettings(slug: string, token: string): Promise<AiSettings> {

@@ -22,7 +22,9 @@ export type PermissionCode =
   | "audit.read"
   | "retention.read"
   | "retention.manage"
-  | "retention.override";
+  | "retention.override"
+  | "api.manage"
+  | "billing.manage";
 
 export type MemberRole = "OWNER" | "ADMIN" | "MANAGER" | "MEMBER" | "GUEST";
 

@@ -233,6 +233,35 @@ public class DocumentController {
         return ResponseEntity.ok(bulkDocumentService.bulkTag(slug, request, authentication));
     }
 
+    public record BulkRetentionRequest(
+            @jakarta.validation.constraints.NotEmpty @jakarta.validation.constraints.Size(max = 100) java.util.List<UUID> documentIds,
+            @jakarta.validation.constraints.NotNull UUID policyId) {
+    }
+
+    // POST /api/tenants/{slug}/documents/bulk-retention — lock the selection under a policy
+    @PostMapping("/documents/bulk-retention")
+    public ResponseEntity<com.docket.app.dto.BulkOperationResultDTO> bulkRetention(
+            @PathVariable String slug,
+            @Valid @RequestBody BulkRetentionRequest request,
+            Authentication authentication
+    ) {
+        return ResponseEntity.ok(bulkDocumentService.bulkAssignRetention(
+                slug, new com.docket.app.dto.BulkDocumentRequestDTO(request.documentIds()), request.policyId(), authentication));
+    }
+
+    // POST /api/tenants/{slug}/documents/bulk-download — streams a zip (max 100 files, 1 GB)
+    @PostMapping("/documents/bulk-download")
+    public void bulkDownload(
+            @PathVariable String slug,
+            @Valid @RequestBody com.docket.app.dto.BulkDocumentRequestDTO request,
+            Authentication authentication,
+            jakarta.servlet.http.HttpServletResponse response
+    ) throws java.io.IOException {
+        response.setContentType("application/zip");
+        response.setHeader(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"documents.zip\"");
+        bulkDocumentService.writeZip(slug, request, authentication, response.getOutputStream());
+    }
+
     // ─── SOFT-DELETE A DOCUMENT ─────────────────────────────────────────
     // DELETE /api/tenants/{slug}/documents/{docId}
     // Moves the document to the Trash but doesn't remove the file from disk.

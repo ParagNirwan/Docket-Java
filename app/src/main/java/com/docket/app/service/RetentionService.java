@@ -53,28 +53,49 @@ public class RetentionService {
         document.setRetentionClockAt(clock);
         boolean hasComplianceLock = false;
         for (RetentionPolicy policy : policies) {
-            Instant start = policy.getClockStart() == ClockStart.UPLOADED_AT ? document.getCreatedAt() : clock;
-            Instant until = start.plus(Duration.ofDays(policy.getRetentionDays()));
-            Instant current = document.getRetainUntil();
-            if (current == null || !until.isBefore(current)) {
-                document.setRetainUntil(until);
-                document.setRetentionPolicyId(policy.getId());
-                if (current == null || until.isAfter(current)) {
-                    document.setExpiringNotifiedAt(null);
-                    document.setExpiryHandledAt(null);
-                }
-            }
-            if (policy.getLockMode() == LockMode.COMPLIANCE || document.getLockMode() == null) {
-                document.setLockMode(policy.getLockMode());
-            }
-            if (policy.getLockMode() == LockMode.COMPLIANCE) {
-                hasComplianceLock = true;
-            }
+            hasComplianceLock |= applyTerms(document, policy, clock);
         }
         // Apply GCS temporary hold for compliance-mode retention locks
         if (hasComplianceLock) {
             applyStorageHold(document);
         }
+    }
+
+    // Puts one document under a policy's terms directly (bulk "assign retention"), whatever
+    // folder it's in. Same rules as on entry: a lock can be extended, never shortened, and a
+    // Compliance lock is never downgraded. Returns true if the document is now Compliance-locked.
+    public boolean applyPolicyToDocument(Document document, RetentionPolicy policy) {
+        Instant now = Instant.now();
+        if (!document.isRetentionLocked(now)) {
+            document.setLockMode(null);
+        }
+        Instant clock = document.getArchivedAt() != null ? document.getArchivedAt() : now;
+        if (document.getRetentionClockAt() == null) {
+            document.setRetentionClockAt(clock);
+        }
+        boolean compliance = applyTerms(document, policy, clock);
+        if (compliance) {
+            applyStorageHold(document);
+        }
+        return compliance;
+    }
+
+    private boolean applyTerms(Document document, RetentionPolicy policy, Instant clock) {
+        Instant start = policy.getClockStart() == ClockStart.UPLOADED_AT ? document.getCreatedAt() : clock;
+        Instant until = start.plus(Duration.ofDays(policy.getRetentionDays()));
+        Instant current = document.getRetainUntil();
+        if (current == null || !until.isBefore(current)) {
+            document.setRetainUntil(until);
+            document.setRetentionPolicyId(policy.getId());
+            if (current == null || until.isAfter(current)) {
+                document.setExpiringNotifiedAt(null);
+                document.setExpiryHandledAt(null);
+            }
+        }
+        if (policy.getLockMode() == LockMode.COMPLIANCE || document.getLockMode() == null) {
+            document.setLockMode(policy.getLockMode());
+        }
+        return policy.getLockMode() == LockMode.COMPLIANCE;
     }
 
     // A folder moved here brings its documents under the policies of its new home.

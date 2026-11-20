@@ -146,6 +146,68 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
             @Param("lockMode") String lockMode,
             @Param("clockStart") String clockStart);
 
+    // Dry run of applyRetentionPolicy: what it *would* do, without changing anything.
+    // Same subtree and terms; keep the two in step.
+    interface RetentionPreviewRow {
+        long getCovered();
+        long getNewlyLocked();
+        long getExtended();
+        long getUnchanged();
+        long getAlreadyExpired();
+        long getBecomeCompliance();
+        // Epoch seconds; null when nothing is covered.
+        Long getEarliestUntilEpoch();
+        Long getLatestUntilEpoch();
+    }
+
+    @Query(value = """
+            WITH RECURSIVE subtree AS (
+                SELECT id FROM folders WHERE id = :folderId
+                UNION ALL
+                SELECT child.id FROM folders child JOIN subtree ON child.parent_folder_id = subtree.id
+                WHERE :includeSubfolders
+            ), terms AS (
+                SELECT d.id, d.retain_until AS current_until, d.lock_mode AS current_mode,
+                       CASE WHEN :clockStart = 'UPLOADED_AT' THEN d.created_at
+                            ELSE COALESCE(d.archived_at, d.retention_clock_at, now())
+                       END + make_interval(days => :days) AS until
+                FROM documents d JOIN subtree ON d.folder_id = subtree.id
+                WHERE d.status = 'ACTIVE' AND d.tenant_id = :tenantId
+            )
+            SELECT count(*) AS "covered",
+                   count(*) FILTER (WHERE current_until IS NULL OR current_until <= now()) AS "newlyLocked",
+                   count(*) FILTER (WHERE current_until > now() AND until > current_until) AS "extended",
+                   count(*) FILTER (WHERE current_until > now() AND until <= current_until) AS "unchanged",
+                   count(*) FILTER (WHERE GREATEST(current_until, until) <= now()) AS "alreadyExpired",
+                   count(*) FILTER (WHERE :lockMode = 'COMPLIANCE'
+                                    AND NOT (current_mode = 'COMPLIANCE' AND current_until > now())) AS "becomeCompliance",
+                   CAST(extract(epoch FROM min(GREATEST(current_until, until))) AS bigint) AS "earliestUntilEpoch",
+                   CAST(extract(epoch FROM max(GREATEST(current_until, until))) AS bigint) AS "latestUntilEpoch"
+            FROM terms
+            """, nativeQuery = true)
+    RetentionPreviewRow previewRetentionPolicy(
+            @Param("tenantId") UUID tenantId,
+            @Param("folderId") UUID folderId,
+            @Param("includeSubfolders") boolean includeSubfolders,
+            @Param("days") int days,
+            @Param("lockMode") String lockMode,
+            @Param("clockStart") String clockStart);
+
+    // Compliance report: every document under a retention lock or an active legal hold.
+    @Query(value = """
+            SELECT d.id, d.original_file_name, f.name AS folder_name, d.lock_mode, d.retain_until,
+                   d.retention_policy_id, d.created_at, d.archived_at,
+                   EXISTS (SELECT 1 FROM legal_hold_documents h JOIN legal_holds l ON l.id = h.legal_hold_id
+                           WHERE h.document_id = d.id AND l.released_at IS NULL) AS on_legal_hold
+            FROM documents d LEFT JOIN folders f ON f.id = d.folder_id
+            WHERE d.tenant_id = :tenantId AND d.status = 'ACTIVE'
+              AND (d.retain_until > now()
+                   OR EXISTS (SELECT 1 FROM legal_hold_documents h JOIN legal_holds l ON l.id = h.legal_hold_id
+                              WHERE h.document_id = d.id AND l.released_at IS NULL))
+            ORDER BY d.retain_until NULLS LAST
+            """, nativeQuery = true)
+    java.util.List<Object[]> lockedDocumentsReport(@Param("tenantId") UUID tenantId);
+
     @Query("""
             SELECT count(d) FROM Document d
             WHERE d.tenantId = :tenantId AND d.fileStatus = com.docket.app.enums.FileStatus.ACTIVE
@@ -245,6 +307,18 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
             WHERE tenant_id = :tenantId AND ai_summary IS NOT NULL
             """, nativeQuery = true)
     void clearAiSummariesForTenant(@Param("tenantId") UUID tenantId);
+
+    // Turning classification off removes what the model produced. Fields a person reviewed
+    // are theirs, so those stay.
+    @Transactional
+    @Modifying
+    @Query(value = """
+            UPDATE documents
+            SET ai_document_type = NULL, ai_suggested_tags = NULL,
+                ai_fields = CASE WHEN ai_fields_reviewed_at IS NULL THEN NULL ELSE ai_fields END
+            WHERE tenant_id = :tenantId
+            """, nativeQuery = true)
+    void clearAiClassificationsForTenant(@Param("tenantId") UUID tenantId);
 
     // Claims the next documents below the current embedding version. SKIP LOCKED lets several
     // pods work side by side, and if a pod dies the claim is free again once it passes

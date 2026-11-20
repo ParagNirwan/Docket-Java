@@ -28,6 +28,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class RetentionController {
     private final RetentionPolicyService retentionPolicyService;
+    private final com.docket.app.service.RetentionReportService retentionReportService;
     private final TrashService trashService;
 
     @GetMapping("/retention-policies")
@@ -90,5 +91,32 @@ public class RetentionController {
             Authentication authentication
     ) {
         return ResponseEntity.ok(trashService.updateSettings(slug, request, authentication));
+    }
+
+    // GET /retention-policies/preview?folderId=&retentionDays=&lockMode=&clockStart=&appliesToSubfolders=
+    // Dry run: what a policy with these terms would lock, extend or leave alone. Changes nothing.
+    @GetMapping("/retention-policies/preview")
+    public ResponseEntity<com.docket.app.service.RetentionReportService.Preview> preview(
+            @PathVariable String slug,
+            @org.springframework.web.bind.annotation.RequestParam java.util.UUID folderId,
+            @org.springframework.web.bind.annotation.RequestParam int retentionDays,
+            @org.springframework.web.bind.annotation.RequestParam com.docket.app.enums.LockMode lockMode,
+            @org.springframework.web.bind.annotation.RequestParam com.docket.app.enums.ClockStart clockStart,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "true") boolean appliesToSubfolders,
+            Authentication authentication
+    ) {
+        return ResponseEntity.ok(retentionReportService.preview(slug, folderId, retentionDays, lockMode, clockStart,
+                appliesToSubfolders, authentication));
+    }
+
+    // GET /retention-policies/report — CSV of every document under a retention lock or legal hold
+    @GetMapping("/retention-policies/report")
+    public void complianceReport(@PathVariable String slug, Authentication authentication,
+                                 jakarta.servlet.http.HttpServletResponse response) throws java.io.IOException {
+        response.setContentType("text/csv");
+        response.setCharacterEncoding(java.nio.charset.StandardCharsets.UTF_8.name());
+        response.setHeader(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION,
+                "attachment; filename=\"retention-compliance-report.csv\"");
+        retentionReportService.writeComplianceReport(slug, authentication, response.getWriter());
     }
 }

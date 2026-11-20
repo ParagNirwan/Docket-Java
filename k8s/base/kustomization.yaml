@@ -14,3 +14,4 @@ resources:
   - health-check-policy.yaml
   - backend-policy.yaml
   - hpa.yaml
+  - pdb.yaml

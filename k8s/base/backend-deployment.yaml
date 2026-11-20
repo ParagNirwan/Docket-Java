@@ -8,8 +8,13 @@ metadata:
     app.kubernetes.io/part-of: docket
 spec:
   replicas: 1
+  # Rolling: keep serving during deploys. No pod-local state (secrets are a CSI mount),
+  # and the HPA already runs several replicas side by side.
   strategy:
-    type: Recreate
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   selector:
     matchLabels:
       app.kubernetes.io/name: backend

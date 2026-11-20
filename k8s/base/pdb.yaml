@@ -1,0 +1,29 @@
+# Voluntary disruptions (node upgrades, Autopilot bin-packing) evict at most one pod at a
+# time. maxUnavailable rather than minAvailable so a single-replica dev setup can still drain.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: backend-pdb
+  namespace: docket
+  labels:
+    app.kubernetes.io/name: backend
+    app.kubernetes.io/part-of: docket
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: backend
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: frontend-pdb
+  namespace: docket
+  labels:
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/part-of: docket
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: frontend

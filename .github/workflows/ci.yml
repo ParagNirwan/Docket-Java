@@ -68,6 +68,37 @@ jobs:
         run: npm test
 
 
+  security-scan:
+    name: Dependency & Image Vulnerability Scan
+    runs-on: ubuntu-latest
+    # Run the official Trivy image at a pinned version rather than a third-party action.
+    env:
+      TRIVY_IMAGE: aquasec/trivy:0.57.0
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Scan dependencies (Maven + npm lockfiles)
+        # Fails the build on fixable CRITICAL issues; HIGH is reported but doesn't block.
+        run: |
+          docker run --rm -v "$PWD:/src" -w /src "$TRIVY_IMAGE" fs \
+            --scanners vuln --ignore-unfixed --severity HIGH,CRITICAL --exit-code 0 .
+          docker run --rm -v "$PWD:/src" -w /src "$TRIVY_IMAGE" fs \
+            --scanners vuln --ignore-unfixed --severity CRITICAL --exit-code 1 .
+
+      - name: Scan for committed secrets and misconfiguration
+        run: |
+          docker run --rm -v "$PWD:/src" -w /src "$TRIVY_IMAGE" fs \
+            --scanners secret,misconfig --severity HIGH,CRITICAL --exit-code 1 \
+            --skip-dirs frontend/node_modules,app/target .
+
+      - name: Build and scan the backend image
+        run: |
+          docker build -t docket-backend:ci ./app
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock "$TRIVY_IMAGE" image \
+            --ignore-unfixed --severity CRITICAL --exit-code 1 docket-backend:ci
+
+
   ai-evaluation:
     name: AI Search Quality Evaluation
     runs-on: ubuntu-latest

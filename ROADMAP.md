@@ -8,13 +8,13 @@ These are critical for production deployment. Blockers for going live.
 - (Completed) **#112** Document and verify production backup recovery — see [docs/backup-recovery.md](docs/backup-recovery.md)
 
 ### AI Search Quality
-- **#114** Build a repeatable AI search quality evaluation suite (P2, ai, ai-search)
+- (Completed) **#114** Build a repeatable AI search quality evaluation suite (P2, ai, ai-search)
   - Golden dataset: 50–100 Q&A pairs per tenant archetype (legal, finance, ops)
   - Metrics: citation precision/recall, answer correctness (LLM-as-judge), latency
   - CI gate: regression detection on retrieval + generation quality
 
 ### Security Hardening
-- **#124** Refactor Public API: Service account authentication, key last-used tracking, and standard security filter (P2, platform, security)
+- (Completed) **#124** Refactor Public API: Service account authentication, key last-used tracking, and standard security filter (P2, platform, security)
   - Service account JWT (distinct from user JWT), scoped permissions
   - API key last-used timestamp + rotation reminders
   - Shared `SecurityFilterChain` for `/api/public/**` and `/api/internal/**`
@@ -72,7 +72,7 @@ These are critical for production deployment. Blockers for going live.
   - Highlight added/removed/changed clauses
 
 ### AI Search Quality (Epic #91)
-- **#114** AI search quality evaluation suite (see Phase 0)
+- (Completed) **#114** AI search quality evaluation suite (see Phase 0)
 - Hybrid retrieval tuning: per-tenant distance thresholds, rerank weight
 - Conversation search: multi-turn context, follow-up handling
 - Summarization quality: map-reduce for long docs, citation coverage
@@ -100,7 +100,7 @@ These are critical for production deployment. Blockers for going live.
 | Priority | Issues | Phase |
 |----------|--------|-------|
 | **P1** | — | Phase 0 |
-| **P2** | #124, #123, #121, #115, #114, #97, #96, #95, #93, #92, #94 | Phase 1–2 |
+| **P2** | #124, #123, #121, #115, #97, #96, #95, #93, #92, #94 | Phase 1–2 |
 | **P3** | #89, #84, #60, #46 | Phase 3 |
 
 ---

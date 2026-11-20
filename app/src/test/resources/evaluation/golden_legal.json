@@ -1,0 +1,195 @@
+{
+  "name": "legal-archetype-v1",
+  "description": "Golden dataset for legal document Q&A evaluation",
+  "tenantArchetype": "legal",
+  "version": 1,
+  "qaPairs": [
+    {
+      "id": "legal-001",
+      "question": "What is the termination clause in the lease agreement?",
+      "expectedAnswer": "The lease can be terminated by either party with 60 days written notice. Early termination by tenant requires payment of 2 months' rent as penalty.",
+      "expectedCitations": [
+        {
+          "documentName": "lease-agreement.pdf",
+          "documentId": "lease-agreement",
+          "chunkIndex": 3,
+          "expectedTextSnippet": "termination",
+          "minimumRelevanceScore": 0.7
+        }
+      ],
+      "metadata": {
+        "category": "contracts",
+        "difficulty": "medium"
+      }
+    },
+    {
+      "id": "legal-002",
+      "question": "What are the payment terms for the invoice?",
+      "expectedAnswer": "Payment is due within 30 days of invoice date. Late payments incur 1.5% monthly interest.",
+      "expectedCitations": [
+        {
+          "documentName": "invoice-2024-001.pdf",
+          "documentId": "invoice-2024-001",
+          "chunkIndex": 1,
+          "expectedTextSnippet": "30 days",
+          "minimumRelevanceScore": 0.8
+        }
+      ],
+      "metadata": {
+        "category": "invoices",
+        "difficulty": "easy"
+      }
+    },
+    {
+      "id": "legal-003",
+      "question": "Who are the parties to the NDA?",
+      "expectedAnswer": "The parties are Acme Corporation (Disclosing Party) and Beta LLC (Receiving Party).",
+      "expectedCitations": [
+        {
+          "documentName": "nda-acme-beta.pdf",
+          "documentId": "nda-acme-beta",
+          "chunkIndex": 0,
+          "expectedTextSnippet": "Acme Corporation",
+          "minimumRelevanceScore": 0.9
+        },
+        {
+          "documentName": "nda-acme-beta.pdf",
+          "documentId": "nda-acme-beta",
+          "chunkIndex": 0,
+          "expectedTextSnippet": "Beta LLC",
+          "minimumRelevanceScore": 0.9
+        }
+      ],
+      "metadata": {
+        "category": "contracts",
+        "difficulty": "easy"
+      }
+    },
+    {
+      "id": "legal-004",
+      "question": "What is the confidentiality period in the NDA?",
+      "expectedAnswer": "The confidentiality obligations survive for 5 years from the date of disclosure.",
+      "expectedCitations": [
+        {
+          "documentName": "nda-acme-beta.pdf",
+          "documentId": "nda-acme-beta",
+          "chunkIndex": 2,
+          "expectedTextSnippet": "5 years",
+          "minimumRelevanceScore": 0.8
+        }
+      ],
+      "metadata": {
+        "category": "contracts",
+        "difficulty": "medium"
+      }
+    },
+    {
+      "id": "legal-005",
+      "question": "What is the governing law for the service agreement?",
+      "expectedAnswer": "The agreement is governed by the laws of the State of Delaware.",
+      "expectedCitations": [
+        {
+          "documentName": "service-agreement.pdf",
+          "documentId": "service-agreement",
+          "chunkIndex": 5,
+          "expectedTextSnippet": "Delaware",
+          "minimumRelevanceScore": 0.7
+        }
+      ],
+      "metadata": {
+        "category": "contracts",
+        "difficulty": "medium"
+      }
+    },
+    {
+      "id": "legal-006",
+      "question": "What is the liability cap in the contract?",
+      "expectedAnswer": "Total liability is capped at the total fees paid in the 12 months preceding the claim.",
+      "expectedCitations": [
+        {
+          "documentName": "service-agreement.pdf",
+          "documentId": "service-agreement",
+          "chunkIndex": 4,
+          "expectedTextSnippet": "liability",
+          "minimumRelevanceScore": 0.7
+        }
+      ],
+      "metadata": {
+        "category": "contracts",
+        "difficulty": "hard"
+      }
+    },
+    {
+      "id": "legal-007",
+      "question": "When does the lease expire?",
+      "expectedAnswer": "The lease expires on December 31, 2026.",
+      "expectedCitations": [
+        {
+          "documentName": "lease-agreement.pdf",
+          "documentId": "lease-agreement",
+          "chunkIndex": 1,
+          "expectedTextSnippet": "December 31, 2026",
+          "minimumRelevanceScore": 0.9
+        }
+      ],
+      "metadata": {
+        "category": "contracts",
+        "difficulty": "easy"
+      }
+    },
+    {
+      "id": "legal-008",
+      "question": "What are the insurance requirements in the lease?",
+      "expectedAnswer": "Tenant must maintain general liability insurance of $1,000,000 per occurrence and $2,000,000 aggregate.",
+      "expectedCitations": [
+        {
+          "documentName": "lease-agreement.pdf",
+          "documentId": "lease-agreement",
+          "chunkIndex": 4,
+          "expectedTextSnippet": "$1,000,000",
+          "minimumRelevanceScore": 0.8
+        }
+      ],
+      "metadata": {
+        "category": "contracts",
+        "difficulty": "medium"
+      }
+    },
+    {
+      "id": "legal-009",
+      "question": "What is the renewal option in the lease?",
+      "expectedAnswer": "Tenant has one 5-year renewal option with 6 months written notice. Rent increases by 3% annually.",
+      "expectedCitations": [
+        {
+          "documentName": "lease-agreement.pdf",
+          "documentId": "lease-agreement",
+          "chunkIndex": 2,
+          "expectedTextSnippet": "renewal",
+          "minimumRelevanceScore": 0.7
+        }
+      ],
+      "metadata": {
+        "category": "contracts",
+        "difficulty": "medium"
+      }
+    },
+    {
+      "id": "legal-010",
+      "question": "What is the force majeure clause in the agreement?",
+      "expectedAnswer": "Neither party is liable for delays caused by events beyond reasonable control including natural disasters, war, strikes, or government actions.",
+      "expectedCitations": [
+        {
+          "documentName": "service-agreement.pdf",
+          "documentId": "service-agreement",
+          "chunkIndex": 6,
+          "expectedTextSnippet": "force majeure",
+          "minimumRelevanceScore": 0.7
+        }
+      ],
+      "metadata": {
+        "category": "contracts",
+        "difficulty": "hard"
+      }
+    }
+  ]
+}

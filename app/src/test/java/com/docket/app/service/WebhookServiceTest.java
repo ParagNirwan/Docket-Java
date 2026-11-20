@@ -68,7 +68,8 @@ class WebhookServiceTest {
     void setUp() {
         webhookService = new WebhookService(
                 tenantRepository, webhookEndpointRepository, webhookDeliveryRepository,
-                tenantAuthorizationService, auditService, webhookProperties, meterRegistry
+                tenantAuthorizationService, auditService, webhookProperties, meterRegistry,
+                new com.docket.app.service.webhook.WebhookUrlGuard(true)
         );
 
         tenant = new Tenant();
@@ -80,7 +81,7 @@ class WebhookServiceTest {
         endpoint.setTenantId(tenant.getId());
         endpoint.setUrl("https://example.com/webhook");
         endpoint.setSecret(secret);
-        endpoint.setEvents(List.of("document.created"));
+        endpoint.setEvents(List.of("document.uploaded"));
         endpoint.setActive(true);
         endpoint.setCreatedAt(Instant.now());
 
@@ -151,14 +152,14 @@ class WebhookServiceTest {
     void enqueueDelivery_createsPendingDelivery() {
         when(webhookEndpointRepository.findById(endpoint.getId())).thenReturn(Optional.of(endpoint));
 
-        webhookService.enqueueDelivery(endpoint.getId(), "document.created", "{\"id\":\"123\"}");
+        webhookService.enqueueDelivery(endpoint.getId(), "document.uploaded", "{\"id\":\"123\"}");
 
         ArgumentCaptor<WebhookDelivery> captor = ArgumentCaptor.forClass(WebhookDelivery.class);
         verify(webhookDeliveryRepository).save(captor.capture());
 
         WebhookDelivery saved = captor.getValue();
         assertEquals(endpoint.getId(), saved.getEndpoint().getId());
-        assertEquals("document.created", saved.getEventType());
+        assertEquals("document.uploaded", saved.getEventType());
         assertEquals("{\"id\":\"123\"}", saved.getPayload());
         assertEquals(WebhookDelivery.Status.PENDING.name(), saved.getStatus());
         assertEquals(0, saved.getAttempts());
@@ -185,18 +186,19 @@ class WebhookServiceTest {
             return saved;
         });
 
-        CreateWebhookRequestDTO request = new CreateWebhookRequestDTO("https://example.com/webhook", List.of("document.created"));
+        CreateWebhookRequestDTO request = new CreateWebhookRequestDTO("https://example.com/webhook", List.of("document.uploaded"));
         WebhookEndpointDTO result = webhookService.create("test-tenant", request, authentication);
 
         assertNotNull(result.id());
         assertEquals("https://example.com/webhook", result.url());
-        assertEquals(List.of("document.created"), result.events());
+        assertEquals(List.of("document.uploaded"), result.events());
         assertTrue(result.active());
 
-        // Verify the saved endpoint has a secret
+        // Verify the saved endpoint has a secret, returned once so receivers can verify signatures
         WebhookEndpoint savedEndpoint = endpointCaptor.getValue();
         assertNotNull(savedEndpoint.getSecret());
         assertFalse(savedEndpoint.getSecret().isEmpty());
+        assertEquals(savedEndpoint.getSecret(), result.signingSecret());
     }
 
     @Test

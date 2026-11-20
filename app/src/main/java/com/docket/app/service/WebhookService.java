@@ -49,6 +49,7 @@ public class WebhookService {
     private final AuditService auditService;
     private final DocketWebhookProperties webhookProperties;
     private final MeterRegistry meterRegistry;
+    private final com.docket.app.service.webhook.WebhookUrlGuard webhookUrlGuard;
 
     private RestClient restClient;
 
@@ -113,16 +114,16 @@ public class WebhookService {
 
         WebhookEndpoint endpoint = new WebhookEndpoint();
         endpoint.setTenantId(tenant.getId());
-        endpoint.setUrl(request.url().trim());
-        endpoint.setSecret(UUID.randomUUID().toString().replace("-", ""));
-        endpoint.setEvents(request.events() == null ? List.of() : request.events().stream().map(String::trim).filter(s -> !s.isBlank()).toList());
+        endpoint.setUrl(webhookUrlGuard.validate(request.url()));
+        endpoint.setSecret(com.docket.app.security.TokenHasher.newToken());
+        endpoint.setEvents(com.docket.app.enums.WebhookEvent.normalize(request.events()));
         endpoint.setCreatedAt(Instant.now());
         endpoint.setActive(true);
         webhookEndpointRepository.save(endpoint);
 
         auditService.record(authentication, tenant.getId(), AuditAction.WEBHOOK_CREATED, "WEBHOOK_ENDPOINT", endpoint.getId(),
                 Map.of("url", endpoint.getUrl()));
-        return toDto(endpoint);
+        return toDto(endpoint, endpoint.getSecret());
     }
 
     @Transactional
@@ -212,6 +213,12 @@ public class WebhookService {
         String payload = delivery.getPayload();
         String eventType = delivery.getEventType();
 
+        // Re-checked at send time: the host may resolve somewhere else than when it was saved.
+        if (!webhookUrlGuard.isAllowed(endpoint.getUrl())) {
+            handleDeliveryFailure(delivery, maxRetries, "Webhook URL now resolves to a blocked address");
+            return;
+        }
+
         String signature;
         try {
             signature = computeHmacSha256(endpoint.getSecret(), payload);
@@ -228,7 +235,7 @@ public class WebhookService {
                     .contentType(MediaType.APPLICATION_JSON)
                     .header("X-Docket-Event", eventType)
                     .header("X-Docket-Signature", "sha256=" + signature)
-                    .body(payload)
+                    .body(isSlack(endpoint.getUrl()) ? slackMessage(eventType, payload) : payload)
                     .retrieve()
                     .toBodilessEntity();
 
@@ -296,6 +303,45 @@ public class WebhookService {
         webhookDeliveryRepository.save(managed);
     }
 
+    // Slack incoming webhooks (https://hooks.slack.com/services/…) only accept {"text": …},
+    // so those endpoints get a readable message instead of the raw event.
+    static boolean isSlack(String url) {
+        try {
+            String host = java.net.URI.create(url).getHost();
+            return host != null && host.equalsIgnoreCase("hooks.slack.com");
+        } catch (IllegalArgumentException exception) {
+            return false;
+        }
+    }
+
+    static String slackMessage(String eventType, String payload) {
+        com.fasterxml.jackson.databind.ObjectMapper json = new com.fasterxml.jackson.databind.ObjectMapper();
+        String target = "";
+        try {
+            var data = json.readTree(payload).path("data");
+            String type = data.path("targetType").asText("");
+            String id = data.path("targetId").asText("");
+            target = type.isEmpty() ? "" : " (" + type.toLowerCase(java.util.Locale.ROOT) + " " + id + ")";
+        } catch (Exception ignored) {
+            // fall back to the bare event name
+        }
+        String label = switch (eventType) {
+            case "document.uploaded" -> ":page_facing_up: A document was uploaded";
+            case "document.updated" -> ":pencil2: A document was updated";
+            case "document.deleted" -> ":wastebasket: A document was deleted";
+            case "document.restored" -> ":recycle: A document was restored";
+            case "member.joined" -> ":wave: Someone joined the organization";
+            case "member.removed" -> ":door: A member left or was removed";
+            case "member.role_changed" -> ":key: A member's role changed";
+            default -> "Docket event " + eventType;
+        };
+        try {
+            return json.writeValueAsString(java.util.Map.of("text", label + target));
+        } catch (Exception exception) {
+            return "{\"text\":\"Docket event\"}";
+        }
+    }
+
     private String computeHmacSha256(String secret, String payload) throws Exception {
         // Derive a proper HMAC key from the secret using HKDF-SHA256
         // This ensures the key has full entropy regardless of the secret format (UUID, etc.)
@@ -352,12 +398,17 @@ public class WebhookService {
     }
 
     private WebhookEndpointDTO toDto(WebhookEndpoint endpoint) {
+        return toDto(endpoint, null);
+    }
+
+    private WebhookEndpointDTO toDto(WebhookEndpoint endpoint, String signingSecret) {
         return new WebhookEndpointDTO(
                 endpoint.getId(),
                 endpoint.getUrl(),
                 endpoint.getEvents() == null ? List.of() : endpoint.getEvents(),
                 endpoint.isActive(),
-                endpoint.getCreatedAt()
+                endpoint.getCreatedAt(),
+                signingSecret
         );
     }
 }

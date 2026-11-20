@@ -61,13 +61,20 @@ public class AuditController {
             @RequestParam(required = false) AuditAction action,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
+            @RequestParam(defaultValue = "csv") String format,
             Authentication authentication,
             HttpServletResponse response
     ) throws IOException {
-        response.setContentType("text/csv");
-        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-        response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"audit-log.csv\"");
         AuditService.Filter filter = new AuditService.Filter(actor, action, from, to);
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+        if ("json".equalsIgnoreCase(format)) {
+            response.setContentType("application/json");
+            response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"audit-log.json\"");
+            auditService.exportJson(slug, filter, authentication, response.getWriter());
+            return;
+        }
+        response.setContentType("text/csv");
+        response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"audit-log.csv\"");
         auditService.exportCsv(slug, filter, authentication, response.getWriter());
     }
 }

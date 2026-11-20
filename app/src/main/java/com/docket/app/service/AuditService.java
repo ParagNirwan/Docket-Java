@@ -48,6 +48,7 @@ public class AuditService {
     private final TenantAuthorizationService tenantAuthorizationService;
     private final ClientRequestInfo clientRequestInfo;
     private final DocketPlatformProperties platformProperties;
+    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     @org.springframework.beans.factory.annotation.Autowired
     public AuditService(
@@ -56,13 +57,15 @@ public class AuditService {
             TenantRepository tenantRepository,
             TenantAuthorizationService tenantAuthorizationService,
             ClientRequestInfo clientRequestInfo,
-            DocketPlatformProperties platformProperties) {
+            DocketPlatformProperties platformProperties,
+            org.springframework.context.ApplicationEventPublisher eventPublisher) {
         this.auditEventRepository = auditEventRepository;
         this.userRepository = userRepository;
         this.tenantRepository = tenantRepository;
         this.tenantAuthorizationService = tenantAuthorizationService;
         this.clientRequestInfo = clientRequestInfo;
         this.platformProperties = platformProperties;
+        this.eventPublisher = eventPublisher;
     }
 
     public AuditService(
@@ -72,7 +75,7 @@ public class AuditService {
             TenantAuthorizationService tenantAuthorizationService,
             ClientRequestInfo clientRequestInfo) {
         this(auditEventRepository, userRepository, tenantRepository, tenantAuthorizationService,
-                clientRequestInfo, new DocketPlatformProperties());
+                clientRequestInfo, new DocketPlatformProperties(), event -> { });
     }
 
     // Records an action taken by the logged-in user inside an organization.
@@ -137,6 +140,8 @@ public class AuditService {
         event.setUserAgent(clientRequestInfo.userAgent());
         event.setCreatedAt(Instant.now());
         auditEventRepository.save(event);
+        eventPublisher.publishEvent(new AuditRecordedEvent(
+                tenantId, actorId, action, targetType, targetId, event.getCreatedAt()));
     }
 
     public Page<AuditEventDTO> search(String slug, Filter filter, int page, int size, Authentication authentication) {
@@ -153,6 +158,45 @@ public class AuditService {
         List<AuditEvent> events = auditEventRepository.findAll(matching(tenant.getId(), new Filter(null, null, null, null)), pageable).getContent();
         Map<UUID, User> actors = loadActors(events);
         return events.stream().map(event -> toDTO(event, actors)).toList();
+    }
+
+    // Streams a JSON array, one object per event, page by page like the CSV export.
+    public void exportJson(String slug, Filter filter, Authentication authentication, Writer writer) throws IOException {
+        Tenant tenant = requireAuditAccess(slug, authentication);
+        record(authentication, tenant.getId(), AuditAction.AUDIT_LOG_EXPORTED, null, null, Map.of("format", "json"));
+
+        Instant now = Instant.now();
+        Instant to = filter.to() == null || filter.to().isAfter(now) ? now : filter.to();
+        Specification<AuditEvent> matching = matching(tenant.getId(), new Filter(filter.actor(), filter.action(), filter.from(), to));
+        com.fasterxml.jackson.databind.ObjectMapper json = new com.fasterxml.jackson.databind.ObjectMapper();
+
+        writer.write("[");
+        boolean first = true;
+        Page<AuditEvent> page;
+        int pageNumber = 0;
+        do {
+            page = auditEventRepository.findAll(matching, PageRequest.of(pageNumber++, platformProperties.getAudit().getExportBatchSize(), NEWEST_FIRST));
+            Map<UUID, User> actors = loadActors(page.getContent());
+            for (AuditEvent event : page.getContent()) {
+                User actor = actors.get(event.getActorUserId());
+                Map<String, Object> row = new java.util.LinkedHashMap<>();
+                row.put("id", String.valueOf(event.getId()));
+                row.put("createdAt", String.valueOf(event.getCreatedAt()));
+                row.put("actorEmail", actor == null ? null : actor.getEmail());
+                row.put("actorType", event.getActorType() == null ? null : event.getActorType().name());
+                row.put("action", event.getAction() == null ? null : event.getAction().name());
+                row.put("targetType", event.getTargetType());
+                row.put("targetId", event.getTargetId() == null ? null : event.getTargetId().toString());
+                row.put("ip", event.getIp());
+                row.put("userAgent", event.getUserAgent());
+                row.put("metadata", event.getMetadata());
+                writer.write(first ? "\n" : ",\n");
+                writer.write(json.writeValueAsString(row));
+                first = false;
+            }
+        } while (page.hasNext());
+        writer.write("\n]\n");
+        writer.flush();
     }
 
     public void exportCsv(String slug, Filter filter, Authentication authentication, Writer writer) throws IOException {

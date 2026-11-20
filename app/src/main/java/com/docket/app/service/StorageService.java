@@ -23,4 +23,9 @@ public interface StorageService {
 
     // Check if a file exists in storage. Returns true if found, false if not.
     boolean exists(String storedFilename);
+
+    // Set or release a temporary hold on an object. In GCS this maps to
+    // the temporary hold feature which prevents deletion/overwrite. For local
+    // storage this is a no-op since we enforce retention at the application layer.
+    void setHold(String storedFilename, boolean hold);
 }

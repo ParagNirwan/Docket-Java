@@ -4,12 +4,14 @@ import com.docket.app.config.DocketPlatformProperties;
 import com.docket.app.dto.LegalHoldRequestDTO;
 import com.docket.app.dto.LegalHoldTargetsDTO;
 import com.docket.app.dto.SearchResultDTO;
+import com.docket.app.entity.Document;
 import com.docket.app.entity.LegalHold;
 import com.docket.app.entity.Tenant;
 import com.docket.app.entity.User;
 import com.docket.app.enums.AuditAction;
 import com.docket.app.enums.NotificationType;
 import com.docket.app.enums.Permission;
+import com.docket.app.repository.DocumentRepository;
 import com.docket.app.repository.DocumentSearchRepository;
 import com.docket.app.repository.LegalHoldRepository;
 import com.docket.app.repository.TenantRepository;
@@ -59,6 +61,8 @@ class LegalHoldServiceTest {
     @Mock private DocumentSearchRepository documentSearchRepository;
     @Mock private TenantAuthorizationService tenantAuthorizationService;
     @Mock private DocumentService documentService;
+    @Mock private DocumentRepository documentRepository;
+    @Mock private StorageService storageService;
     @Mock private NotificationService notificationService;
     @Mock private AuditService auditService;
     @Mock private JdbcTemplate jdbcTemplate;
@@ -108,6 +112,7 @@ class LegalHoldServiceTest {
         UUID folderId = UUID.randomUUID();
         when(legalHoldRepository.addDocuments(any(), eq(tenantId), eq(List.of(documentId)), any())).thenReturn(1);
         when(legalHoldRepository.addFolder(any(), eq(tenantId), eq(folderId), any())).thenReturn(3);
+        when(legalHoldRepository.findDocuments(any(), any())).thenReturn(new PageImpl<>(List.of()));
 
         service.create(SLUG, request(new LegalHoldTargetsDTO(List.of(documentId), List.of(folderId), null)), authentication);
 
@@ -124,6 +129,7 @@ class LegalHoldServiceTest {
                 List.of(new SearchResultDTO(match, "a.pdf", null, 1L, null, Instant.now(), null, null, null, null, null, null)),
                 PageRequest.of(0, 200), 1));
         when(legalHoldRepository.addDocuments(any(), eq(tenantId), eq(List.of(match)), any())).thenReturn(1);
+        when(legalHoldRepository.findDocuments(any(), any())).thenReturn(new PageImpl<>(List.of()));
 
         service.create(SLUG, request(new LegalHoldTargetsDTO(null, null, "contract")), authentication);
 
@@ -162,6 +168,8 @@ class LegalHoldServiceTest {
 
     @Test
     void release_marksTheHoldBeforeWorkingOutWhatsStillHeld() {
+        when(legalHoldRepository.findDocuments(any(), any())).thenReturn(new PageImpl<>(List.of()));
+
         service.release(SLUG, hold.getId(), authentication);
 
         assertNotNull(hold.getReleasedAt());

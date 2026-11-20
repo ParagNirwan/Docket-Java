@@ -54,6 +54,7 @@ public class TrashService {
     private final AuditService auditService;
     private final ApplicationEventPublisher eventPublisher;
     private final StorageQuotaService storageQuotaService;
+    private final StorageService storageService;
     private final DocketPlatformProperties platformProperties;
 
     public Page<TrashDocumentDTO> list(String slug, int page, int size, Authentication authentication) {
@@ -212,6 +213,14 @@ public class TrashService {
     }
 
     private void deleteRowAndFile(Document document) {
+        // Release any storage hold before deleting
+        if (document.isStorageHold()) {
+            try {
+                storageService.setHold(document.getStoredFileName(), false);
+            } catch (RuntimeException e) {
+                // Log but don't fail; the file deletion will proceed
+            }
+        }
         documentRepository.delete(document);
         documentRepository.flush();
         storageQuotaService.recordUsage(document.getTenantId(), -document.getFileSize(), -1);

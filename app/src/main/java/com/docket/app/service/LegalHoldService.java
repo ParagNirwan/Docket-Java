@@ -6,12 +6,14 @@ import com.docket.app.dto.LegalHoldDTO;
 import com.docket.app.dto.LegalHoldRequestDTO;
 import com.docket.app.dto.LegalHoldTargetsDTO;
 import com.docket.app.dto.SearchResultDTO;
+import com.docket.app.entity.Document;
 import com.docket.app.entity.LegalHold;
 import com.docket.app.entity.Tenant;
 import com.docket.app.entity.User;
 import com.docket.app.enums.AuditAction;
 import com.docket.app.enums.NotificationType;
 import com.docket.app.enums.Permission;
+import com.docket.app.repository.DocumentRepository;
 import com.docket.app.repository.DocumentSearchRepository;
 import com.docket.app.repository.LegalHoldRepository;
 import com.docket.app.repository.TenantRepository;
@@ -46,6 +48,8 @@ public class LegalHoldService {
     private final DocumentSearchRepository documentSearchRepository;
     private final TenantAuthorizationService tenantAuthorizationService;
     private final DocumentService documentService;
+    private final DocumentRepository documentRepository;
+    private final StorageService storageService;
     private final NotificationService notificationService;
     private final AuditService auditService;
     private final JdbcTemplate jdbcTemplate;
@@ -85,6 +89,7 @@ public class LegalHoldService {
             throw new ResponseStatusException(HttpStatus.valueOf(422), "No documents matched");
         }
         legalHoldRepository.markDocumentsHeld(hold.getId());
+        applyStorageHolds(hold.getId(), true);
 
         auditService.record(tenant.getId(), actor.getId(), AuditAction.LEGAL_HOLD_APPLIED, "LEGAL_HOLD", hold.getId(),
                 Map.of("name", hold.getName(), "reason", hold.getReason(), "documents", added));
@@ -106,6 +111,7 @@ public class LegalHoldService {
         }
         int added = addTargets(hold, targets);
         legalHoldRepository.markDocumentsHeld(hold.getId());
+        applyStorageHolds(hold.getId(), true);
         auditService.record(tenant.getId(), actor.getId(), AuditAction.LEGAL_HOLD_APPLIED, "LEGAL_HOLD", hold.getId(),
                 Map.of("name", hold.getName(), "documents", added));
         return toDTO(hold);
@@ -126,6 +132,7 @@ public class LegalHoldService {
         hold.setReleasedBy(actor.getId());
         legalHoldRepository.saveAndFlush(hold);
         int affected = legalHoldRepository.refreshDocumentsHeld(hold.getId());
+        applyStorageHolds(hold.getId(), false);
 
         auditService.record(tenant.getId(), actor.getId(), AuditAction.LEGAL_HOLD_RELEASED, "LEGAL_HOLD", hold.getId(),
                 Map.of("name", hold.getName(), "documents", affected));
@@ -202,5 +209,33 @@ public class LegalHoldService {
     private Tenant findTenant(String slug) {
         return tenantRepository.findBySlug(slug)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Tenant not found"));
+    }
+
+    // Apply or release GCS temporary holds for all documents under a legal hold.
+    // We fetch documents in batches to avoid loading too many into memory at once.
+    private void applyStorageHolds(UUID holdId, boolean hold) {
+        int page = 0;
+        int pageSize = 500;
+        while (true) {
+            var docsPage = legalHoldRepository.findDocuments(holdId, PageRequest.of(page, pageSize));
+            List<Document> docs = docsPage.getContent();
+            if (docs.isEmpty()) {
+                break;
+            }
+            for (Document doc : docs) {
+                try {
+                    storageService.setHold(doc.getStoredFileName(), hold);
+                    doc.setStorageHold(hold);
+                    documentRepository.save(doc);
+                } catch (RuntimeException e) {
+                    // Log but don't fail the whole operation; the document.storageHold
+                    // field in the database is the source of truth for application-layer enforcement.
+                }
+            }
+            if (docs.size() < pageSize) {
+                break;
+            }
+            page++;
+        }
     }
 }

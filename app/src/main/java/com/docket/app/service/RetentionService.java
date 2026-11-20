@@ -26,6 +26,7 @@ public class RetentionService {
     private final RetentionPolicyRepository policyRepository;
     private final FolderRepository folderRepository;
     private final DocumentRepository documentRepository;
+    private final StorageService storageService;
 
     // Call when a document arrives in a folder: uploaded, copied, moved or restored.
     public void applyOnEntry(Document document, UUID folderId) {
@@ -39,6 +40,7 @@ public class RetentionService {
         if (policies.isEmpty()) {
             if (!document.isRetentionLocked(now)) {
                 document.setRetentionPolicyId(null);
+                clearStorageHold(document);
             }
             return;
         }
@@ -49,6 +51,7 @@ public class RetentionService {
         }
         Instant clock = document.getArchivedAt() != null ? document.getArchivedAt() : now;
         document.setRetentionClockAt(clock);
+        boolean hasComplianceLock = false;
         for (RetentionPolicy policy : policies) {
             Instant start = policy.getClockStart() == ClockStart.UPLOADED_AT ? document.getCreatedAt() : clock;
             Instant until = start.plus(Duration.ofDays(policy.getRetentionDays()));
@@ -64,6 +67,13 @@ public class RetentionService {
             if (policy.getLockMode() == LockMode.COMPLIANCE || document.getLockMode() == null) {
                 document.setLockMode(policy.getLockMode());
             }
+            if (policy.getLockMode() == LockMode.COMPLIANCE) {
+                hasComplianceLock = true;
+            }
+        }
+        // Apply GCS temporary hold for compliance-mode retention locks
+        if (hasComplianceLock) {
+            applyStorageHold(document);
         }
     }
 
@@ -99,6 +109,7 @@ public class RetentionService {
         document.setLockMode(null);
         document.setRetentionPolicyId(null);
         document.setRetentionClockAt(null);
+        clearStorageHold(document);
     }
 
     // A folder's own policy always covers it; one higher up has to reach down.
@@ -127,5 +138,31 @@ public class RetentionService {
 
     private boolean inArchiveTray(List<Folder> chain) {
         return !chain.isEmpty() && Boolean.TRUE.equals(chain.getLast().getIsArchive());
+    }
+
+    // Apply GCS temporary hold for compliance-mode retention locks
+    private void applyStorageHold(Document document) {
+        if (!document.isStorageHold()) {
+            try {
+                storageService.setHold(document.getStoredFileName(), true);
+                document.setStorageHold(true);
+                documentRepository.save(document);
+            } catch (RuntimeException e) {
+                // Log but don't fail; application-layer enforcement remains via database
+            }
+        }
+    }
+
+    // Release GCS temporary hold when retention lock is cleared
+    private void clearStorageHold(Document document) {
+        if (document.isStorageHold()) {
+            try {
+                storageService.setHold(document.getStoredFileName(), false);
+                document.setStorageHold(false);
+                documentRepository.save(document);
+            } catch (RuntimeException e) {
+                // Log but don't fail; application-layer enforcement remains via database
+            }
+        }
     }
 }

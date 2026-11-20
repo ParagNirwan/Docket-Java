@@ -56,4 +56,14 @@ public class GcsStorageService implements StorageService {
         var blob = storage.get(BlobId.of(bucketName, storedFilename));
         return blob != null && blob.exists();
     }
+
+    @Override
+    public void setHold(String storedFilename, boolean hold) {
+        var blob = storage.get(BlobId.of(bucketName, storedFilename));
+        if (blob == null) {
+            throw new RuntimeException("File not found in GCS: " + storedFilename);
+        }
+        BlobInfo updated = blob.toBuilder().setTemporaryHold(hold).build();
+        storage.update(updated);
+    }
 }

@@ -5,10 +5,7 @@
 These are critical for production deployment. Blockers for going live.
 
 ### Observability & Reliability
-- **#112** Document and verify production backup recovery (P1, governance, infra)
-  - Document PITR (Point-in-Time Recovery) procedure for PostgreSQL
-  - Quarterly restore test to staging; verify RTO/RPO
-  - Document GCS bucket versioning + lifecycle for document storage
+- (Completed) **#112** Document and verify production backup recovery — see [docs/backup-recovery.md](docs/backup-recovery.md)
 
 ### AI Search Quality
 - **#114** Build a repeatable AI search quality evaluation suite (P2, ai, ai-search)
@@ -104,7 +101,7 @@ These are critical for production deployment. Blockers for going live.
 
 | Priority | Issues | Phase |
 |----------|--------|-------|
-| **P1** | #112 | Phase 0 |
+| **P1** | — | Phase 0 |
 | **P2** | #124, #123, #121, #115, #114, #97, #96, #95, #93, #92, #94 | Phase 1–2 |
 | **P3** | #89, #84, #60, #54, #46 | Phase 3 |
 

@@ -187,6 +187,17 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
             """)
     long countExpiringBetween(@Param("tenantId") UUID tenantId, @Param("now") Instant now, @Param("horizon") Instant horizon);
 
+    // Find active documents whose retention locks have expired but still have a storage hold
+    @Query("""
+            SELECT d FROM Document d
+            WHERE d.tenantId = :tenantId AND d.fileStatus = com.docket.app.enums.FileStatus.ACTIVE
+                AND d.retainUntil IS NOT NULL AND d.retainUntil <= :now
+                AND d.storageHold = true
+            """)
+    List<Document> findByTenantIdAndRetainUntilBeforeAndStorageHoldTrue(
+            @Param("tenantId") UUID tenantId,
+            @Param("now") Instant now);
+
     // Processing can take minutes. These two updates change only the indexing columns, so
     // they can't undo a delete or a move that happened to the document in the meantime.
     @Transactional

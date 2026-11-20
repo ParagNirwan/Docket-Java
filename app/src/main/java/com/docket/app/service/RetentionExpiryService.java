@@ -37,6 +37,7 @@ public class RetentionExpiryService {
     private final TrashService trashService;
     private final NotificationService notificationService;
     private final AuditService auditService;
+    private final StorageService storageService;
 
     @Transactional
     public void warnAboutExpiring() {
@@ -61,15 +62,32 @@ public class RetentionExpiryService {
     public void handleExpired() {
         Instant now = Instant.now();
         for (RetentionExpiryRepository.TenantExpiry expiry : expiryRepository.findExpiredToNotify(now)) {
-            tenantRepository.findById(expiry.tenantId()).ifPresent(tenant ->
-                    notificationService.notifyPermissionHolders(tenant.getId(), Permission.RETENTION_READ,
-                            NotificationType.RETENTION_EXPIRED,
-                            count(expiry.documents()) + " reached the end of retention",
-                            "In " + tenant.getName() + ". They can now be deleted.",
-                            retentionLink(tenant)));
+            tenantRepository.findById(expiry.tenantId()).ifPresent(tenant -> {
+                // Release storage holds for expired retention locks
+                releaseStorageHoldsForExpired(expiry.tenantId());
+                notificationService.notifyPermissionHolders(tenant.getId(), Permission.RETENTION_READ,
+                        NotificationType.RETENTION_EXPIRED,
+                        count(expiry.documents()) + " reached the end of retention",
+                        "In " + tenant.getName() + ". They can now be deleted.",
+                        retentionLink(tenant));
+            });
             expiryRepository.markExpiredNotified(expiry.tenantId(), now);
         }
         expiryRepository.markNoActionNeeded(now);
+    }
+
+    // Release GCS temporary holds for documents whose retention locks have expired
+    private void releaseStorageHoldsForExpired(UUID tenantId) {
+        List<Document> expiredDocs = documentRepository.findByTenantIdAndRetainUntilBeforeAndStorageHoldTrue(tenantId, Instant.now());
+        for (Document doc : expiredDocs) {
+            try {
+                storageService.setHold(doc.getStoredFileName(), false);
+                doc.setStorageHold(false);
+                documentRepository.save(doc);
+            } catch (RuntimeException e) {
+                // Log but don't fail; application-layer enforcement remains via database
+            }
+        }
     }
 
     public List<UUID> findDueForAutoDelete(int limit) {
@@ -84,6 +102,16 @@ public class RetentionExpiryService {
         if (document == null || document.getFileStatus() != FileStatus.ACTIVE
                 || document.isLegalHold() || document.isRetentionLocked(now)) {
             return;
+        }
+        // Release storage hold if there was a compliance-mode retention lock
+        if (document.isStorageHold()) {
+            try {
+                storageService.setHold(document.getStoredFileName(), false);
+                document.setStorageHold(false);
+                documentRepository.save(document);
+            } catch (RuntimeException e) {
+                // Log but don't fail; application-layer enforcement remains via database
+            }
         }
         document.setExpiryHandledAt(now);
         trashService.moveToTrash(document, null);

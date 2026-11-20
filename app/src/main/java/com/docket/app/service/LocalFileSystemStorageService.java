@@ -105,4 +105,13 @@ public class LocalFileSystemStorageService implements StorageService {
 
         return Files.exists(filePath);
     }
+
+    // Set or release a temporary hold on an object.
+    // For local storage this is a no-op since we enforce retention at the application layer.
+    // The document.storageHold field in the database is the source of truth.
+    @Override
+    public void setHold(String storedFilename, boolean hold) {
+        // No-op for local filesystem; retention is enforced by the application
+        // and the database trigger. The storageHold field in Document tracks the state.
+    }
 }

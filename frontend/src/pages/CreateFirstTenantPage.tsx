@@ -8,6 +8,7 @@ export function CreateFirstTenantPage() {
   const [tenantName, setTenantName] = useState("");
   const [tenantSlug, setTenantSlug] = useState("");
   const [isSlugTouched, setIsSlugTouched] = useState(false);
+  const [dataRegion, setDataRegion] = useState<"EU" | "US">("EU");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -71,6 +72,7 @@ export function CreateFirstTenantPage() {
           slug: cleanSlug,
           tenantName: cleanName,
           tenantSlug: cleanSlug,
+          dataRegion,
         }),
       });
 
@@ -204,6 +206,23 @@ export function CreateFirstTenantPage() {
                   {fieldErrors.tenantSlug}
                 </p>
               )}
+            </div>
+
+            {/* Data region: where files are stored. Fixed once the organization exists. */}
+            <div className="space-y-1.5">
+              <label htmlFor="org-region" className="block text-[13px] font-bold text-[#1D1C1D]">
+                Data region
+              </label>
+              <select
+                id="org-region"
+                value={dataRegion}
+                onChange={(e) => setDataRegion(e.target.value as "EU" | "US")}
+                className="w-full rounded-[8px] border border-[#DDDDDD] bg-[#F8F8F8] px-3.5 py-2 text-[14px] text-[#1D1C1D] focus:border-[#36C5F0] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#36C5F0]"
+              >
+                <option value="EU">European Union</option>
+                <option value="US">United States</option>
+              </select>
+              <p className="text-[12px] text-[#616061]">Where your documents are stored. This can't be changed later.</p>
             </div>
 
             {/* Submit Button */}

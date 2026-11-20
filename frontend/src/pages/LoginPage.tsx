@@ -4,6 +4,8 @@ import { useAuth } from "../context/useAuth";
 import { apiFetch, retryAfterMessage } from "../lib/session";
 import { Lock, Mail, ArrowRight, CheckCircle2, ShieldCheck, ArrowLeft } from "lucide-react";
 import { verify2faLogin } from "../services/twoFactorService";
+import { apiMessage } from "../lib/apiMessage";
+import { SsoButtons } from "../components/SsoButtons";
 
 type LoginLocationState = {
   message?: string;
@@ -43,7 +45,10 @@ export function LoginPage() {
         setError(
           response.status === 429
             ? retryAfterMessage(response)
-            : "Invalid email or password. Please try again."
+            : response.status === 403
+              // e.g. the organization requires single sign-on for this address
+              ? await apiMessage(response, "Password sign-in isn't allowed for this account")
+              : "Invalid email or password. Please try again."
         );
         setLoading(false);
         return;
@@ -255,6 +260,8 @@ export function LoginPage() {
             </button>
           </form>
           )}
+
+          {!twoFactorTempToken && <SsoButtons onError={setError} />}
 
           {/* Footer Navigation */}
           <div className="mt-6 border-t border-[#DDDDDD] pt-4 text-center text-[12px] text-[#616061]">

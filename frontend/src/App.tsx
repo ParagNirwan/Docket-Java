@@ -10,6 +10,8 @@ import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import { VerifyEmailPage } from "./pages/VerifyEmailPage";
 import { AcceptInvitePage } from "./pages/AcceptInvitePage";
+import { JoinInviteLinkPage } from "./pages/JoinInviteLinkPage";
+import { SsoCallbackPage } from "./pages/SsoCallbackPage";
 import { PublicSharePage } from "./pages/PublicSharePage";
 import { SearchPage } from "./pages/SearchPage";
 import { EmailVerificationBanner } from "./components/EmailVerificationBanner";
@@ -73,6 +75,8 @@ function AppContent() {
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/verify-email" element={<VerifyEmailPage />} />
               <Route path="/invite" element={<AcceptInvitePage />} />
+              <Route path="/join/:token" element={<JoinInviteLinkPage />} />
+              <Route path="/auth/sso/callback" element={<SsoCallbackPage />} />
               <Route path="/share/:token" element={<PublicSharePage />} />
               <Route
                 path="/create-first-tenant"

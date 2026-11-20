@@ -51,9 +51,7 @@ These are critical for production deployment. Blockers for going live.
 - Invite links: reusable, expiring, role-scoped
 
 ### Archive Locks & Retention Policies (Epic #92)
-- **#54** GCS bucket-level retention / object holds for tamper-proof locks (P3, retention, infra)
-  - Mirror app-level retention locks and legal holds to Cloud Storage via per-object `temporaryHold`
-  - No-op implementation in `LocalFileSystemStorageService`
+- (Completed) **#54** GCS bucket-level retention / object holds for tamper-proof locks
 - Retention policy UI: create/edit/delete, dry-run preview, compliance reports
 
 ### Document Management (Epic #94)
@@ -103,7 +101,7 @@ These are critical for production deployment. Blockers for going live.
 |----------|--------|-------|
 | **P1** | — | Phase 0 |
 | **P2** | #124, #123, #121, #115, #114, #97, #96, #95, #93, #92, #94 | Phase 1–2 |
-| **P3** | #89, #84, #60, #54, #46 | Phase 3 |
+| **P3** | #89, #84, #60, #46 | Phase 3 |
 
 ---
 

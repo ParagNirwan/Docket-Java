@@ -287,6 +287,17 @@ public class AiQueryService {
         double fallbackMaxDistance = thresholds.fallbackMaxDistance();
         double rerankMinScore = thresholds.rerankMinScore();
         boolean reranked = candidates.stream().anyMatch(chunk -> chunk.rerankScore() != null);
+
+        long exactMatches = candidates.stream().filter(RetrievedChunk::exactMatch).count();
+        Metrics.counter("docket.ai.retrieval.exact_matches").increment(exactMatches);
+
+        if (reranked) {
+            candidates.stream()
+                    .map(RetrievedChunk::rerankScore)
+                    .filter(java.util.Objects::nonNull)
+                    .forEach(score -> Metrics.summary("docket.ai.rerank.score").record(score));
+        }
+
         List<RetrievedChunk> kept = new ArrayList<>(candidates.stream()
                 .filter(chunk -> chunk.exactMatch() || (reranked
                         ? chunk.rerankScore() != null && chunk.rerankScore() >= rerankMinScore

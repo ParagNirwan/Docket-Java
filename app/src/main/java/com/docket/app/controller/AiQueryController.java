@@ -8,9 +8,11 @@ import com.docket.app.enums.Permission;
 import com.docket.app.repository.TenantRepository;
 import com.docket.app.repository.UserRepository;
 import com.docket.app.service.TenantAuthorizationService;
+import com.docket.app.service.AuditService;
 import com.docket.app.service.ai.AiQueryService;
 import com.docket.app.service.ai.AiRateLimiter;
 import com.docket.app.service.ai.RateLimitExceededException;
+import com.docket.app.enums.AuditAction;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -26,6 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/tenants/{slug}")
@@ -40,6 +43,7 @@ public class AiQueryController {
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
     private final com.docket.app.service.billing.PlanLimitService planLimitService;
+    private final AuditService auditService;
 
     @PostMapping("/ai/query")
     public ResponseEntity<AiQueryResponseDTO> query(
@@ -82,8 +86,10 @@ public class AiQueryController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
         try {
-            aiRateLimiter.checkAllowed(user.getId().toString());
+            aiRateLimiter.checkAllowed(user.getId().toString(), tenant.getId());
         } catch (RateLimitExceededException e) {
+            auditService.record(authentication, tenant.getId(), AuditAction.AI_QUERY_RATE_LIMITED,
+                    "ai_query", null, Map.of("retry_after_seconds", e.retryAfterSeconds()));
             ResponseStatusException ex = new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
                     "Rate limit exceeded. Maximum 10 queries per minute. Please wait and try again.", e);
             ex.getHeaders().add("Retry-After", String.valueOf(e.retryAfterSeconds()));

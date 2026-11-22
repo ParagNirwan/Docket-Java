@@ -1,7 +1,6 @@
 package com.docket.app.service.ai;
 
 import com.docket.app.config.DocketAiProperties;
-import com.docket.app.security.TokenHasher;
 import com.docket.app.service.DatabaseRateLimiter;
 import com.docket.app.service.RateLimitExceededException;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,6 +15,7 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
 import java.time.Duration;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
@@ -46,41 +47,62 @@ class AiRateLimiterTest {
     @InjectMocks
     private AiRateLimiter aiRateLimiter;
 
+    private final UUID tenantId = UUID.randomUUID();
+
     @BeforeEach
     void setUp() {
         aiProperties.getRateLimit().setMaxRequests(10);
         aiProperties.getRateLimit().setWindowMillis(60_000L);
+        aiProperties.getRateLimit().setTenantMaxRequests(100);
+        aiProperties.getRateLimit().setTenantWindowMillis(60_000L);
     }
 
     @Test
     void twoInstancesShareSamePerUserCounter() {
         // First call
-        doNothing().when(databaseRateLimiter).check(eq("ai:user-123"), eq(10), any(Duration.class));
-        aiRateLimiter.checkAllowed("user-123");
+        doNothing().when(databaseRateLimiter).check(eq("ai:user:user-123"), eq(10), any(Duration.class));
+        doNothing().when(databaseRateLimiter).check(eq("ai:tenant:" + tenantId), eq(100), any(Duration.class));
+        aiRateLimiter.checkAllowed("user-123", tenantId);
 
         // Second call from "another instance" - same user
-        doNothing().when(databaseRateLimiter).check(eq("ai:user-123"), eq(10), any(Duration.class));
-        aiRateLimiter.checkAllowed("user-123");
+        doNothing().when(databaseRateLimiter).check(eq("ai:user:user-123"), eq(10), any(Duration.class));
+        doNothing().when(databaseRateLimiter).check(eq("ai:tenant:" + tenantId), eq(100), any(Duration.class));
+        aiRateLimiter.checkAllowed("user-123", tenantId);
 
         // Verify both calls used the same raw key (hashing happens inside DatabaseRateLimiter)
         ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
-        verify(databaseRateLimiter, times(2)).check(keyCaptor.capture(), eq(10), any(Duration.class));
-        assertEquals("ai:user-123", keyCaptor.getAllValues().get(0));
-        assertEquals("ai:user-123", keyCaptor.getAllValues().get(1));
+        ArgumentCaptor<Integer> limitCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(databaseRateLimiter, times(4)).check(keyCaptor.capture(), limitCaptor.capture(), any(Duration.class));
+        assertEquals("ai:user:user-123", keyCaptor.getAllValues().get(0));
+        assertEquals("ai:tenant:" + tenantId, keyCaptor.getAllValues().get(1));
+        assertEquals("ai:user:user-123", keyCaptor.getAllValues().get(2));
+        assertEquals("ai:tenant:" + tenantId, keyCaptor.getAllValues().get(3));
+        assertEquals(10, limitCaptor.getAllValues().get(0));
+        assertEquals(100, limitCaptor.getAllValues().get(1));
+        assertEquals(10, limitCaptor.getAllValues().get(2));
+        assertEquals(100, limitCaptor.getAllValues().get(3));
     }
 
     @Test
     void differentUsersDoNotShareCounters() {
         doNothing().when(databaseRateLimiter).check(anyString(), eq(10), any(Duration.class));
+        doNothing().when(databaseRateLimiter).check(anyString(), eq(100), any(Duration.class));
 
-        aiRateLimiter.checkAllowed("user-1");
-        aiRateLimiter.checkAllowed("user-2");
+        aiRateLimiter.checkAllowed("user-1", tenantId);
+        aiRateLimiter.checkAllowed("user-2", tenantId);
 
         ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
-        verify(databaseRateLimiter, times(2)).check(keyCaptor.capture(), eq(10), any(Duration.class));
+        ArgumentCaptor<Integer> limitCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(databaseRateLimiter, times(4)).check(keyCaptor.capture(), limitCaptor.capture(), any(Duration.class));
 
-        assertEquals("ai:user-1", keyCaptor.getAllValues().get(0));
-        assertEquals("ai:user-2", keyCaptor.getAllValues().get(1));
+        assertEquals("ai:user:user-1", keyCaptor.getAllValues().get(0));
+        assertEquals("ai:tenant:" + tenantId, keyCaptor.getAllValues().get(1));
+        assertEquals("ai:user:user-2", keyCaptor.getAllValues().get(2));
+        assertEquals("ai:tenant:" + tenantId, keyCaptor.getAllValues().get(3));
+        assertEquals(10, limitCaptor.getAllValues().get(0));
+        assertEquals(100, limitCaptor.getAllValues().get(1));
+        assertEquals(10, limitCaptor.getAllValues().get(2));
+        assertEquals(100, limitCaptor.getAllValues().get(3));
     }
 
     @Test
@@ -93,11 +115,11 @@ class AiRateLimiterTest {
         AtomicInteger callCount = new AtomicInteger(0);
         doAnswer(invocation -> {
             int count = callCount.incrementAndGet();
-            if (count > limit) {
+            if (count > limit * 2) { // user + tenant calls
                 throw new RateLimitExceededException(1);
             }
             return null;
-        }).when(databaseRateLimiter).check(anyString(), eq(limit), any(Duration.class));
+        }).when(databaseRateLimiter).check(anyString(), anyInt(), any(Duration.class));
 
         ExecutorService executor = Executors.newFixedThreadPool(threadCount);
         CountDownLatch latch = new CountDownLatch(threadCount);
@@ -105,7 +127,7 @@ class AiRateLimiterTest {
         for (int i = 0; i < threadCount; i++) {
             executor.submit(() -> {
                 try {
-                    aiRateLimiter.checkAllowed("concurrent-user");
+                    aiRateLimiter.checkAllowed("concurrent-user", tenantId);
                     allowed.incrementAndGet();
                 } catch (RateLimitExceededException e) {
                     rejected.incrementAndGet();
@@ -125,11 +147,11 @@ class AiRateLimiterTest {
     @Test
     void requestAboveLimitThrows429WithRetryAfter() {
         doThrow(new RateLimitExceededException(30))
-                .when(databaseRateLimiter).check(anyString(), eq(10), any(Duration.class));
+                .when(databaseRateLimiter).check(anyString(), anyInt(), any(Duration.class));
 
         RateLimitExceededException ex = assertThrows(
                 RateLimitExceededException.class,
-                () -> aiRateLimiter.checkAllowed("user-123")
+                () -> aiRateLimiter.checkAllowed("user-123", tenantId)
         );
 
         assertEquals(30, ex.retryAfterSeconds());
@@ -139,8 +161,10 @@ class AiRateLimiterTest {
     void tryAcquireReturnsFalseWhenLimitExceeded() {
         when(databaseRateLimiter.tryAcquire(anyString(), eq(10), any(Duration.class)))
                 .thenReturn(false);
+        when(databaseRateLimiter.tryAcquire(anyString(), eq(100), any(Duration.class)))
+                .thenReturn(true);
 
-        boolean allowed = aiRateLimiter.tryAcquire("user-123");
+        boolean allowed = aiRateLimiter.tryAcquire("user-123", tenantId);
         assertEquals(false, allowed);
     }
 
@@ -148,9 +172,22 @@ class AiRateLimiterTest {
     void tryAcquireReturnsTrueWhenUnderLimit() {
         when(databaseRateLimiter.tryAcquire(anyString(), eq(10), any(Duration.class)))
                 .thenReturn(true);
+        when(databaseRateLimiter.tryAcquire(anyString(), eq(100), any(Duration.class)))
+                .thenReturn(true);
 
-        boolean allowed = aiRateLimiter.tryAcquire("user-123");
+        boolean allowed = aiRateLimiter.tryAcquire("user-123", tenantId);
         assertEquals(true, allowed);
+    }
+
+    @Test
+    void tryAcquireReturnsFalseWhenTenantLimitExceeded() {
+        when(databaseRateLimiter.tryAcquire(anyString(), eq(10), any(Duration.class)))
+                .thenReturn(true);
+        when(databaseRateLimiter.tryAcquire(anyString(), eq(100), any(Duration.class)))
+                .thenReturn(false);
+
+        boolean allowed = aiRateLimiter.tryAcquire("user-123", tenantId);
+        assertEquals(false, allowed);
     }
 
     @Test
@@ -158,7 +195,7 @@ class AiRateLimiterTest {
         when(databaseRateLimiter.peek(anyString(), any(Duration.class)))
                 .thenReturn(0);
 
-        int count = aiRateLimiter.getCurrentCount("unknown-user");
+        int count = aiRateLimiter.getCurrentUserCount("unknown-user");
         assertEquals(0, count);
     }
 
@@ -167,27 +204,47 @@ class AiRateLimiterTest {
         when(databaseRateLimiter.peek(anyString(), any(Duration.class)))
                 .thenReturn(7);
 
-        int count = aiRateLimiter.getCurrentCount("user-123");
+        int count = aiRateLimiter.getCurrentUserCount("user-123");
         assertEquals(7, count);
     }
 
     @Test
-    void resetRemovesUserCounter() {
-        aiRateLimiter.reset("user-123");
+    void getCurrentTenantCountReturnsCurrentAttempts() {
+        when(databaseRateLimiter.peek(anyString(), any(Duration.class)))
+                .thenReturn(50);
+
+        int count = aiRateLimiter.getCurrentTenantCount(tenantId);
+        assertEquals(50, count);
+    }
+
+    @Test
+    void resetUserRemovesUserCounter() {
+        aiRateLimiter.resetUser("user-123");
 
         // DatabaseRateLimiter.reset receives the raw key and hashes it internally
-        verify(databaseRateLimiter).reset(eq("ai:user-123"));
+        verify(databaseRateLimiter).reset(eq("ai:user:user-123"));
+    }
+
+    @Test
+    void resetTenantRemovesTenantCounter() {
+        aiRateLimiter.resetTenant(tenantId);
+
+        verify(databaseRateLimiter).reset(eq("ai:tenant:" + tenantId));
     }
 
     @Test
     void usesCorrectWindowFromConfiguration() {
         aiProperties.getRateLimit().setMaxRequests(5);
         aiProperties.getRateLimit().setWindowMillis(120_000L); // 2 minutes
+        aiProperties.getRateLimit().setTenantMaxRequests(50);
+        aiProperties.getRateLimit().setTenantWindowMillis(120_000L);
 
         doNothing().when(databaseRateLimiter).check(anyString(), eq(5), any(Duration.class));
+        doNothing().when(databaseRateLimiter).check(anyString(), eq(50), any(Duration.class));
 
-        aiRateLimiter.checkAllowed("user-123");
+        aiRateLimiter.checkAllowed("user-123", tenantId);
 
         verify(databaseRateLimiter).check(anyString(), eq(5), any(Duration.class));
+        verify(databaseRateLimiter).check(anyString(), eq(50), any(Duration.class));
     }
 }

@@ -111,9 +111,13 @@ public class DocketAiProperties {
     public static class RateLimit {
         public static final int DEFAULT_MAX_REQUESTS = 10;
         public static final long DEFAULT_WINDOW_MILLIS = 60_000L;
+        public static final int DEFAULT_TENANT_MAX_REQUESTS = 100;
+        public static final long DEFAULT_TENANT_WINDOW_MILLIS = 60_000L;
 
         private int maxRequests = DEFAULT_MAX_REQUESTS;
         private long windowMillis = DEFAULT_WINDOW_MILLIS;
+        private int tenantMaxRequests = DEFAULT_TENANT_MAX_REQUESTS;
+        private long tenantWindowMillis = DEFAULT_TENANT_WINDOW_MILLIS;
     }
 
     @Data

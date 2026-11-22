@@ -14,8 +14,10 @@ import com.docket.app.repository.TenantRepository;
 import com.docket.app.repository.UserRepository;
 import com.docket.app.service.ConversationService;
 import com.docket.app.service.TenantAuthorizationService;
+import com.docket.app.service.AuditService;
 import com.docket.app.service.ai.AiRateLimiter;
 import com.docket.app.service.ai.RateLimitExceededException;
+import com.docket.app.enums.AuditAction;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -34,6 +36,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -49,6 +52,7 @@ public class ConversationController {
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
     private final com.docket.app.service.billing.PlanLimitService planLimitService;
+    private final AuditService auditService;
 
     @GetMapping
     public ResponseEntity<List<ConversationDTO>> list(
@@ -164,7 +168,7 @@ public class ConversationController {
         tenantAuthorizationService.requirePermission(
                 authentication, tenant.getId(), Permission.DOCUMENTS_READ);
         User user = resolveUser(authentication);
-        requireRateLimit(user, tenant);
+        requireRateLimit(user, tenant, authentication);
 
         ConversationDTO conversation = conversationService.createConversation(
                 authentication, tenant.getId(), user.getId(), request.getQuestion(), request.getMode(),
@@ -186,7 +190,7 @@ public class ConversationController {
         tenantAuthorizationService.requirePermission(
                 authentication, tenant.getId(), Permission.DOCUMENTS_READ);
         User user = resolveUser(authentication);
-        requireRateLimit(user, tenant);
+        requireRateLimit(user, tenant, authentication);
 
         SseStream.run(response, objectMapper, listener -> conversationService.createConversation(
                 authentication, tenant.getId(), user.getId(), request.getQuestion(), request.getMode(),
@@ -204,7 +208,7 @@ public class ConversationController {
         tenantAuthorizationService.requirePermission(
                 authentication, tenant.getId(), Permission.DOCUMENTS_READ);
         User user = resolveUser(authentication);
-        requireRateLimit(user, tenant);
+        requireRateLimit(user, tenant, authentication);
 
         ConversationMessageDTO aiMessage = conversationService.sendMessage(
                 authentication, conversationId, tenant.getId(), user.getId(), request.getQuestion(),
@@ -226,7 +230,7 @@ public class ConversationController {
         tenantAuthorizationService.requirePermission(
                 authentication, tenant.getId(), Permission.DOCUMENTS_READ);
         User user = resolveUser(authentication);
-        requireRateLimit(user, tenant);
+        requireRateLimit(user, tenant, authentication);
 
         SseStream.run(response, objectMapper, listener -> conversationService.sendMessage(
                 authentication, conversationId, tenant.getId(), user.getId(), request.getQuestion(),
@@ -275,10 +279,12 @@ public class ConversationController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
     }
 
-    private void requireRateLimit(User user, Tenant tenant) {
+    private void requireRateLimit(User user, Tenant tenant, Authentication authentication) {
         try {
-            aiRateLimiter.checkAllowed(user.getId().toString());
+            aiRateLimiter.checkAllowed(user.getId().toString(), tenant.getId());
         } catch (RateLimitExceededException e) {
+            auditService.record(authentication, tenant.getId(), AuditAction.AI_QUERY_RATE_LIMITED,
+                    "ai_query", null, Map.of("retry_after_seconds", e.retryAfterSeconds()));
             ResponseStatusException ex = new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
                     "Rate limit exceeded. Maximum 10 queries per minute. Please wait and try again.", e);
             ex.getHeaders().add("Retry-After", String.valueOf(e.retryAfterSeconds()));
